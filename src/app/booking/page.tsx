@@ -37,7 +37,25 @@ export default function BookingPage() {
 
   const today = new Date().toISOString().split("T")[0];
 
-  function handleSubmit() {
+  async function handleSubmit() {
+    const service = SERVICES.find((s) => s.id === selected.service);
+    const price = service ? parseInt(service.price) : 0;
+    await fetch("/api/bookings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_name: selected.name,
+        client_phone: selected.phone,
+        client_email: selected.email,
+        barber: BARBERS.find(b => b.id === selected.barber)?.name || selected.barber,
+        service: service?.name || "",
+        price,
+        date: selected.date,
+        time: selected.time,
+        note: selected.note,
+        status: "confirmed",
+      }),
+    });
     setSubmitted(true);
   }
 
