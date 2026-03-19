@@ -12,9 +12,9 @@ const TEAM = [
   },
   {
     name: "Diodis",
-    role: "Barbier",
-    exp: "Expert en dégradés",
-    bio: "Diodis est reconnu pour sa précision et sa créativité. Spécialiste des dégradés et des coupes modernes, il sait adapter chaque style à la morphologie et à la personnalité de ses clients. Son souci du détail fait de chaque visite une expérience unique.",
+    role: "Barbière",
+    exp: "Experte en dégradés",
+    bio: "Diodis est reconnue pour sa précision et sa créativité. Spécialiste des dégradés et des coupes modernes, elle sait adapter chaque style à la morphologie et à la personnalité de ses clients. Son souci du détail fait de chaque visite une expérience unique.",
     specialties: ["Dégradés", "Coupes modernes", "Barbe sculptée", "Designs & lignes"],
   },
 ];

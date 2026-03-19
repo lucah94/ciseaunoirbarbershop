@@ -66,7 +66,7 @@ export default function Home() {
           <div style={{ display: "flex", gap: "40px", justifyContent: "center", flexWrap: "wrap", marginTop: "64px", maxWidth: "900px", margin: "64px auto 0" }}>
             {[
               { name: "Melynda", role: "Barbière & Co-fondatrice", years: "18+ ans d'expérience" },
-              { name: "Diodis", role: "Barbier", years: "Expert en dégradés" },
+              { name: "Diodis", role: "Barbière", years: "Experte en dégradés" },
             ].map((barber) => (
               <div key={barber.name} style={{ flex: "1", minWidth: "250px", maxWidth: "350px" }}>
                 <div style={{
