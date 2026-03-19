@@ -1,26 +1,88 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --gold: #C9A84C;
+  --gold-light: #E8C96A;
+  --black: #0A0A0A;
+  --dark: #111111;
+  --dark-2: #1A1A1A;
+  --white: #F5F5F5;
+  --background: #0A0A0A;
+  --foreground: #F5F5F5;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--black);
+  color: var(--white);
+  font-family: 'Georgia', serif;
+}
+
+.gold { color: var(--gold); }
+.bg-gold { background-color: var(--gold); }
+
+.btn-gold {
+  background-color: var(--gold);
+  color: var(--black);
+  font-weight: 700;
+  padding: 14px 36px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-size: 13px;
+  transition: all 0.3s ease;
+  border: 2px solid var(--gold);
+  display: inline-block;
+  cursor: pointer;
+}
+
+.btn-gold:hover {
+  background-color: transparent;
+  color: var(--gold);
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--gold);
+  font-weight: 700;
+  padding: 14px 36px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-size: 13px;
+  transition: all 0.3s ease;
+  border: 2px solid var(--gold);
+  display: inline-block;
+  cursor: pointer;
+}
+
+.btn-outline:hover {
+  background-color: var(--gold);
+  color: var(--black);
+}
+
+.section-title {
+  font-size: 42px;
+  font-weight: 300;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+
+.divider {
+  width: 60px;
+  height: 2px;
+  background-color: var(--gold);
+  margin: 16px auto;
 }
