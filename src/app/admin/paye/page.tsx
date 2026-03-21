@@ -1,18 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import AdminSidebar from "@/components/AdminSidebar";
 
 type Cut = {
   id: string; barber: string; service_name: string;
   price: number; tip: number; discount_percent: number; date: string;
 };
-
-const NAV = [
-  { label: "Vue d'ensemble", href: "/admin" },
-  { label: "Agenda", href: "/admin/agenda" },
-  { label: "Paye", href: "/admin/paye" },
-  { label: "Comptabilité", href: "/admin/comptabilite" },
-];
 
 const SERVICES = ["Coupe + Lavage", "Coupe + Rasage Lame", "Service Premium", "Rasage / Barbe", "Tarif Étudiant", "Autre"];
 const BARBERS = ["Melynda", "Diodis"];
@@ -43,7 +36,8 @@ export default function PayePage() {
   useEffect(() => {
     fetch("/api/cuts")
       .then(r => r.json())
-      .then(data => { setCuts(Array.isArray(data) ? data : []); setLoading(false); });
+      .then(data => { setCuts(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
 
   const weekCuts = cuts.filter(c => c.date >= week.start && c.date <= week.end);
@@ -89,27 +83,9 @@ export default function PayePage() {
 
   return (
     <div style={{ background: "#0A0A0A", minHeight: "100vh", display: "flex" }}>
-      <aside style={{ width: "220px", background: "#080808", borderRight: "1px solid #1A1A1A", padding: "32px 0", position: "fixed", top: 0, bottom: 0, left: 0, display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: "0 24px 32px", borderBottom: "1px solid #1A1A1A" }}>
-          <p style={{ fontSize: "16px", letterSpacing: "4px", color: "#F5F5F5", fontWeight: 300 }}>CISEAU <span style={{ color: "#C9A84C" }}>NOIR</span></p>
-          <p style={{ color: "#444", fontSize: "11px", marginTop: "4px" }}>Admin</p>
-        </div>
-        <nav style={{ padding: "24px 0", flex: 1 }}>
-          {NAV.map(item => (
-            <Link key={item.href} href={item.href} style={{
-              display: "block", padding: "12px 24px", color: item.href === "/admin/paye" ? "#C9A84C" : "#666",
-              textDecoration: "none", fontSize: "13px", letterSpacing: "1px",
-              background: item.href === "/admin/paye" ? "#111" : "transparent",
-              borderLeft: item.href === "/admin/paye" ? "2px solid #C9A84C" : "2px solid transparent",
-            }}>{item.label}</Link>
-          ))}
-        </nav>
-        <div style={{ padding: "16px 24px", borderTop: "1px solid #1A1A1A" }}>
-          <Link href="/" style={{ color: "#444", fontSize: "12px", textDecoration: "none" }}>← Voir le site</Link>
-        </div>
-      </aside>
+      <AdminSidebar />
 
-      <main style={{ marginLeft: "220px", flex: 1, padding: "40px" }}>
+      <main style={{ marginLeft: "260px", flex: 1, padding: "40px 48px" }}>
         <div style={{ marginBottom: "32px" }}>
           <h1 style={{ fontSize: "24px", fontWeight: 300, letterSpacing: "3px", color: "#F5F5F5", marginBottom: "4px" }}>Système de Paye</h1>
           <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "12px" }}>
@@ -168,7 +144,7 @@ export default function PayePage() {
         </div>
 
         {/* Liste des coupes par barbière */}
-        {summary.map(s => s.cuts.length > 0 && (
+        {summary.filter(s => s.cuts.length > 0).map(s => (
           <div key={s.name} style={{ background: "#111", border: "1px solid #1A1A1A", padding: "28px", marginBottom: "16px" }}>
             <p style={{ color: "#C9A84C", fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase", marginBottom: "16px" }}>{s.name} — {s.cuts.length} coupe{s.cuts.length > 1 ? "s" : ""}</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>

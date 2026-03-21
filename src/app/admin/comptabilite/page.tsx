@@ -1,15 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import AdminSidebar from "@/components/AdminSidebar";
 
 type Expense = { id: string; description: string; amount: number; category: string; date: string; };
-
-const NAV = [
-  { label: "Vue d'ensemble", href: "/admin" },
-  { label: "Agenda", href: "/admin/agenda" },
-  { label: "Paye", href: "/admin/paye" },
-  { label: "Comptabilité", href: "/admin/comptabilite" },
-];
 
 const CATEGORIES = ["Loyer", "Produits", "Équipement", "Marketing", "Téléphone", "Assurances", "Salaires", "Autre"];
 
@@ -39,7 +32,7 @@ export default function ComptabilitePage() {
       setExpenses(Array.isArray(e) ? e : []);
       setCuts(Array.isArray(c) ? c : []);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
   }, []);
 
   const monthExpenses = expenses.filter(e => e.date >= month.start && e.date <= month.end);
@@ -73,27 +66,9 @@ export default function ComptabilitePage() {
 
   return (
     <div style={{ background: "#0A0A0A", minHeight: "100vh", display: "flex" }}>
-      <aside style={{ width: "220px", background: "#080808", borderRight: "1px solid #1A1A1A", padding: "32px 0", position: "fixed", top: 0, bottom: 0, left: 0, display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: "0 24px 32px", borderBottom: "1px solid #1A1A1A" }}>
-          <p style={{ fontSize: "16px", letterSpacing: "4px", color: "#F5F5F5", fontWeight: 300 }}>CISEAU <span style={{ color: "#C9A84C" }}>NOIR</span></p>
-          <p style={{ color: "#444", fontSize: "11px", marginTop: "4px" }}>Admin</p>
-        </div>
-        <nav style={{ padding: "24px 0", flex: 1 }}>
-          {NAV.map(item => (
-            <Link key={item.href} href={item.href} style={{
-              display: "block", padding: "12px 24px", color: item.href === "/admin/comptabilite" ? "#C9A84C" : "#666",
-              textDecoration: "none", fontSize: "13px", letterSpacing: "1px",
-              background: item.href === "/admin/comptabilite" ? "#111" : "transparent",
-              borderLeft: item.href === "/admin/comptabilite" ? "2px solid #C9A84C" : "2px solid transparent",
-            }}>{item.label}</Link>
-          ))}
-        </nav>
-        <div style={{ padding: "16px 24px", borderTop: "1px solid #1A1A1A" }}>
-          <Link href="/" style={{ color: "#444", fontSize: "12px", textDecoration: "none" }}>← Voir le site</Link>
-        </div>
-      </aside>
+      <AdminSidebar />
 
-      <main style={{ marginLeft: "220px", flex: 1, padding: "40px" }}>
+      <main style={{ marginLeft: "260px", flex: 1, padding: "40px 48px" }}>
         <div style={{ marginBottom: "32px" }}>
           <h1 style={{ fontSize: "24px", fontWeight: 300, letterSpacing: "3px", color: "#F5F5F5", marginBottom: "4px" }}>Comptabilité</h1>
           <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "12px" }}>
