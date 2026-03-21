@@ -107,7 +107,6 @@ export default function ServicesPage() {
         .service-card-featured {
           background: linear-gradient(135deg, #0D0D0D 0%, #1A1508 100%);
           border: 1px solid rgba(212,175,55,0.4);
-          animation: pulseGlow 3s ease-in-out infinite;
         }
         .service-tag {
           border: 1px solid rgba(212,175,55,0.15);
@@ -197,14 +196,18 @@ export default function ServicesPage() {
         <section style={{ padding: "40px 20px 100px", maxWidth: "920px", margin: "0 auto" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
             {SERVICES.map((s, index) => (
-              <div
+              <Link
                 key={s.name}
+                href={`/booking?service=${encodeURIComponent(s.name)}`}
                 className={`service-card ${s.featured ? "service-card-featured" : ""}`}
                 style={{
                   animationName: "fadeInUp",
                   animationDuration: "0.6s",
                   animationFillMode: "both",
                   animationDelay: `${index * 0.1}s`,
+                  textDecoration: "none",
+                  cursor: "pointer",
+                  display: "block",
                 }}
               >
                 {s.featured && (
@@ -294,7 +297,7 @@ export default function ServicesPage() {
                     </span>
                   ))}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </section>

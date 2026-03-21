@@ -185,104 +185,173 @@ export default function AgendaPage() {
         ) : (
           <div style={{ display: "flex", gap: "24px" }}>
             {/* Calendar */}
-            <div style={{ flex: 1 }}>
+            <div style={{
+              flex: 1,
+              background: "linear-gradient(135deg, #0D0D0D, #0A0A0A)",
+              border: "1px solid rgba(212,175,55,0.12)",
+              borderRadius: "16px",
+              padding: "24px",
+              boxShadow: "0 8px 40px rgba(0,0,0,0.4), 0 0 60px rgba(212,175,55,0.04), inset 0 1px 0 rgba(212,175,55,0.08)",
+              position: "relative",
+              overflow: "hidden",
+            }}>
+              {/* Gold glow corners */}
+              <div style={{ position: "absolute", top: 0, left: 0, width: "100px", height: "100px", background: "radial-gradient(circle at top left, rgba(212,175,55,0.08), transparent 70%)", pointerEvents: "none" }} />
+              <div style={{ position: "absolute", top: 0, right: 0, width: "100px", height: "100px", background: "radial-gradient(circle at top right, rgba(212,175,55,0.08), transparent 70%)", pointerEvents: "none" }} />
+              <div style={{ position: "absolute", bottom: 0, left: 0, width: "100px", height: "100px", background: "radial-gradient(circle at bottom left, rgba(212,175,55,0.05), transparent 70%)", pointerEvents: "none" }} />
+              <div style={{ position: "absolute", bottom: 0, right: 0, width: "100px", height: "100px", background: "radial-gradient(circle at bottom right, rgba(212,175,55,0.05), transparent 70%)", pointerEvents: "none" }} />
               <style>{`
+                @keyframes goldPulse {
+                  0%, 100% { box-shadow: 0 0 8px rgba(212,175,55,0.1); }
+                  50% { box-shadow: 0 0 20px rgba(212,175,55,0.25), 0 0 40px rgba(212,175,55,0.08); }
+                }
+                @keyframes goldGlow {
+                  0%, 100% { opacity: 0.3; }
+                  50% { opacity: 0.7; }
+                }
                 .fc {
-                  --fc-border-color: rgba(255,255,255,0.06);
-                  --fc-today-bg-color: rgba(212,175,55,0.04);
+                  --fc-border-color: rgba(212,175,55,0.08);
+                  --fc-today-bg-color: rgba(212,175,55,0.06);
                   --fc-page-bg-color: #080808;
                   --fc-neutral-bg-color: #0D0D0D;
-                  --fc-list-event-hover-bg-color: rgba(212,175,55,0.08);
+                  --fc-list-event-hover-bg-color: rgba(212,175,55,0.12);
                   font-family: inherit;
                 }
                 .fc .fc-toolbar-title {
-                  font-size: 18px !important;
+                  font-size: 22px !important;
                   font-weight: 300 !important;
-                  letter-spacing: 2px !important;
+                  letter-spacing: 4px !important;
                   color: #F0F0F0 !important;
                   text-transform: uppercase !important;
+                  background: linear-gradient(90deg, #B8860B, #D4AF37, #E8C84A, #D4AF37, #B8860B) !important;
+                  background-size: 200% auto !important;
+                  -webkit-background-clip: text !important;
+                  -webkit-text-fill-color: transparent !important;
                 }
                 .fc .fc-button {
                   background: #0D0D0D !important;
-                  border: 1px solid rgba(212,175,55,0.15) !important;
+                  border: 1px solid rgba(212,175,55,0.2) !important;
                   color: #999 !important;
                   font-size: 11px !important;
                   letter-spacing: 1px !important;
                   text-transform: uppercase !important;
-                  padding: 6px 14px !important;
+                  padding: 8px 18px !important;
                   border-radius: 6px !important;
-                  transition: all 0.2s ease !important;
+                  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1) !important;
                 }
                 .fc .fc-button:hover {
-                  background: rgba(212,175,55,0.08) !important;
+                  background: rgba(212,175,55,0.1) !important;
                   color: #D4AF37 !important;
-                  border-color: rgba(212,175,55,0.3) !important;
+                  border-color: rgba(212,175,55,0.5) !important;
+                  box-shadow: 0 0 20px rgba(212,175,55,0.15), 0 4px 12px rgba(212,175,55,0.1) !important;
                 }
                 .fc .fc-button-active {
                   background: linear-gradient(135deg, #D4AF37, #B8860B) !important;
                   color: #080808 !important;
                   border-color: #D4AF37 !important;
                   font-weight: 600 !important;
+                  box-shadow: 0 0 25px rgba(212,175,55,0.3), 0 4px 16px rgba(212,175,55,0.2) !important;
                 }
                 .fc .fc-col-header-cell {
-                  background: #0A0A0A !important;
-                  padding: 10px 0 !important;
+                  background: linear-gradient(180deg, #0D0D0D, #0A0A0A) !important;
+                  padding: 14px 0 !important;
+                  border-bottom: 1px solid rgba(212,175,55,0.12) !important;
                 }
                 .fc .fc-col-header-cell-cushion {
                   color: #D4AF37 !important;
-                  font-size: 11px !important;
-                  letter-spacing: 2px !important;
+                  font-size: 12px !important;
+                  letter-spacing: 3px !important;
                   text-transform: uppercase !important;
                   text-decoration: none !important;
-                  font-weight: 400 !important;
+                  font-weight: 500 !important;
                 }
                 .fc .fc-timegrid-slot {
-                  height: 48px !important;
-                  border-color: rgba(255,255,255,0.03) !important;
+                  height: 56px !important;
+                  border-color: rgba(212,175,55,0.04) !important;
+                  transition: background 0.2s ease !important;
+                }
+                .fc .fc-timegrid-slot:hover {
+                  background: rgba(212,175,55,0.03) !important;
                 }
                 .fc .fc-timegrid-slot-label-cushion {
-                  color: #444 !important;
-                  font-size: 11px !important;
+                  color: #555 !important;
+                  font-size: 12px !important;
                   font-variant-numeric: tabular-nums !important;
+                  font-weight: 400 !important;
                 }
                 .fc .fc-timegrid-event {
+                  border-radius: 8px !important;
+                  border-width: 0 0 0 4px !important;
+                  padding: 6px 10px !important;
+                  font-size: 13px !important;
+                  cursor: pointer !important;
+                  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1) !important;
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+                }
+                .fc .fc-timegrid-event:hover {
+                  transform: scale(1.03) !important;
+                  box-shadow: 0 4px 20px rgba(212,175,55,0.25), 0 0 30px rgba(212,175,55,0.1) !important;
+                  z-index: 10 !important;
+                }
+                .fc .fc-timegrid-event .fc-event-title {
+                  font-weight: 600 !important;
+                  font-size: 13px !important;
+                }
+                .fc .fc-timegrid-event .fc-event-time {
+                  font-size: 11px !important;
+                  opacity: 0.85 !important;
+                  font-weight: 500 !important;
+                }
+                .fc .fc-daygrid-event {
                   border-radius: 6px !important;
-                  border-width: 0 0 0 3px !important;
                   padding: 4px 8px !important;
                   font-size: 12px !important;
                   cursor: pointer !important;
+                  transition: all 0.3s ease !important;
                 }
-                .fc .fc-timegrid-event .fc-event-title {
-                  font-weight: 500 !important;
-                }
-                .fc .fc-timegrid-event .fc-event-time {
-                  font-size: 10px !important;
-                  opacity: 0.8 !important;
-                }
-                .fc .fc-daygrid-event {
-                  border-radius: 4px !important;
-                  padding: 2px 6px !important;
-                  font-size: 11px !important;
-                  cursor: pointer !important;
+                .fc .fc-daygrid-event:hover {
+                  box-shadow: 0 4px 16px rgba(212,175,55,0.2) !important;
+                  transform: translateY(-1px) !important;
                 }
                 .fc .fc-scrollgrid {
-                  border-color: rgba(255,255,255,0.06) !important;
+                  border-color: rgba(212,175,55,0.08) !important;
+                  border-radius: 12px !important;
+                  overflow: hidden !important;
                 }
                 .fc td, .fc th {
-                  border-color: rgba(255,255,255,0.04) !important;
+                  border-color: rgba(212,175,55,0.05) !important;
                 }
                 .fc .fc-timegrid-now-indicator-line {
                   border-color: #D4AF37 !important;
                   border-width: 2px !important;
+                  box-shadow: 0 0 12px rgba(212,175,55,0.5), 0 0 24px rgba(212,175,55,0.2) !important;
                 }
                 .fc .fc-timegrid-now-indicator-arrow {
                   border-color: #D4AF37 !important;
                   border-top-color: transparent !important;
                   border-bottom-color: transparent !important;
                 }
-                .event-cancelled .fc-event-title { text-decoration: line-through !important; }
-                .event-noshow { opacity: 0.6 !important; border-left-color: #f90 !important; }
-                .fc .fc-day-today .fc-col-header-cell-cushion { color: #F0F0F0 !important; font-weight: 600 !important; }
+                .fc .fc-day-today {
+                  background: rgba(212,175,55,0.04) !important;
+                }
+                .fc .fc-day-today .fc-col-header-cell-cushion {
+                  color: #F0F0F0 !important;
+                  font-weight: 700 !important;
+                  text-shadow: 0 0 10px rgba(212,175,55,0.5) !important;
+                }
+                .fc .fc-daygrid-day:hover {
+                  background: rgba(212,175,55,0.05) !important;
+                }
+                .fc .fc-daygrid-day-number {
+                  color: #888 !important;
+                  transition: all 0.2s ease !important;
+                }
+                .fc .fc-daygrid-day:hover .fc-daygrid-day-number {
+                  color: #D4AF37 !important;
+                  text-shadow: 0 0 8px rgba(212,175,55,0.4) !important;
+                }
+                .event-cancelled .fc-event-title { text-decoration: line-through !important; opacity: 0.5 !important; }
+                .event-noshow { opacity: 0.5 !important; border-left-color: #f90 !important; }
               `}</style>
               <FullCalendar
                 ref={calendarRef}

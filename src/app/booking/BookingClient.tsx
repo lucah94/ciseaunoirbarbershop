@@ -332,9 +332,12 @@ function StepIndicator({ step }: { step: number }) {
 function BookingContent() {
   const params = useSearchParams();
   const preBarber = params.get("barber") || "";
-  const [step, setStep] = useState(1);
+  const preServiceName = params.get("service") || "";
+  const preService = SERVICES.find(s => s.name === preServiceName);
+  const initialStep = preService ? 2 : 1;
+  const [step, setStep] = useState(initialStep);
   const [selected, setSelected] = useState({
-    service: "",
+    service: preService?.id || "",
     barber: preBarber,
     date: "",
     time: "",
@@ -988,32 +991,39 @@ function BookingContent() {
                       {getTimesForBarberAndDate(selected.barber, selected.date).map((t) => {
                         const isBooked = bookedTimes.includes(t);
                         const isSelected = selected.time === t;
+                        const now = new Date();
+                        const isToday = selected.date === today;
+                        const [tH, tM] = t.split(":").map(Number);
+                        const isPastTime = isToday && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()));
+                        const isUnavailable = isBooked || isPastTime;
                         return (
                           <button
                             key={t}
-                            onClick={() => isBooked ? setWaitlistModal({ time: t }) : setSelected({ ...selected, time: t })}
-                            aria-label={`${t}${isBooked ? " — déjà réservé, rejoindre la liste d'attente" : ""}`}
+                            onClick={() => isPastTime ? undefined : isBooked ? setWaitlistModal({ time: t }) : setSelected({ ...selected, time: t })}
+                            disabled={isPastTime}
+                            aria-label={`${t}${isPastTime ? " — heure passée" : isBooked ? " — déjà réservé, rejoindre la liste d'attente" : ""}`}
                             aria-pressed={isSelected}
-                            className={`time-btn${isSelected ? " time-selected" : ""}${isBooked ? " time-booked" : ""}`}
+                            className={`time-btn${isSelected ? " time-selected" : ""}${isBooked ? " time-booked" : ""}${isPastTime ? " time-booked" : ""}`}
                             style={{
-                              background: isBooked
+                              background: isUnavailable
                                 ? "rgba(255,255,255,0.02)"
                                 : isSelected
                                   ? "rgba(184,134,11,0.2)"
                                   : "#0D0D0D",
-                              border: isBooked
+                              border: isUnavailable
                                 ? "1px solid rgba(255,255,255,0.04)"
                                 : isSelected
                                   ? "2px solid #D4AF37"
                                   : "1px solid rgba(255,255,255,0.08)",
-                              color: isBooked
+                              color: isUnavailable
                                 ? "#2A2A2A"
                                 : isSelected
                                   ? "#E8C84A"
                                   : "#BBB",
                               padding: "14px 12px",
-                              cursor: "pointer",
+                              cursor: isPastTime ? "not-allowed" : "pointer",
                               fontSize: "16px",
+                              textDecoration: isPastTime ? "line-through" : "none",
                               fontWeight: isSelected ? 700 : 500,
                               textDecoration: isBooked ? "line-through" : "none",
                               borderRadius: "10px",

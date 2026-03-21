@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, useMotionValue, useTransform, useScroll, type Variants } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 
@@ -593,20 +594,19 @@ export default function HomeContent() {
                   width: "120px",
                   height: "120px",
                   borderRadius: "50%",
-                  background: "linear-gradient(135deg, #111, #1A1A1A)",
                   border: "2px solid #D4AF37",
                   margin: "0 auto 28px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 0 30px rgba(212,175,55,0.1)",
+                  overflow: "hidden",
+                  boxShadow: "0 0 30px rgba(212,175,55,0.15)",
+                  position: "relative",
                 }}>
-                  <span style={{
-                    fontSize: "36px",
-                    color: "#D4AF37",
-                    animation: "float 4s ease-in-out infinite",
-                    display: "inline-block",
-                  }}>✂</span>
+                  <Image
+                    src={`/images/${barber.name.toLowerCase()}.jpg`}
+                    alt={barber.name}
+                    width={120}
+                    height={120}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
                 </div>
                 <h3 style={{
                   fontSize: "22px",

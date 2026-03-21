@@ -14,9 +14,10 @@ const bookingSchema = z.object({
   service: z.string().min(1, "Le service est requis"),
   barber: z.string().min(1, "Le coiffeur est requis"),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (AAAA-MM-JJ)"),
-  time: z.string().regex(/^\d{2}:\d{2}$/, "Format d'heure invalide (HH:MM)"),
+  time: z.string().regex(/^\d{1,2}:\d{2}$/, "Format d'heure invalide (H:MM ou HH:MM)"),
   price: z.number().optional(),
   note: z.string().max(500).optional().or(z.literal("")),
+  status: z.string().optional(),
 });
 
 export async function GET(req: NextRequest) {
