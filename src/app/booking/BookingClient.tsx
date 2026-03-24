@@ -1023,9 +1023,8 @@ function BookingContent() {
                               padding: "14px 12px",
                               cursor: isPastTime ? "not-allowed" : "pointer",
                               fontSize: "16px",
-                              textDecoration: isPastTime ? "line-through" : "none",
+                              textDecoration: (isPastTime || isBooked) ? "line-through" : "none",
                               fontWeight: isSelected ? 700 : 500,
-                              textDecoration: isBooked ? "line-through" : "none",
                               borderRadius: "10px",
                               transition: "all 0.25s ease",
                               boxShadow: isSelected
