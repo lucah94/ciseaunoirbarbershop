@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { escapeHtml } from "@/lib/sanitize";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -34,7 +35,7 @@ export async function sendBookingConfirmation(booking: {
         <h1 style="font-weight: 300; font-size: 28px; letter-spacing: 3px; margin-bottom: 8px; color: #F5F5F5;">Réservation confirmée</h1>
         <div style="width: 40px; height: 2px; background: #C9A84C; margin-bottom: 32px;"></div>
 
-        <p style="color: #999; font-size: 15px; margin-bottom: 32px;">Bonjour ${booking.client_name},<br>Votre rendez-vous a bien été enregistré.</p>
+        <p style="color: #999; font-size: 15px; margin-bottom: 32px;">Bonjour ${escapeHtml(booking.client_name)},<br>Votre rendez-vous a bien été enregistré.</p>
 
         <div style="background: #111; border: 1px solid #1A1A1A; padding: 24px; margin-bottom: 32px;">
           <table style="width: 100%; border-collapse: collapse;">

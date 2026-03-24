@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import twilio from "twilio";
+import crypto from "crypto";
 
-const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN || "ciseaunoir_messenger_2026";
+const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN!;
 const PAGE_ACCESS_TOKEN = process.env.FACEBOOK_ACCESS_TOKEN!;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY!;
 
@@ -277,10 +278,24 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ error: "Verification failed" }, { status: 403 });
 }
 
+// Verify Facebook webhook signature
+function verifyFacebookSignature(rawBody: string, signature: string | null): boolean {
+  if (!signature || !process.env.FACEBOOK_APP_SECRET) return false;
+  const expectedSig = "sha256=" + crypto.createHmac("sha256", process.env.FACEBOOK_APP_SECRET).update(rawBody).digest("hex");
+  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig));
+}
+
 // POST: Receive and handle incoming messages
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const rawBody = await req.text();
+    const signature = req.headers.get("x-hub-signature-256");
+
+    if (!verifyFacebookSignature(rawBody, signature)) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
+    }
+
+    const body = JSON.parse(rawBody);
 
     if (body.object !== "page") {
       return NextResponse.json({ error: "Not a page event" }, { status: 400 });

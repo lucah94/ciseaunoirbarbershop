@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
 import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
+import { escapeHtml } from "@/lib/sanitize";
 
 const contactSchema = z.object({
   name: z.string().min(1, "Le nom est requis").max(100),
@@ -75,10 +76,10 @@ export async function POST(req: NextRequest) {
       html: `
         <div style="font-family: Georgia, serif; background: #0A0A0A; color: #F5F5F5; padding: 32px; max-width: 560px; margin: 0 auto;">
           <p style="color: #C9A84C; letter-spacing: 4px; font-size: 11px; text-transform: uppercase; margin-bottom: 16px;">Nouveau message — Ciseau Noir</p>
-          <p style="color: #999; margin-bottom: 8px;"><strong style="color: #F5F5F5;">Nom :</strong> ${name}</p>
-          <p style="color: #999; margin-bottom: 16px;"><strong style="color: #F5F5F5;">Courriel :</strong> ${email}</p>
+          <p style="color: #999; margin-bottom: 8px;"><strong style="color: #F5F5F5;">Nom :</strong> ${escapeHtml(name)}</p>
+          <p style="color: #999; margin-bottom: 16px;"><strong style="color: #F5F5F5;">Courriel :</strong> ${escapeHtml(email)}</p>
           <div style="background: #111; border: 1px solid #1A1A1A; padding: 20px; margin-top: 16px;">
-            <p style="color: #F5F5F5; font-size: 14px; line-height: 1.7; margin: 0;">${message.replace(/\n/g, "<br>")}</p>
+            <p style="color: #F5F5F5; font-size: 14px; line-height: 1.7; margin: 0;">${escapeHtml(message).replace(/\n/g, "<br>")}</p>
           </div>
           <p style="color: #444; font-size: 12px; margin-top: 24px;">⚡ Une réponse automatique a été envoyée à ${email}.</p>
         </div>

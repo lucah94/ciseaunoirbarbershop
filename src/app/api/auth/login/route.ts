@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
-  const { password } = await req.json();
-  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "ciseaunoir2026";
+  // Rate limit: 5 attempts per 2 minutes per IP (brute force protection)
+  const rateLimitResponse = rateLimit(req, { limit: 5, windowMs: 2 * 60 * 1000 });
+  if (rateLimitResponse) return rateLimitResponse;
 
-  if (password !== ADMIN_PASSWORD) {
+  const { password } = await req.json();
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+  if (!ADMIN_PASSWORD || password !== ADMIN_PASSWORD) {
     return NextResponse.json({ error: "Mot de passe incorrect" }, { status: 401 });
   }
 
