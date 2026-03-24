@@ -69,11 +69,27 @@ export default function Error({
           fontSize: "16px",
           maxWidth: "460px",
           lineHeight: 1.8,
-          marginBottom: "48px",
+          marginBottom: "24px",
           letterSpacing: "0.5px",
         }}>
           Quelque chose s&apos;est mal passé. Veuillez réessayer ou revenir à la page d&apos;accueil.
         </p>
+        <pre style={{
+          color: "#e55",
+          fontSize: "12px",
+          maxWidth: "600px",
+          background: "#111",
+          padding: "16px",
+          borderRadius: "8px",
+          marginBottom: "48px",
+          overflow: "auto",
+          textAlign: "left",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-all",
+        }}>
+          {error.message}
+          {error.digest ? `\nDigest: ${error.digest}` : ""}
+        </pre>
 
         <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", justifyContent: "center" }}>
           <button
