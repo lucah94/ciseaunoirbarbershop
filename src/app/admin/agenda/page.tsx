@@ -114,16 +114,20 @@ export default function AgendaPage() {
   });
 
   const events = filtered.map(b => {
-    const [h, m] = b.time.split(":").map(Number);
-    const start = new Date(`${b.date}T${b.time}:00`);
-    const end = new Date(start);
+    const [h, m] = (b.time || "0:0").split(":").map(Number);
+    const padded = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const start = new Date(`${b.date}T${padded}:00`);
+    const end = new Date(start.getTime());
     end.setMinutes(end.getMinutes() + 45);
+
+    const startStr = isNaN(start.getTime()) ? b.date : start.toISOString();
+    const endStr = isNaN(end.getTime()) ? b.date : end.toISOString();
 
     return {
       id: b.id,
       title: `${b.client_name}${visitCounts[b.client_email] ? ` (${visitCounts[b.client_email]}e)` : ""} — ${b.service}`,
-      start: start.toISOString(),
-      end: end.toISOString(),
+      start: startStr,
+      end: endStr,
       backgroundColor: b.status === "cancelled" ? "#333" : (BARBER_COLORS[b.barber] || "#D4AF37"),
       borderColor: b.status === "cancelled" ? "#555" : (BARBER_COLORS[b.barber] || "#D4AF37"),
       textColor: b.status === "cancelled" ? "#888" : "#080808",

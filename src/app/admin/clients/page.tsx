@@ -340,7 +340,7 @@ export default function ClientsPage() {
                       {c.totalSpent > 0 ? `${c.totalSpent.toFixed(2)}$` : "—"}
                     </td>
                     <td style={{ ...tdStyle, fontSize: "12px" }}>
-                      {c.lastVisit
+                      {c.lastVisit && !isNaN(new Date(c.lastVisit + "T12:00:00").getTime())
                         ? new Date(c.lastVisit + "T12:00:00").toLocaleDateString(
                             "fr-CA",
                             { day: "numeric", month: "short", year: "numeric" }
