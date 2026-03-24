@@ -1,22 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
-function html(title: string, color: string, content: string) {
+function html(body: string) {
   return new NextResponse(`
-    <html><body style="font-family:monospace;background:#0A0A0A;color:#F5F5F5;padding:40px">
-      <h2 style="color:${color}">${title}</h2>
-      <pre style="background:#111;padding:20px;margin-top:16px;color:#ccc;white-space:pre-wrap">${content}</pre>
+    <html><body style="font-family:monospace;background:#0A0A0A;color:#F5F5F5;padding:40px;line-height:1.8">
+      ${body}
     </body></html>
   `, { headers: { "Content-Type": "text/html" } });
 }
 
-export async function GET(req: NextRequest) {
-  const adminAuth = req.cookies.get("admin_auth");
-  if (!adminAuth || adminAuth.value !== "true") {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
-
-  // Step 1: Exchange refresh token for access token
-  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+async function getAccessToken(): Promise<{ token?: string; error?: unknown }> {
+  const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -26,38 +19,77 @@ export async function GET(req: NextRequest) {
       grant_type: "refresh_token",
     }),
   });
-  const tokenData = await tokenRes.json();
+  const data = await res.json();
+  if (data.access_token) return { token: data.access_token };
+  return { error: data };
+}
 
-  if (!tokenData.access_token) {
-    return html("Erreur — Token Exchange échoué", "#e55",
-      `Le refresh token n'a pas pu être échangé.\n\n${JSON.stringify(tokenData, null, 2)}\n\nREFRESH_TOKEN commence par: ${(process.env.GOOGLE_REFRESH_TOKEN || "").substring(0, 20)}...`
-    );
+export async function GET(req: NextRequest) {
+  const adminAuth = req.cookies.get("admin_auth");
+  if (!adminAuth || adminAuth.value !== "true") {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
-  const accessToken = tokenData.access_token;
+  const { token: accessToken, error: tokenError } = await getAccessToken();
 
-  // Step 2: Get accounts
-  const accountsRes = await fetch("https://mybusinessaccountmanagement.googleapis.com/v1/accounts", {
+  if (!accessToken) {
+    return html(`
+      <h2 style="color:#e55">Token Exchange échoué</h2>
+      <pre style="background:#111;padding:20px;color:#ccc">${JSON.stringify(tokenError, null, 2)}</pre>
+      <p><a href="/api/google/auth" style="color:#C9A84C">Ré-autoriser Google</a></p>
+    `);
+  }
+
+  // Try old v4 API first (no quota restriction usually)
+  const v4AccountsRes = await fetch("https://mybusiness.googleapis.com/v4/accounts", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  const accountsData = await accountsRes.json();
+  const v4AccountsData = await v4AccountsRes.json();
 
-  if (!accountsData.accounts?.length) {
-    return html("Erreur — Aucun compte trouvé", "#e55",
-      `L'access token fonctionne mais aucun compte GMB trouvé.\n\nRéponse API accounts:\n${JSON.stringify(accountsData, null, 2)}\n\nSi tu vois une erreur 403, il faut activer l'API "My Business Account Management" dans Google Cloud Console.`
-    );
+  let locationsInfo = "";
+
+  if (v4AccountsData.accounts?.length) {
+    const accountName = v4AccountsData.accounts[0].name;
+
+    // Try to get locations via v4
+    const v4LocRes = await fetch(`https://mybusiness.googleapis.com/v4/${accountName}/locations`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const v4LocData = await v4LocRes.json();
+
+    locationsInfo = `
+      <h3 style="color:#C9A84C;margin-top:24px">API v4 — Accounts:</h3>
+      <pre style="background:#111;padding:16px;color:#C9A84C;white-space:pre-wrap">${JSON.stringify(v4AccountsData, null, 2)}</pre>
+      <h3 style="color:#C9A84C;margin-top:24px">API v4 — Locations:</h3>
+      <pre style="background:#111;padding:16px;color:#C9A84C;white-space:pre-wrap">${JSON.stringify(v4LocData, null, 2)}</pre>
+    `;
+  } else {
+    // Also try new API as fallback
+    const newAccountsRes = await fetch("https://mybusinessaccountmanagement.googleapis.com/v1/accounts", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const newAccountsData = await newAccountsRes.json();
+
+    locationsInfo = `
+      <h3 style="color:#e55;margin-top:24px">API v4 résultat:</h3>
+      <pre style="background:#111;padding:16px;color:#ccc;white-space:pre-wrap">${JSON.stringify(v4AccountsData, null, 2)}</pre>
+      <h3 style="color:#e55;margin-top:24px">Nouvelle API résultat:</h3>
+      <pre style="background:#111;padding:16px;color:#ccc;white-space:pre-wrap">${JSON.stringify(newAccountsData, null, 2)}</pre>
+    `;
   }
 
-  const accountName = accountsData.accounts[0].name;
-
-  // Step 3: Get locations
-  const locationsRes = await fetch(
-    `https://mybusinessbusinessinformation.googleapis.com/v1/${accountName}/locations?readMask=name,title`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  const locationsData = await locationsRes.json();
-
-  return html("Tes établissements Google My Business", "#C9A84C",
-    `Account: ${accountName}\n\nCopie le "name" de ton établissement dans .env.local comme GOOGLE_LOCATION_NAME=\n\n${JSON.stringify(locationsData, null, 2)}`
-  );
+  return html(`
+    <h2 style="color:#C9A84C">Google My Business — Locations</h2>
+    <p style="color:#4a4">Access token OK</p>
+    ${locationsInfo}
+    <hr style="border-color:#333;margin:32px 0">
+    <h3 style="color:#fff">Alternative manuelle :</h3>
+    <p style="color:#888">Si les APIs ne marchent pas, tu peux trouver ton Location Name ici :</p>
+    <ol style="color:#ccc">
+      <li>Va sur <a href="https://business.google.com" style="color:#C9A84C" target="_blank">business.google.com</a></li>
+      <li>Clique sur ton établissement</li>
+      <li>Regarde l'URL — elle contient un ID comme <code style="color:#C9A84C">/location/12345678</code></li>
+      <li>Le GOOGLE_LOCATION_NAME sera : <code style="color:#C9A84C">locations/12345678</code></li>
+    </ol>
+  `);
 }
