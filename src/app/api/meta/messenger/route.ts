@@ -353,7 +353,7 @@ function verifyFacebookSignature(rawBody: string, signature: string | null): boo
 
 // POST: Receive and handle incoming messages
 // BOT DÉSACTIVÉ — à réactiver quand le nouveau site est en ligne
-const BOT_ENABLED = false;
+const BOT_ENABLED = true;
 
 export async function POST(req: NextRequest) {
   if (!BOT_ENABLED) {
