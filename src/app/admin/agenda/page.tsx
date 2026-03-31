@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import AdminSidebar from "@/components/AdminSidebar";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -38,10 +38,11 @@ const BARBER_COLORS: Record<string, string> = {
 };
 
 const SERVICES = [
-  { label: "Coupe homme", price: 35 },
-  { label: "Coupe + Barbe", price: 50 },
-  { label: "Coupe enfant", price: 25 },
-  { label: "Barbe", price: 20 },
+  { label: "Coupe + Lavage", price: 35 },
+  { label: "Coupe + Rasage Lame & Serviette Chaude", price: 50 },
+  { label: "Service Premium", price: 75 },
+  { label: "Rasage / Barbe", price: 25 },
+  { label: "Tarif Etudiant", price: 30 },
 ];
 
 const TIME_SLOTS: string[] = [];
@@ -65,7 +66,7 @@ export default function AgendaPage() {
   const [showNewRDV, setShowNewRDV] = useState(false);
   const [newRDV, setNewRDV] = useState({
     client_name: "", client_phone: "", client_email: "",
-    barber: "Melynda", service: "Coupe homme", price: 35,
+    barber: "Melynda", service: "Coupe + Lavage", price: 35,
     date: new Date().toISOString().split("T")[0], time: "09:00", note: "",
   });
   const [clientSearch, setClientSearch] = useState("");
@@ -73,6 +74,27 @@ export default function AgendaPage() {
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clientDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close client dropdown on outside click or Escape
+  useEffect(() => {
+    function handleMouseDown(e: MouseEvent) {
+      if (clientDropdownRef.current && !clientDropdownRef.current.contains(e.target as Node)) {
+        setShowClientDropdown(false);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setShowClientDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   // Mobile detection
   useEffect(() => {
@@ -177,7 +199,7 @@ export default function AgendaPage() {
   function resetNewRDVForm() {
     setNewRDV({
       client_name: "", client_phone: "", client_email: "",
-      barber: "Melynda", service: "Coupe homme", price: 35,
+      barber: "Melynda", service: "Coupe + Lavage", price: 35,
       date: new Date().toISOString().split("T")[0], time: "09:00", note: "",
     });
     setClientSearch("");
@@ -258,6 +280,45 @@ export default function AgendaPage() {
       classNames: b.status === "cancelled" ? ["event-cancelled"] : b.status === "no_show" ? ["event-noshow"] : [],
     };
   });
+
+  // Conflict detection for new RDV form
+  const occupiedSlots = useMemo(() => {
+    if (!newRDV.barber || !newRDV.date) return new Set<string>();
+    const barberBookings = bookings.filter(
+      b => b.barber === newRDV.barber && b.date === newRDV.date && b.status !== "cancelled"
+    );
+    const occupied = new Set<string>();
+    for (const slot of TIME_SLOTS) {
+      const [sh, sm] = slot.split(":").map(Number);
+      const slotMin = sh * 60 + sm;
+      for (const b of barberBookings) {
+        const [bh, bm] = (b.time || "0:0").split(":").map(Number);
+        const bookingMin = bh * 60 + bm;
+        if (Math.abs(slotMin - bookingMin) < 45) {
+          occupied.add(slot);
+          break;
+        }
+      }
+    }
+    return occupied;
+  }, [bookings, newRDV.barber, newRDV.date]);
+
+  const currentSlotConflict = useMemo(() => {
+    if (!newRDV.barber || !newRDV.date || !newRDV.time) return null;
+    const [sh, sm] = newRDV.time.split(":").map(Number);
+    const slotMin = sh * 60 + sm;
+    const barberBookings = bookings.filter(
+      b => b.barber === newRDV.barber && b.date === newRDV.date && b.status !== "cancelled"
+    );
+    for (const b of barberBookings) {
+      const [bh, bm] = (b.time || "0:0").split(":").map(Number);
+      const bookingMin = bh * 60 + bm;
+      if (Math.abs(slotMin - bookingMin) < 45) {
+        return `${newRDV.barber} est deja reservee a cet horaire`;
+      }
+    }
+    return null;
+  }, [bookings, newRDV.barber, newRDV.date, newRDV.time]);
 
   // Shared input style
   const inputStyle: React.CSSProperties = {
@@ -656,7 +717,7 @@ export default function AgendaPage() {
 
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 {/* Client search */}
-                <div style={{ position: "relative" }}>
+                <div ref={clientDropdownRef} style={{ position: "relative" }}>
                   <label style={labelStyle}>Recherche client</label>
                   <input
                     type="text"
@@ -772,12 +833,31 @@ export default function AgendaPage() {
                       onChange={e => setNewRDV(p => ({ ...p, time: e.target.value }))}
                       style={{ ...inputStyle, cursor: "pointer", appearance: "auto" }}
                     >
-                      {TIME_SLOTS.map(t => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
+                      {TIME_SLOTS.map(t => {
+                        const isOccupied = occupiedSlots.has(t);
+                        return (
+                          <option key={t} value={t} disabled={isOccupied} style={isOccupied ? { color: "#666" } : undefined}>
+                            {t}{isOccupied ? " (occupe)" : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>
+
+                {/* Conflict warning */}
+                {currentSlotConflict && (
+                  <div style={{
+                    background: "rgba(200,50,50,0.1)",
+                    border: "1px solid #e55",
+                    borderRadius: "8px",
+                    padding: "8px 12px",
+                    color: "#e55",
+                    fontSize: "13px",
+                  }}>
+                    {currentSlotConflict}
+                  </div>
+                )}
 
                 {/* Note */}
                 <div>
