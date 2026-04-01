@@ -276,6 +276,8 @@ function CampaignTab() {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [recipient, setRecipient] = useState<"all" | "recent">("all");
+  const [confirmed, setConfirmed] = useState(false);
+  const [testSent, setTestSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ count?: number; error?: string } | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -306,7 +308,7 @@ function CampaignTab() {
       const res = await fetch("/api/figaro/campaign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject, body, recipient }),
+        body: JSON.stringify({ subject, body_html: body, recipient_type: recipient }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -490,25 +492,51 @@ function CampaignTab() {
           </div>
         )}
 
+        {/* Test email */}
+        <div style={{ marginBottom: "16px" }}>
+          <button
+            onClick={async () => {
+              if (!subject.trim() || !body.trim()) return;
+              setTestSent(false);
+              await fetch("/api/figaro/campaign", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ subject: `[TEST] ${subject}`, body_html: body, recipient_type: "test" }),
+              });
+              setTestSent(true);
+            }}
+            disabled={!subject.trim() || !body.trim()}
+            style={{ background: "none", border: `1px solid ${BORDER}`, color: TEXT_MID, padding: "10px 20px", fontSize: "12px", cursor: "pointer", borderRadius: "4px", width: "100%" }}
+          >
+            {testSent ? "✓ Test envoyé à Melynda" : "Envoyer un test à Melynda d'abord"}
+          </button>
+        </div>
+
+        {/* Confirmation */}
+        <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", marginBottom: "14px" }}>
+          <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} />
+          <span style={{ color: TEXT_MID, fontSize: "13px" }}>Je confirme l&apos;envoi à tous les destinataires</span>
+        </label>
+
         {/* Send button */}
         <button
           onClick={sendCampaign}
-          disabled={sending || !subject.trim() || !body.trim()}
+          disabled={sending || !subject.trim() || !body.trim() || !confirmed}
           style={{
-            background: sending || !subject.trim() || !body.trim() ? "#1A1A1A" : GOLD,
-            color: sending || !subject.trim() || !body.trim() ? TEXT_DIM : "#0A0A0A",
+            background: sending || !subject.trim() || !body.trim() || !confirmed ? "#1A1A1A" : GOLD,
+            color: sending || !subject.trim() || !body.trim() || !confirmed ? TEXT_DIM : "#0A0A0A",
             border: "none",
             padding: "13px 32px",
             fontSize: "12px",
             fontWeight: 600,
             letterSpacing: "2px",
             textTransform: "uppercase" as const,
-            cursor: sending || !subject.trim() || !body.trim() ? "not-allowed" : "pointer",
+            cursor: sending || !subject.trim() || !body.trim() || !confirmed ? "not-allowed" : "pointer",
             transition: "all 0.2s",
             width: "100%",
           }}
         >
-          {sending ? "Envoi en cours…" : "Envoyer la campagne →"}
+          {sending ? "Envoi en cours…" : result?.count ? `✓ ${result.count} emails envoyés !` : "Envoyer la campagne →"}
         </button>
       </div>
 
