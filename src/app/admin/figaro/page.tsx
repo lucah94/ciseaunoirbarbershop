@@ -699,7 +699,11 @@ function SMSCampaignTab() {
   useEffect(() => {
     fetch("/api/sms/blast").then(r => r.json()).then(d => setContactCount(d.count ?? 0));
     fetch("/api/sms/balance").then(r => r.json()).then(d => {
-      if (d.balance !== undefined) setTwilioBalance(`${Number(d.balance).toFixed(2)} ${d.currency ?? "USD"}`);
+      if (d.balance !== undefined) {
+        const usd = Number(d.balance);
+        const cad = (usd * 1.39).toFixed(2);
+        setTwilioBalance(`${usd.toFixed(2)} USD (~${cad} CAD)`);
+      }
     });
   }, []);
 
@@ -717,7 +721,9 @@ function SMSCampaignTab() {
     setConfirmed(false);
   }
 
-  const estimatedCost = contactCount ? (contactCount * 0.01).toFixed(2) : "...";
+  const estimatedCostUSD = contactCount ? (contactCount * 0.01).toFixed(2) : "...";
+  const estimatedCostCAD = contactCount ? (contactCount * 0.01 * 1.39).toFixed(2) : "...";
+  const estimatedCost = contactCount ? `~${estimatedCostUSD}$ USD (~${estimatedCostCAD}$ CAD)` : "...";
 
   return (
     <div style={{ maxWidth: "640px" }}>
@@ -727,7 +733,7 @@ function SMSCampaignTab() {
       <div style={{ display: "flex", gap: "16px", marginBottom: "28px" }}>
         {[
           { label: "Contacts avec téléphone", value: contactCount ?? "..." },
-          { label: "Coût estimé (USD)", value: `~${estimatedCost}$` },
+          { label: "Coût estimé", value: estimatedCost },
           { label: "Solde Twilio", value: twilioBalance ? `${twilioBalance}` : "..." },
         ].map(s => (
           <div key={s.label} style={{ flex: 1, background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: "8px", padding: "16px" }}>
