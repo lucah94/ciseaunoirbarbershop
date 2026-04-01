@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import AdminSidebar from "@/components/AdminSidebar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -354,9 +354,15 @@ function FigaroAIBox({ type, onGenerate }: {
 
 // ─── Tab 2: Campagne Email ────────────────────────────────────────────────────
 
-function CampaignTab() {
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
+function CampaignTab({ initialSubject, initialBody, onLoaded }: { initialSubject?: string; initialBody?: string; onLoaded?: () => void } = {}) {
+  const [subject, setSubject] = useState(initialSubject ?? "");
+  const [body, setBody] = useState(initialBody ?? "");
+
+  useEffect(() => {
+    if (initialSubject) setSubject(initialSubject);
+    if (initialBody) setBody(initialBody);
+    if ((initialSubject || initialBody) && onLoaded) onLoaded();
+  }, [initialSubject, initialBody, onLoaded]);
   const [recipient, setRecipient] = useState<"all" | "recent">("all");
   const [confirmed, setConfirmed] = useState(false);
   const [testSent, setTestSent] = useState(false);
@@ -804,9 +810,13 @@ function InfoRow({ icon, title, desc }: { icon: string; title: string; desc: str
 
 // ─── Tab: Campagne SMS ────────────────────────────────────────────────────────
 
-function SMSCampaignTab() {
+function SMSCampaignTab({ initialMessage, onLoaded }: { initialMessage?: string; onLoaded?: () => void } = {}) {
   const DEFAULT_MSG = `Salut, c'est Melynda de Ciseau Noir 🖤 À partir de maintenant, votre 10e coupe est gratuite ! Les places partent vite — réservez ici : ciseaunoirbarbershop.com/fidelite — Répondez STOP pour ne plus recevoir de msgs.`;
-  const [message, setMessage] = useState(DEFAULT_MSG);
+  const [message, setMessage] = useState(initialMessage ?? DEFAULT_MSG);
+
+  useEffect(() => {
+    if (initialMessage) { setMessage(initialMessage); onLoaded?.(); }
+  }, [initialMessage, onLoaded]);
   const [contactCount, setContactCount] = useState<number | null>(null);
   const [twilioBalance, setTwilioBalance] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -921,12 +931,185 @@ function SMSCampaignTab() {
   );
 }
 
+// ─── Figaro Chat ──────────────────────────────────────────────────────────────
+
+type ChatMessage = { role: "user" | "assistant"; content: string; email?: { subject: string; body: string } | null; sms?: { body: string } | null; };
+type FigaroStatus = "idle" | "thinking" | "active";
+
+function FigaroChatTab({ onUseEmail, onUseSMS }: {
+  onUseEmail: (subject: string, body: string) => void;
+  onUseSMS: (body: string) => void;
+}) {
+  const GREETING: ChatMessage = {
+    role: "assistant",
+    content: `Bonjour Melynda ! 🖤 Je suis Figaro, ton assistant IA pour Ciseau Noir.\n\nVoici ce que je peux faire pour toi :\n\n✉️ **Rédiger des emails** de campagne (promotions, annonces, fidélité...)\n📱 **Rédiger des SMS** de masse pour tes clients\n💡 **Idées de campagnes** selon la saison ou tes besoins\n📊 **Conseils marketing** pour remplir tes rendez-vous\n\nDis-moi ce dont tu as besoin — je m'en occupe !`,
+  };
+
+  const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
+  const [input, setInput] = useState("");
+  const [status, setStatus] = useState<FigaroStatus>("active");
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Statut idle après 30s d'inactivité
+  useEffect(() => {
+    if (status === "active") {
+      const t = setTimeout(() => setStatus("idle"), 30000);
+      return () => clearTimeout(t);
+    }
+  }, [status, messages]);
+
+  async function send() {
+    const text = input.trim();
+    if (!text) return;
+    setInput("");
+    setStatus("thinking");
+
+    const newMessages: ChatMessage[] = [...messages, { role: "user", content: text }];
+    setMessages(newMessages);
+
+    try {
+      const res = await fetch("/api/figaro/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content })) }),
+      });
+      const data = await res.json();
+      setMessages(prev => [...prev, { role: "assistant", content: data.text, email: data.email ?? null, sms: data.sms ?? null }]);
+    } catch {
+      setMessages(prev => [...prev, { role: "assistant", content: "Oups, une erreur s'est produite. Réessaie !" }]);
+    }
+    setStatus("active");
+  }
+
+  const SUGGESTIONS = [
+    "Génère un SMS pour offrir 15% cette semaine",
+    "Idée de campagne pour remplir les rdv lundi",
+    "Email pour parler du programme fidélité",
+    "SMS pour annoncer de nouveaux horaires",
+  ];
+
+  const statusConfig = {
+    active: { color: "#5a5", label: "Actif", dot: "#5a5" },
+    thinking: { color: GOLD, label: "En train d'écrire...", dot: GOLD },
+    idle: { color: "#555", label: "En veille", dot: "#555" },
+  };
+  const s = statusConfig[status];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 220px)", maxWidth: "780px" }}>
+
+      {/* Status bar */}
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px", padding: "10px 16px", background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: "8px" }}>
+        <div style={{ position: "relative", width: "10px", height: "10px" }}>
+          <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: s.dot }} />
+          {status === "thinking" && (
+            <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: GOLD, animation: "ping 1s ease-in-out infinite", opacity: 0.4 }} />
+          )}
+        </div>
+        <span style={{ color: s.color, fontSize: "12px", letterSpacing: "1px" }}>Figaro ✂️ — {s.label}</span>
+      </div>
+
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px", paddingRight: "4px", marginBottom: "16px" }}>
+        {messages.map((msg, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", gap: "10px", alignItems: "flex-end" }}>
+            {msg.role === "assistant" && (
+              <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: `linear-gradient(135deg, ${GOLD_BRIGHT}, #B8860B)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>✂️</div>
+            )}
+            <div style={{ maxWidth: "75%" }}>
+              <div style={{
+                background: msg.role === "user" ? `linear-gradient(135deg, ${GOLD_BRIGHT}22, ${GOLD_BRIGHT}11)` : SURFACE,
+                border: `1px solid ${msg.role === "user" ? GOLD_BRIGHT + "44" : BORDER}`,
+                borderRadius: msg.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                padding: "12px 16px",
+                color: TEXT_MAIN,
+                fontSize: "14px",
+                lineHeight: 1.6,
+                whiteSpace: "pre-wrap",
+              }}>
+                {msg.content.split(/\*\*(.*?)\*\*/).map((part, j) =>
+                  j % 2 === 1 ? <strong key={j}>{part}</strong> : part
+                )}
+              </div>
+
+              {/* Boutons utiliser email/SMS */}
+              {msg.email && (
+                <button onClick={() => { onUseEmail(msg.email!.subject, msg.email!.body); }}
+                  style={{ marginTop: "8px", background: `linear-gradient(135deg, ${GOLD_BRIGHT}, #B8860B)`, color: "#080808", border: "none", padding: "8px 16px", borderRadius: "6px", fontSize: "12px", fontWeight: 700, cursor: "pointer", letterSpacing: "1px" }}>
+                  ✉️ Utiliser dans Campagne Email →
+                </button>
+              )}
+              {msg.sms && (
+                <button onClick={() => { onUseSMS(msg.sms!.body); }}
+                  style={{ marginTop: "8px", background: `linear-gradient(135deg, ${GOLD_BRIGHT}, #B8860B)`, color: "#080808", border: "none", padding: "8px 16px", borderRadius: "6px", fontSize: "12px", fontWeight: 700, cursor: "pointer", letterSpacing: "1px" }}>
+                  📱 Utiliser dans Campagne SMS →
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {/* Typing indicator */}
+        {status === "thinking" && (
+          <div style={{ display: "flex", alignItems: "flex-end", gap: "10px" }}>
+            <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: `linear-gradient(135deg, ${GOLD_BRIGHT}, #B8860B)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px" }}>✂️</div>
+            <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: "16px 16px 16px 4px", padding: "12px 16px", display: "flex", gap: "4px", alignItems: "center" }}>
+              {[0, 1, 2].map(i => (
+                <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: GOLD, animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }} />
+              ))}
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Suggestions */}
+      {messages.length <= 1 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "12px" }}>
+          {SUGGESTIONS.map(s => (
+            <button key={s} onClick={() => { setInput(s); }}
+              style={{ background: "#111", border: `1px solid ${BORDER}`, color: TEXT_MID, padding: "7px 14px", fontSize: "12px", borderRadius: "20px", cursor: "pointer" }}>
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Input */}
+      <div style={{ display: "flex", gap: "8px" }}>
+        <input
+          value={input}
+          onChange={e => { setInput(e.target.value); setStatus("active"); }}
+          onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()}
+          placeholder="Dis à Figaro ce que tu veux..."
+          disabled={status === "thinking"}
+          style={{ flex: 1, background: SURFACE, border: `1px solid ${status === "thinking" ? BORDER : GOLD_BRIGHT + "44"}`, color: TEXT_MAIN, padding: "14px 18px", fontSize: "14px", borderRadius: "10px", outline: "none", transition: "border 0.2s" }}
+        />
+        <button onClick={send} disabled={status === "thinking" || !input.trim()}
+          style={{ background: status === "thinking" || !input.trim() ? "#1A1A1A" : `linear-gradient(135deg, ${GOLD_BRIGHT}, #B8860B)`, color: status === "thinking" || !input.trim() ? "#444" : "#080808", border: "none", padding: "14px 22px", borderRadius: "10px", fontWeight: 700, fontSize: "18px", cursor: "pointer", minWidth: "56px" }}>
+          ↑
+        </button>
+      </div>
+      <style>{`
+        @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+        @keyframes ping { 0%{transform:scale(1);opacity:0.4} 100%{transform:scale(2);opacity:0} }
+      `}</style>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-type Tab = "inbox" | "campaign" | "sms" | "config";
+type Tab = "chat" | "inbox" | "campaign" | "sms" | "config";
 
 export default function FigaroPage() {
-  const [activeTab, setActiveTab] = useState<Tab>("inbox");
+  const [activeTab, setActiveTab] = useState<Tab>("chat");
+  const [pendingEmail, setPendingEmail] = useState<{ subject: string; body: string } | null>(null);
+  const [pendingSMS, setPendingSMS] = useState<string | null>(null);
   const [messageCount, setMessageCount] = useState<number | null>(null);
 
   // Fetch message count for tab label
@@ -947,13 +1130,11 @@ export default function FigaroPage() {
   }, []);
 
   const tabs: { id: Tab; label: string }[] = [
-    {
-      id: "inbox",
-      label: `Boîte de réception${messageCount !== null ? ` (${messageCount})` : ""}`,
-    },
-    { id: "campaign", label: "Campagne Email" },
+    { id: "chat", label: "✂️ Figaro IA" },
+    { id: "campaign", label: "✉️ Campagne Email" },
     { id: "sms", label: "📱 Campagne SMS" },
-    { id: "config", label: "Comment configurer Figaro" },
+    { id: "inbox", label: `Boîte de réception${messageCount !== null ? ` (${messageCount})` : ""}` },
+    { id: "config", label: "Config" },
   ];
 
   return (
@@ -1038,9 +1219,26 @@ export default function FigaroPage() {
         </div>
 
         {/* Tab content */}
+        {activeTab === "chat" && (
+          <FigaroChatTab
+            onUseEmail={(subject, body) => { setPendingEmail({ subject, body }); setActiveTab("campaign"); }}
+            onUseSMS={(body) => { setPendingSMS(body); setActiveTab("sms"); }}
+          />
+        )}
         {activeTab === "inbox" && <InboxTab />}
-        {activeTab === "campaign" && <CampaignTab />}
-        {activeTab === "sms" && <SMSCampaignTab />}
+        {activeTab === "campaign" && (
+          <CampaignTab
+            initialSubject={pendingEmail?.subject}
+            initialBody={pendingEmail?.body}
+            onLoaded={() => setPendingEmail(null)}
+          />
+        )}
+        {activeTab === "sms" && (
+          <SMSCampaignTab
+            initialMessage={pendingSMS ?? undefined}
+            onLoaded={() => setPendingSMS(null)}
+          />
+        )}
         {activeTab === "config" && <ConfigTab />}
       </main>
     </div>
