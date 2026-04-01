@@ -270,6 +270,88 @@ function InboxTab() {
   );
 }
 
+// ─── Figaro AI Chat Box ───────────────────────────────────────────────────────
+
+function FigaroAIBox({ type, onGenerate }: {
+  type: "email" | "sms";
+  onGenerate: (data: { subject?: string; body: string }) => void;
+}) {
+  const [prompt, setPrompt] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState("");
+
+  const SUGGESTIONS = type === "email" ? [
+    "Email pour remplir les rdv ce weekend",
+    "Email pour annoncer de nouveaux horaires",
+    "Email pour rappeler le programme fidélité",
+    "Email pour les fêtes de fin d'année",
+  ] : [
+    "SMS pour remplir les rdv de cette semaine",
+    "SMS pour parler du programme fidélité",
+    "SMS pour annoncer une promotion spéciale",
+  ];
+
+  async function generate(text: string) {
+    if (!text.trim()) return;
+    setGenerating(true);
+    setError("");
+    try {
+      const res = await fetch("/api/figaro/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: text, type }),
+      });
+      const data = await res.json();
+      if (data.body) {
+        onGenerate({ subject: data.subject, body: data.body });
+        setPrompt("");
+      } else {
+        setError("Figaro n'a pas pu générer le contenu. Essaie encore.");
+      }
+    } catch {
+      setError("Erreur de connexion.");
+    }
+    setGenerating(false);
+  }
+
+  return (
+    <div style={{ background: "rgba(201,168,76,0.04)", border: `1px solid rgba(201,168,76,0.2)`, borderRadius: "10px", padding: "20px", marginBottom: "24px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px" }}>
+        <span style={{ fontSize: "16px" }}>✂️</span>
+        <p style={{ color: GOLD, fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase" as const }}>Figaro IA — Génère ton contenu</p>
+      </div>
+
+      {/* Suggestions rapides */}
+      <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "6px", marginBottom: "12px" }}>
+        {SUGGESTIONS.map(s => (
+          <button key={s} onClick={() => generate(s)}
+            style={{ background: "#111", border: `1px solid ${BORDER}`, color: TEXT_MID, padding: "6px 12px", fontSize: "11px", borderRadius: "20px", cursor: "pointer", letterSpacing: "0.5px" }}>
+            {s}
+          </button>
+        ))}
+      </div>
+
+      {/* Input libre */}
+      <div style={{ display: "flex", gap: "8px" }}>
+        <input
+          value={prompt}
+          onChange={e => setPrompt(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && generate(prompt)}
+          placeholder={`Décris ce que tu veux comme ${type === "email" ? "email" : "SMS"}...`}
+          style={{ flex: 1, background: "#0D0D0D", border: `1px solid ${BORDER}`, color: TEXT_MAIN, padding: "10px 14px", fontSize: "13px", borderRadius: "6px", outline: "none" }}
+          disabled={generating}
+        />
+        <button onClick={() => generate(prompt)} disabled={generating || !prompt.trim()}
+          style={{ background: generating ? "#1A1A1A" : `linear-gradient(135deg, ${GOLD_BRIGHT}, #B8860B)`, color: generating ? TEXT_DIM : "#080808", border: "none", padding: "10px 18px", borderRadius: "6px", fontWeight: 700, fontSize: "12px", cursor: "pointer", minWidth: "80px" }}>
+          {generating ? "⏳" : "Générer"}
+        </button>
+      </div>
+      {error && <p style={{ color: "#e55", fontSize: "12px", marginTop: "8px" }}>{error}</p>}
+      {generating && <p style={{ color: TEXT_DIM, fontSize: "12px", marginTop: "8px" }}>Figaro rédige ton message...</p>}
+    </div>
+  );
+}
+
 // ─── Tab 2: Campagne Email ────────────────────────────────────────────────────
 
 function CampaignTab() {
@@ -361,6 +443,13 @@ function CampaignTab() {
         <p style={{ color: TEXT_DIM, fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase" as const, marginBottom: "24px" }}>
           Nouvelle campagne
         </p>
+
+        <FigaroAIBox type="email" onGenerate={({ subject: s, body: b }) => {
+          if (s) setSubject(s);
+          if (b) setBody(b);
+          setConfirmed(false);
+          setResult(null);
+        }} />
 
         {/* Subject */}
         <div style={{ marginBottom: "20px" }}>
@@ -756,6 +845,12 @@ function SMSCampaignTab() {
   return (
     <div style={{ maxWidth: "640px" }}>
       <p style={{ color: GOLD, fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase", marginBottom: "24px" }}>Campagne SMS — Tous les contacts</p>
+
+      <FigaroAIBox type="sms" onGenerate={({ body: b }) => {
+        if (b) setMessage(b);
+        setConfirmed(false);
+        setResult(null);
+      }} />
 
       {/* Stats */}
       <div style={{ display: "flex", gap: "16px", marginBottom: "28px" }}>
