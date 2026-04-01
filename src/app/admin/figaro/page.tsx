@@ -691,12 +691,16 @@ function SMSCampaignTab() {
   const DEFAULT_MSG = `Salut ! À partir de maintenant, votre 10e coupe est gratuite chez Ciseau Noir 🖤 Les places partent vite — réservez votre prochain rendez-vous : ciseaunoirbarbershop.com/fidelite — Répondez STOP pour ne plus recevoir de msgs.`;
   const [message, setMessage] = useState(DEFAULT_MSG);
   const [contactCount, setContactCount] = useState<number | null>(null);
+  const [twilioBalance, setTwilioBalance] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ sent: number; failed: number } | null>(null);
   const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
     fetch("/api/sms/blast").then(r => r.json()).then(d => setContactCount(d.count ?? 0));
+    fetch("/api/sms/balance").then(r => r.json()).then(d => {
+      if (d.balance !== undefined) setTwilioBalance(`${Number(d.balance).toFixed(2)} ${d.currency ?? "USD"}`);
+    });
   }, []);
 
   async function handleSend() {
@@ -724,7 +728,7 @@ function SMSCampaignTab() {
         {[
           { label: "Contacts avec téléphone", value: contactCount ?? "..." },
           { label: "Coût estimé (USD)", value: `~${estimatedCost}$` },
-          { label: "Solde Twilio", value: "~12.00$" },
+          { label: "Solde Twilio", value: twilioBalance ? `${twilioBalance}` : "..." },
         ].map(s => (
           <div key={s.label} style={{ flex: 1, background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: "8px", padding: "16px" }}>
             <p style={{ color: TEXT_DIM, fontSize: "10px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "6px" }}>{s.label}</p>
