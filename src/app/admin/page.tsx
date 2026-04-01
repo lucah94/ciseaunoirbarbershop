@@ -69,13 +69,13 @@ function StatCard({ label, value, sub, color, icon, index }: { label: string; va
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: "linear-gradient(135deg, #0D0D0D, #111)",
-        border: "1px solid rgba(212,175,55,0.15)",
+        background: "linear-gradient(135deg, #161B22, #1C2129)",
+        border: "1px solid rgba(212,175,55,0.18)",
         borderRadius: "12px",
         padding: "28px",
         boxShadow: hovered
           ? "0 8px 40px rgba(212,175,55,0.15), inset 0 1px 0 rgba(212,175,55,0.1)"
-          : "0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(212,175,55,0.1)",
+          : "0 4px 24px rgba(0,0,0,0.3)",
         transition: "all 0.3s ease",
         cursor: "default",
         position: "relative",
@@ -101,7 +101,7 @@ function StatCard({ label, value, sub, color, icon, index }: { label: string; va
         <span style={{ color: color, opacity: 0.5 }}>{icon}</span>
       </div>
       <AnimatedNumber value={Math.abs(value)} prefix={prefix} suffix={suffix} color={color} />
-      <p style={{ color: "#555", fontSize: "12px", marginTop: "8px" }}>{sub}</p>
+      <p style={{ color: "#7D8590", fontSize: "12px", marginTop: "8px" }}>{sub}</p>
     </motion.div>
   );
 }
@@ -116,13 +116,13 @@ function PremiumCard({ children, delay = 0 }: { children: React.ReactNode; delay
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: "linear-gradient(135deg, #0D0D0D, #111)",
-        border: "1px solid rgba(212,175,55,0.12)",
+        background: "linear-gradient(135deg, #161B22, #1C2129)",
+        border: "1px solid rgba(212,175,55,0.18)",
         borderRadius: "12px",
         padding: "28px",
         boxShadow: hovered
           ? "0 8px 40px rgba(212,175,55,0.1), inset 0 1px 0 rgba(212,175,55,0.08)"
-          : "0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(212,175,55,0.05)",
+          : "0 4px 24px rgba(0,0,0,0.3)",
         transition: "all 0.3s ease",
       }}
     >
@@ -137,11 +137,12 @@ export default function AdminPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const week = getWeekRange();
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/bookings").then(r => r.json()),
+      fetch("/api/bookings?start=2026-01-01").then(r => r.json()),
       fetch("/api/cuts").then(r => r.json()),
       fetch("/api/expenses").then(r => r.json()),
     ]).then(([b, c, e]) => {
@@ -152,7 +153,12 @@ export default function AdminPage() {
     }).catch(() => setLoading(false));
   }, []);
 
-  const todayBookings = bookings.filter(b => b.date === today && b.status !== "cancelled" && b.status !== "no_show");
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const todayBookings = bookings.filter(b => {
+    if (b.date !== today || b.status === "cancelled" || b.status === "no_show") return false;
+    const [h, m] = b.time.split(":").map(Number);
+    return h * 60 + m >= nowMinutes;
+  });
   const noShowCount = bookings.filter(b => b.status === "no_show").length;
   const weekCuts = cuts.filter(c => c.date >= week.start && c.date <= week.end);
   const weekExpenses = expenses.filter(e => e.date >= week.start && e.date <= week.end);
@@ -173,7 +179,7 @@ export default function AdminPage() {
   });
 
   if (loading) return (
-    <div style={{ background: "#080808", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div style={{ background: "#111318", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <motion.div
         animate={{ opacity: [0.4, 1, 0.4] }}
         transition={{ duration: 2, repeat: Infinity }}
@@ -183,11 +189,10 @@ export default function AdminPage() {
     </div>
   );
 
-  const now = new Date();
   const greeting = now.getHours() < 12 ? "Bonjour" : now.getHours() < 18 ? "Bon après-midi" : "Bonsoir";
 
   return (
-    <div style={{ background: "#080808", minHeight: "100vh", display: "flex" }}>
+    <div style={{ background: "#111318", minHeight: "100vh", display: "flex" }}>
       <AdminSidebar />
 
       <main style={{ marginLeft: "260px", flex: 1, padding: "40px 48px" }}>
@@ -201,7 +206,7 @@ export default function AdminPage() {
           <h1 style={{ fontSize: "28px", fontWeight: 300, letterSpacing: "2px", color: "#F0F0F0", marginBottom: "6px" }}>
             {greeting}, <span style={{ color: "#D4AF37" }}>Melynda</span>
           </h1>
-          <p style={{ color: "#555", fontSize: "13px", letterSpacing: "1px" }}>
+          <p style={{ color: "#7D8590", fontSize: "13px", letterSpacing: "1px" }}>
             Semaine du {week.label} &middot; {now.toLocaleDateString("fr-CA", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </p>
         </motion.div>
@@ -268,13 +273,13 @@ export default function AdminPage() {
                 <div style={{ width: "3px", height: "16px", background: "linear-gradient(180deg, #D4AF37, #B8860B)", borderRadius: "2px" }} />
                 <p style={{ color: "#D4AF37", fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase" }}>RDV Aujourd&apos;hui</p>
               </div>
-              <Link href="/admin/agenda" style={{ color: "#555", fontSize: "12px", textDecoration: "none", transition: "color 0.2s" }}
+              <Link href="/admin/agenda" style={{ color: "#7D8590", fontSize: "12px", textDecoration: "none", transition: "color 0.2s" }}
                 onMouseEnter={e => e.currentTarget.style.color = "#D4AF37"}
-                onMouseLeave={e => e.currentTarget.style.color = "#555"}
+                onMouseLeave={e => e.currentTarget.style.color = "#7D8590"}
               >Voir tout &rarr;</Link>
             </div>
             {todayBookings.length === 0 ? (
-              <p style={{ color: "#333", fontSize: "14px", padding: "20px 0", textAlign: "center" }}>Aucun rendez-vous aujourd&apos;hui</p>
+              <p style={{ color: "#555", fontSize: "14px", padding: "20px 0", textAlign: "center" }}>Aucun rendez-vous aujourd&apos;hui</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {todayBookings.slice(0, 5).map((b, i) => (
@@ -295,7 +300,7 @@ export default function AdminPage() {
                   >
                     <div>
                       <p style={{ color: "#F0F0F0", fontSize: "14px", marginBottom: "3px" }}>{b.client_name}</p>
-                      <p style={{ color: "#555", fontSize: "12px" }}>{b.time} &middot; {b.service} &middot; {b.barber}</p>
+                      <p style={{ color: "#7D8590", fontSize: "12px" }}>{b.time} &middot; {b.service} &middot; {b.barber}</p>
                     </div>
                     <span style={{ color: "#D4AF37", fontSize: "15px", fontWeight: 500 }}>{b.price}$</span>
                   </motion.div>
@@ -311,9 +316,9 @@ export default function AdminPage() {
                 <div style={{ width: "3px", height: "16px", background: "linear-gradient(180deg, #D4AF37, #B8860B)", borderRadius: "2px" }} />
                 <p style={{ color: "#D4AF37", fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase" }}>Paye Cette Semaine</p>
               </div>
-              <Link href="/admin/paye" style={{ color: "#555", fontSize: "12px", textDecoration: "none", transition: "color 0.2s" }}
+              <Link href="/admin/paye" style={{ color: "#7D8590", fontSize: "12px", textDecoration: "none", transition: "color 0.2s" }}
                 onMouseEnter={e => e.currentTarget.style.color = "#D4AF37"}
-                onMouseLeave={e => e.currentTarget.style.color = "#555"}
+                onMouseLeave={e => e.currentTarget.style.color = "#7D8590"}
               >Gérer &rarr;</Link>
             </div>
             {payeSemaine.map((p, i) => (
@@ -334,7 +339,7 @@ export default function AdminPage() {
                   <p style={{ color: "#F0F0F0", fontSize: "15px" }}>{p.name}</p>
                   <p style={{ color: "#D4AF37", fontSize: "22px", fontWeight: 300 }}>{p.total.toFixed(2)}$</p>
                 </div>
-                <p style={{ color: "#555", fontSize: "12px" }}>{p.cuts} coupe{p.cuts > 1 ? "s" : ""} cette semaine</p>
+                <p style={{ color: "#7D8590", fontSize: "12px" }}>{p.cuts} coupe{p.cuts > 1 ? "s" : ""} cette semaine</p>
               </motion.div>
             ))}
           </PremiumCard>
@@ -351,7 +356,7 @@ export default function AdminPage() {
               { title: "Rappels 24h", desc: "Email automatique la veille de chaque rendez-vous — 10h00 chaque jour", active: true },
               { title: "Demande d'avis Google", desc: "Email automatique quand un RDV est marqué \"Complété\" dans l'agenda", active: true },
               { title: "Confirmation de réservation", desc: "Email automatique à chaque nouvelle réservation en ligne", active: true },
-              { title: "SMS — Confirmation & Rappels", desc: "Texto automatique à la réservation + rappel 24h (Twilio)", active: false },
+              { title: "SMS — Confirmation & Rappels", desc: "Texto automatique à la réservation + rappel 24h (Twilio)", active: true },
             ].map((agent, i) => (
               <motion.div
                 key={agent.title}
@@ -363,14 +368,14 @@ export default function AdminPage() {
                   justifyContent: "space-between",
                   alignItems: "center",
                   padding: "16px 18px",
-                  background: "#080808",
+                  background: "#161B22",
                   border: `1px solid ${agent.active ? "rgba(85,170,85,0.1)" : "rgba(212,175,55,0.1)"}`,
                   borderRadius: "8px",
                 }}
               >
                 <div>
                   <p style={{ color: "#F0F0F0", fontSize: "14px", marginBottom: "4px" }}>{agent.title}</p>
-                  <p style={{ color: "#555", fontSize: "12px" }}>{agent.desc}</p>
+                  <p style={{ color: "#7D8590", fontSize: "12px" }}>{agent.desc}</p>
                 </div>
                 {agent.active ? (
                   <span style={{
@@ -406,13 +411,13 @@ export default function AdminPage() {
                 <div style={{ width: "3px", height: "16px", background: "linear-gradient(180deg, #e55, #c33)", borderRadius: "2px" }} />
                 <p style={{ color: "#D4AF37", fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase" }}>Dépenses Récentes</p>
               </div>
-              <Link href="/admin/comptabilite" style={{ color: "#555", fontSize: "12px", textDecoration: "none", transition: "color 0.2s" }}
+              <Link href="/admin/comptabilite" style={{ color: "#7D8590", fontSize: "12px", textDecoration: "none", transition: "color 0.2s" }}
                 onMouseEnter={e => e.currentTarget.style.color = "#D4AF37"}
-                onMouseLeave={e => e.currentTarget.style.color = "#555"}
+                onMouseLeave={e => e.currentTarget.style.color = "#7D8590"}
               >Voir tout &rarr;</Link>
             </div>
             {expenses.length === 0 ? (
-              <p style={{ color: "#333", fontSize: "14px", padding: "20px 0", textAlign: "center" }}>Aucune dépense enregistrée</p>
+              <p style={{ color: "#555", fontSize: "14px", padding: "20px 0", textAlign: "center" }}>Aucune dépense enregistrée</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                 {expenses.slice(0, 5).map((e, i) => (
@@ -432,7 +437,7 @@ export default function AdminPage() {
                     <p style={{ color: "#888", fontSize: "14px" }}>{e.description}</p>
                     <div style={{ textAlign: "right" }}>
                       <p style={{ color: "#e55", fontSize: "14px", fontWeight: 500 }}>-{e.amount.toFixed(2)}$</p>
-                      <p style={{ color: "#444", fontSize: "11px" }}>{e.date}</p>
+                      <p style={{ color: "#8B949E", fontSize: "11px" }}>{e.date}</p>
                     </div>
                   </motion.div>
                 ))}
