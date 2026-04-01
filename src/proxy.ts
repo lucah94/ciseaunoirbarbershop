@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 
-// ─── Rate limiter simple ──────────────────────────────────────────────────────
-const RATE: Record<string, { count: number; resetAt: number }> = {};
-function rateLimit(key: string, limit: number, windowMs: number): boolean {
-  const now = Date.now();
-  const e = RATE[key];
-  if (!e || now > e.resetAt) { RATE[key] = { count: 1, resetAt: now + windowMs }; return true; }
-  if (e.count >= limit) return false;
-  e.count++;
-  return true;
+// ─── Rate limiter Redis (partagé entre toutes les instances Vercel) ───────────
+let ratelimitNormal: Ratelimit | null = null;
+let ratelimitStrict: Ratelimit | null = null;
+
+function getRatelimiters() {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) return null;
+  if (!ratelimitNormal) {
+    const redis = new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN });
+    ratelimitNormal = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(60, "1 m"), prefix: "rl:normal" });
+    ratelimitStrict = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, "1 m"), prefix: "rl:strict" });
+  }
+  return { normal: ratelimitNormal, strict: ratelimitStrict! };
 }
 
 // ─── Patterns malveillants ────────────────────────────────────────────────────
@@ -30,14 +35,15 @@ export function proxy(req: NextRequest) {
   // 2. Bloquer patterns injection dans l'URL
   if (BAD_PATTERNS.some(p => p.test(pathname + search))) return new NextResponse("Bad Request", { status: 400 });
 
-  // 3. Rate limiting API sensibles
+  // 3. Rate limiting API (Redis — partagé entre toutes les instances)
   if (pathname.startsWith("/api/")) {
-    const strict = pathname.includes("/auth/") || pathname.includes("/sms/blast") || pathname.includes("/figaro/campaign") || pathname.includes("/figaro/chat");
-    if (strict && !rateLimit(`${ip}:s:${pathname}`, 10, 60_000)) {
-      return new NextResponse(JSON.stringify({ error: "Trop de requêtes. Réessaie dans une minute." }), { status: 429, headers: { "Content-Type": "application/json" } });
-    }
-    if (!rateLimit(`${ip}:n`, 60, 60_000)) {
-      return new NextResponse(JSON.stringify({ error: "Trop de requêtes. Réessaie dans une minute." }), { status: 429, headers: { "Content-Type": "application/json" } });
+    const limiters = getRatelimiters();
+    if (limiters) {
+      const isStrict = pathname.includes("/auth/") || pathname.includes("/sms/blast") || pathname.includes("/figaro/campaign") || pathname.includes("/figaro/chat");
+      const { success } = await (isStrict ? limiters.strict : limiters.normal).limit(ip);
+      if (!success) {
+        return new NextResponse(JSON.stringify({ error: "Trop de requêtes. Réessaie dans une minute." }), { status: 429, headers: { "Content-Type": "application/json" } });
+      }
     }
   }
 
