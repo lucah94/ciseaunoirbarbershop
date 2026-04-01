@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
-    `UID:${data.id}@ciseunoirbarbershop.com`,
+    `UID:${data.id}@ciseaunoirbarbershop.com`,
     `DTSTAMP:${now}`,
     `DTSTART:${dtStart}`,
     `DTEND:${dtEnd}`,

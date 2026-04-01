@@ -13,6 +13,7 @@ type Booking = {
   date: string;
   time: string;
   status: string;
+  loyalty_counted: boolean;
 };
 
 type ClientStats = {
@@ -58,9 +59,9 @@ export default function ClientsPage() {
 
     const stats: ClientStats[] = [];
     for (const [, bks] of map) {
-      const completed = bks.filter((b) => b.status === "completed");
+      const verified = bks.filter((b) => b.loyalty_counted === true);
       const noShows = bks.filter((b) => b.status === "no_show");
-      const lastCompleted = completed
+      const lastVerified = verified
         .map((b) => b.date)
         .sort()
         .reverse()[0] || "";
@@ -70,11 +71,11 @@ export default function ClientsPage() {
         name: latest.client_name,
         phone: latest.client_phone || "",
         email: latest.client_email || "",
-        totalVisits: completed.length,
-        totalSpent: completed.reduce((sum, b) => sum + (b.price || 0), 0),
-        lastVisit: lastCompleted,
+        totalVisits: verified.length,
+        totalSpent: verified.reduce((sum, b) => sum + (b.price || 0), 0),
+        lastVisit: lastVerified,
         noShowCount: noShows.length,
-        loyaltyProgress: completed.length % 10,
+        loyaltyProgress: verified.length % 10,
       });
     }
     return stats;

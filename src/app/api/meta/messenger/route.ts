@@ -38,12 +38,12 @@ COIFFEURS ET DISPONIBILITÉS:
 COORDONNÉES: 375 Boul. des Chutes, Québec | (418) 665-5703
 RÉSERVATION EN LIGNE: ciseaunoirbarbershop.com
 
-LIEN DE RÉSERVATION: https://ciseau-noir.vercel.app/booking
+LIEN DE RÉSERVATION: https://ciseaunoirbarbershop.com/booking
 
 INSTRUCTIONS IMPORTANTES:
 1. Réponds aux questions sur les services, prix, horaires, coiffeurs.
 2. Quand un client veut un rendez-vous, vérifie les dispos avec check_availability.
-3. Propose le lien pour réserver en ligne: "Tu peux aussi réserver directement ici 👉 https://ciseau-noir.vercel.app/booking"
+3. Propose le lien pour réserver en ligne: "Tu peux aussi réserver directement ici 👉 https://ciseaunoirbarbershop.com/booking"
 4. Si le client préfère réserver directement par le chat, c'est possible! Demande: nom, téléphone, email, service, coiffeur, date et heure. Puis utilise book_appointment.
 5. IMPORTANT: demande TOUJOURS l'email du client avant de réserver.
 6. Si le client n'a pas de préférence de date, vérifie les 3 prochains jours ouvrables.
@@ -204,7 +204,7 @@ async function handleToolCall(toolName: string, toolInput: Record<string, unknow
 
 async function sendMessengerMessage(recipientId: string, text: string) {
   // Check if the reply contains the booking URL
-  const bookingUrl = "https://ciseau-noir.vercel.app/booking";
+  const bookingUrl = "https://ciseaunoirbarbershop.com/booking";
   const hasBookingLink = text.includes(bookingUrl);
 
   // Send the text (remove the URL from text if we'll send a button)

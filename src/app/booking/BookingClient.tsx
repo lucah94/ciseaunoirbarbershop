@@ -9,7 +9,7 @@ import { isPushSupported, subscribeAndSave } from "@/lib/push-notifications";
 
 const SERVICES = [
   { id: "wash-cut", name: "Coupe + Lavage", price: "35$", duration: "45 min", desc: "Coupe classique avec shampoing", icon: "✂️" },
-  { id: "wash-cut-shave", name: "Coupe + Rasage Lame", price: "50$", duration: "60 min", desc: "Coupe, rasage lame & serviette chaude", icon: "🪒" },
+  { id: "wash-cut-shave", name: "Coupe + Barbe + Lavage", price: "50$", duration: "60 min", desc: "Coupe, rasage lame & serviette chaude", icon: "🪒" },
   { id: "premium", name: "Service Premium", price: "75$", duration: "75 min", desc: "Coupe, rasage, serviette chaude & exfoliant", icon: "👑" },
   { id: "shave", name: "Rasage / Barbe", price: "25$", duration: "30 min", desc: "Rasage lame, barbe & tondeuse", icon: "🧔" },
   { id: "student", name: "Tarif Étudiant", price: "30$", duration: "45 min", desc: "Coupe + lavage (preuve requise)", icon: "🎓" },
@@ -31,8 +31,40 @@ const TIMES_LONG  = ["8:30","9:00","9:30","10:00","10:30","11:00","11:30","13:00
 const DIODIS_TIMES_FRIDAY   = ["15:00","15:30","16:00","16:30","17:00","17:30","18:00","18:30","19:00","19:30","20:00"];
 const DIODIS_TIMES_SATURDAY = ["9:00","9:30","10:00","10:30","11:00","11:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00"];
 
-function getTimesForBarberAndDate(barberId: string, dateStr: string): string[] {
+function generateTimesFromRange(open: string, close: string): string[] {
+  const [oh, om] = open.split(":").map(Number);
+  const [ch, cm] = close.split(":").map(Number);
+  const times: string[] = [];
+  let cur = oh * 60 + om;
+  const end = ch * 60 + cm - 30; // last slot must end by close
+  while (cur <= end) {
+    const h = Math.floor(cur / 60);
+    const m = cur % 60;
+    times.push(`${h}:${String(m).padStart(2, "0")}`);
+    cur += 30;
+  }
+  return times;
+}
+
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+type DaySchedule = Record<string, { open: string; close: string } | null>;
+
+function getTimesForBarberAndDate(
+  barberId: string,
+  dateStr: string,
+  overrides?: { date: string; open: string; close: string }[],
+  schedule?: DaySchedule
+): string[] {
   if (!dateStr) return [];
+  const ov = overrides?.find(o => o.date === dateStr);
+  if (ov) return generateTimesFromRange(ov.open, ov.close);
+  if (schedule) {
+    const day = new Date(dateStr + "T12:00:00").getDay();
+    const daySchedule = schedule[DAY_KEYS[day]];
+    if (!daySchedule) return [];
+    return generateTimesFromRange(daySchedule.open, daySchedule.close);
+  }
+  // Fallback hardcoded
   const day = new Date(dateStr + "T12:00:00").getDay();
   if (barberId === "diodis") {
     if (day === 5) return DIODIS_TIMES_FRIDAY;
@@ -43,18 +75,53 @@ function getTimesForBarberAndDate(barberId: string, dateStr: string): string[] {
   return TIMES_SHORT;
 }
 
-function isDateAvailableForBarber(barberId: string, dateStr: string, blockedDates: string[]): boolean {
+function isDateAvailableForBarber(
+  barberId: string,
+  dateStr: string,
+  blockedDates: string[],
+  overrideDates: string[],
+  schedule?: DaySchedule
+): boolean {
+  if (blockedDates.includes(dateStr)) return false;
+  // Override: explicitly unlocked day
+  if (overrideDates.includes(dateStr)) return true;
+  if (schedule) {
+    const day = new Date(dateStr + "T12:00:00").getDay();
+    return !!schedule[DAY_KEYS[day]];
+  }
+  // Fallback hardcoded
   const day = new Date(dateStr + "T12:00:00").getDay();
   if (CLOSED_DAYS.includes(day)) return false;
-  if (blockedDates.includes(dateStr)) return false;
   if (barberId === "diodis" && day !== 5 && day !== 6) return false;
   return true;
+}
+
+function getServiceDuration(service: string): number {
+  const s = service.toLowerCase();
+  if (s.includes("premium")) return 75;
+  if (s.includes("barbe") && s.includes("coupe")) return 60;
+  if (s.includes("coupe")) return 45;
+  return 30;
+}
+
+function isSlotOccupied(slot: string, bookedSlots: { time: string; service: string }[]): boolean {
+  const [sh, sm] = slot.split(":").map(Number);
+  const slotMin = sh * 60 + sm;
+  for (const b of bookedSlots) {
+    const [bh, bm] = (b.time || "0:0").split(":").map(Number);
+    const bookingStart = bh * 60 + bm;
+    const bookingEnd = bookingStart + getServiceDuration(b.service);
+    // Slot overlaps if it starts during an existing booking, or if a new 30-min service would overlap
+    if (slotMin >= bookingStart && slotMin < bookingEnd) return true;
+    if (slotMin + 30 > bookingStart && slotMin < bookingEnd) return true;
+  }
+  return false;
 }
 
 const MONTHS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const DAYS_FR = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
 
-function CalendarPicker({ today, selected, onSelect, barberId, blockedDates }: { today: string; selected: string; onSelect: (d: string) => void; barberId: string; blockedDates: string[] }) {
+function CalendarPicker({ today, selected, onSelect, barberId, blockedDates, overrideDates, barberSchedule }: { today: string; selected: string; onSelect: (d: string) => void; barberId: string; blockedDates: string[]; overrideDates: string[]; barberSchedule?: DaySchedule }) {
   const todayDate = new Date(today + "T12:00:00");
   const [viewYear, setViewYear] = useState(todayDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(todayDate.getMonth());
@@ -191,7 +258,7 @@ function CalendarPicker({ today, selected, onSelect, barberId, blockedDates }: {
           if (!day) return <div key={`empty-${i}`} />;
           const dateStr = toStr(viewYear, viewMonth, day);
           const isPast = dateStr < today;
-          const isAvailable = isDateAvailableForBarber(barberId, dateStr, blockedDates);
+          const isAvailable = isDateAvailableForBarber(barberId, dateStr, blockedDates, overrideDates, barberSchedule);
           const isClosed = !isAvailable;
           const isSelected = dateStr === selected;
           const isToday = dateStr === today;
@@ -240,7 +307,7 @@ function CalendarPicker({ today, selected, onSelect, barberId, blockedDates }: {
         })}
       </div>
 
-      {selected && isDateAvailableForBarber(barberId, selected, blockedDates) && (
+      {selected && isDateAvailableForBarber(barberId, selected, blockedDates, overrideDates, barberSchedule) && (
         <p style={{
           color: "#D4AF37",
           fontSize: "15px",
@@ -347,8 +414,11 @@ function BookingContent() {
     note: "",
   });
   const [submitted, setSubmitted] = useState(false);
-  const [bookedTimes, setBookedTimes] = useState<string[]>([]);
+  const [bookingId, setBookingId] = useState<string | null>(null);
+  const [bookedSlots, setBookedSlots] = useState<{ time: string; service: string }[]>([]);
   const [blockedDates, setBlockedDates] = useState<string[]>([]);
+  const [dayOverrides, setDayOverrides] = useState<{ date: string; open: string; close: string }[]>([]);
+  const [barberSchedules, setBarberSchedules] = useState<Record<string, DaySchedule>>({});
   const [waitlistModal, setWaitlistModal] = useState<{time: string} | null>(null);
   const [waitlistForm, setWaitlistForm] = useState({ name: "", phone: "", email: "" });
   const [waitlistSent, setWaitlistSent] = useState(false);
@@ -361,11 +431,27 @@ function BookingContent() {
   const today = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
-    if (!selected.barber) return;
-    fetch(`/api/admin/blocks?barber=${selected.barber}`)
+    fetch("/api/barbers")
       .then(r => r.json())
-      .then(data => setBlockedDates(Array.isArray(data) ? data.map((b: { date: string }) => b.date) : []))
+      .then((data: { name: string; schedule: DaySchedule }[]) => {
+        if (Array.isArray(data)) {
+          const map: Record<string, DaySchedule> = {};
+          data.forEach(b => { map[b.name.toLowerCase()] = b.schedule; });
+          setBarberSchedules(map);
+        }
+      })
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!selected.barber) return;
+    Promise.all([
+      fetch(`/api/admin/blocks?barber=${selected.barber}`).then(r => r.json()).catch(() => []),
+      fetch(`/api/admin/day-overrides?barber=${selected.barber}`).then(r => r.json()).catch(() => []),
+    ]).then(([blocks, overrides]) => {
+      setBlockedDates(Array.isArray(blocks) ? blocks.map((b: { date: string }) => b.date) : []);
+      setDayOverrides(Array.isArray(overrides) ? overrides : []);
+    });
   }, [selected.barber]);
 
   useEffect(() => {
@@ -375,7 +461,11 @@ function BookingContent() {
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data)) {
-          setBookedTimes(data.filter(b => b.status !== "cancelled").map((b: { time: string }) => b.time));
+          setBookedSlots(
+            data
+              .filter((b: { status: string }) => b.status !== "cancelled")
+              .map((b: { time: string; service: string }) => ({ time: b.time, service: b.service || "" }))
+          );
         }
       });
   }, [selected.date, selected.barber]);
@@ -383,7 +473,7 @@ function BookingContent() {
   async function handleSubmit() {
     const service = SERVICES.find((s) => s.id === selected.service);
     const price = service ? parseInt(service.price) : 0;
-    await fetch("/api/bookings", {
+    const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -399,6 +489,8 @@ function BookingContent() {
         status: "confirmed",
       }),
     });
+    const resData = await res.json().catch(() => ({}));
+    if (resData?.id) setBookingId(resData.id);
     setSubmitted(true);
 
     // Fetch loyalty data after booking
@@ -473,7 +565,34 @@ function BookingContent() {
               <div style={{ height: "1px", background: "rgba(212,175,55,0.15)", margin: "16px 0" }} />
               <p style={{ color: "#666", fontSize: "13px" }}>375 Boul. des Chutes, Québec</p>
             </div>
-            <p style={{ color: "#666", fontSize: "13px", marginBottom: "32px" }}>Un rappel vous sera envoyé 24h avant votre rendez-vous.</p>
+            <p style={{ color: "#666", fontSize: "13px", marginBottom: "24px" }}>Un rappel vous sera envoyé 24h avant votre rendez-vous.</p>
+
+            {/* Bouton ajouter à l'agenda */}
+            {bookingId && (
+              <motion.a
+                href={`/api/calendar/booking/${bookingId}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  background: "rgba(212,175,55,0.1)",
+                  border: "1px solid rgba(212,175,55,0.4)",
+                  color: "#D4AF37",
+                  borderRadius: "12px",
+                  padding: "14px 28px",
+                  fontSize: "14px",
+                  letterSpacing: "1px",
+                  textDecoration: "none",
+                  marginBottom: "32px",
+                  cursor: "pointer",
+                }}
+              >
+                📆 Ajouter à mon agenda
+              </motion.a>
+            )}
 
             {/* Loyalty program */}
             {loyalty && (
@@ -960,16 +1079,28 @@ function BookingContent() {
                     onSelect={(val) => setSelected({ ...selected, date: val, time: "" })}
                     barberId={selected.barber}
                     blockedDates={blockedDates}
+                    overrideDates={dayOverrides.map(o => o.date)}
+                    barberSchedule={barberSchedules[selected.barber]}
                   />
-                  {selected.date && isDateAvailableForBarber(selected.barber, selected.date, blockedDates) && (
+                  {selected.date && isDateAvailableForBarber(selected.barber, selected.date, blockedDates, dayOverrides.map(o => o.date), barberSchedules[selected.barber]) && (
                     <p style={{ color: "#555", fontSize: "12px", marginTop: "12px" }}>
-                      {selected.barber === "diodis"
-                        ? (new Date(selected.date + "T12:00:00").getDay() === 5 ? "Diodis · Vendredi : 15h00–20h30" : "Diodis · Samedi : 9h00–16h30")
-                        : ([4,5].includes(new Date(selected.date + "T12:00:00").getDay()) ? "Horaire étendu : 8h30–20h30" : "Horaire : 8h30–16h30")}
+                      {(() => {
+                        const ov = dayOverrides.find(o => o.date === selected.date);
+                        if (ov) return `Disponible · ${ov.open.slice(0,5)}–${ov.close.slice(0,5)}`;
+                        const sched = barberSchedules[selected.barber];
+                        if (sched) {
+                          const dayKey = DAY_KEYS[new Date(selected.date + "T12:00:00").getDay()];
+                          const ds = sched[dayKey];
+                          if (ds) return `Horaire · ${ds.open}–${ds.close}`;
+                        }
+                        if (selected.barber === "diodis")
+                          return new Date(selected.date + "T12:00:00").getDay() === 5 ? "Diodis · Vendredi : 15h00–20h30" : "Diodis · Samedi : 9h00–16h30";
+                        return [4,5].includes(new Date(selected.date + "T12:00:00").getDay()) ? "Horaire étendu : 8h30–20h30" : "Horaire : 8h30–16h30";
+                      })()}
                     </p>
                   )}
                 </div>
-                {selected.date && isDateAvailableForBarber(selected.barber, selected.date, blockedDates) && (
+                {selected.date && isDateAvailableForBarber(selected.barber, selected.date, blockedDates, dayOverrides.map(o => o.date), barberSchedules[selected.barber]) && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -988,8 +1119,8 @@ function BookingContent() {
                       Les créneaux barrés sont complets — cliquez dessus pour rejoindre la liste d'attente.
                     </p>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "12px" }}>
-                      {getTimesForBarberAndDate(selected.barber, selected.date).map((t) => {
-                        const isBooked = bookedTimes.includes(t);
+                      {getTimesForBarberAndDate(selected.barber, selected.date, dayOverrides, barberSchedules[selected.barber]).map((t) => {
+                        const isBooked = isSlotOccupied(t, bookedSlots);
                         const isSelected = selected.time === t;
                         const now = new Date();
                         const isToday = selected.date === today;

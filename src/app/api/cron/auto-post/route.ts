@@ -23,7 +23,7 @@ function getContentTypeForDay(dayOfWeek: number, postIndex: number): string {
 
 const CONTENT_PROMPTS: Record<string, string> = {
   promotion: `Génère une publication Facebook promotionnelle pour Ciseau Noir Barbershop à Québec.
-Mentionne une offre spéciale, un service ou incite à réserver en ligne sur ciseunoirbarbershop.com.
+Mentionne une offre spéciale, un service ou incite à réserver en ligne sur ciseaunoirbarbershop.com.
 Utilise des emojis appropriés. 2-4 phrases max. En français.`,
 
   service_highlight: `Génère une publication Facebook qui met en avant un service spécifique de Ciseau Noir Barbershop.
@@ -54,7 +54,7 @@ Contexte: Nous sommes ${dayName}.
 Informations:
 - Adresse: 375 Boul. des Chutes, Québec
 - Téléphone: (418) 665-5703
-- Site: ciseunoirbarbershop.com
+- Site: ciseaunoirbarbershop.com
 - Horaires du jour: ${dayOfWeek === 2 || dayOfWeek === 3 ? "8h30-16h30" : dayOfWeek === 4 || dayOfWeek === 5 ? "8h30-20h30" : "8h30-16h30"}
 
 Génère uniquement le texte de la publication, sans guillemets ni introduction.`;
@@ -66,7 +66,7 @@ Génère uniquement le texte de la publication, sans guillemets ni introduction.
   });
 
   const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === "text");
-  return textBlock?.text || "✂️ Ciseau Noir — Votre barbershop à Québec ! Réservez en ligne sur ciseunoirbarbershop.com";
+  return textBlock?.text || "✂️ Ciseau Noir — Votre barbershop à Québec ! Réservez en ligne sur ciseaunoirbarbershop.com";
 }
 
 async function postToFacebook(message: string): Promise<{ id?: string; error?: string }> {

@@ -43,7 +43,10 @@ const SERVICES = [
   { label: "Service Premium", price: 75 },
   { label: "Rasage / Barbe", price: 25 },
   { label: "Tarif Etudiant", price: 30 },
+  { label: "Coupe (enfants,étudiants,bébés)", price: 30 },
 ];
+
+const BARBERS_LIST = ["Melynda", "Diodis"];
 
 const TIME_SLOTS: string[] = [];
 for (let h = 8; h < 20; h++) {
@@ -73,6 +76,11 @@ export default function AgendaPage() {
   const [clientResults, setClientResults] = useState<ClientResult[]>([]);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Edit mode state
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ service: "", price: 0, barber: "", date: "", time: "", note: "" });
+  const [editSaving, setEditSaving] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clientDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -207,6 +215,33 @@ export default function AgendaPage() {
     setShowClientDropdown(false);
   }
 
+  async function saveEdit() {
+    if (!selected) return;
+    setEditSaving(true);
+    const updates: Record<string, string | number> = {};
+    if (editForm.service !== selected.service) updates.service = editForm.service;
+    if (editForm.price !== selected.price) updates.price = editForm.price;
+    if (editForm.barber !== selected.barber) updates.barber = editForm.barber;
+    if (editForm.date !== selected.date) updates.date = editForm.date;
+    if (editForm.time !== selected.time) updates.time = editForm.time;
+    if (editForm.note !== (selected.note || "")) updates.note = editForm.note;
+    if (Object.keys(updates).length > 0) {
+      const res = await fetch("/api/bookings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selected.id, ...updates }),
+      });
+      const data = await res.json();
+      if (!data.error) {
+        const updated = { ...selected, ...updates };
+        setBookings(prev => prev.map(b => b.id === selected.id ? { ...b, ...updates } as Booking : b));
+        setSelected(updated as Booking);
+      }
+    }
+    setEditing(false);
+    setEditSaving(false);
+  }
+
   async function updateStatus(id: string, status: string) {
     if (status === "cancelled" && !confirm("Etes-vous sur de vouloir annuler ce rendez-vous ?")) return;
     await fetch("/api/bookings", {
@@ -254,6 +289,7 @@ export default function AgendaPage() {
   }
 
   const filtered = bookings.filter(b => {
+    if (b.status === "cancelled") return false;
     if (filter !== "all" && b.barber !== filter) return false;
     return true;
   });
@@ -281,6 +317,14 @@ export default function AgendaPage() {
     };
   });
 
+  function getServiceDuration(service: string): number {
+    const s = service.toLowerCase();
+    if (s.includes("premium")) return 75;
+    if (s.includes("barbe") && s.includes("coupe")) return 60;
+    if (s.includes("coupe")) return 45;
+    return 30;
+  }
+
   // Conflict detection for new RDV form
   const occupiedSlots = useMemo(() => {
     if (!newRDV.barber || !newRDV.date) return new Set<string>();
@@ -293,11 +337,10 @@ export default function AgendaPage() {
       const slotMin = sh * 60 + sm;
       for (const b of barberBookings) {
         const [bh, bm] = (b.time || "0:0").split(":").map(Number);
-        const bookingMin = bh * 60 + bm;
-        if (Math.abs(slotMin - bookingMin) < 45) {
-          occupied.add(slot);
-          break;
-        }
+        const bookingStart = bh * 60 + bm;
+        const bookingEnd = bookingStart + getServiceDuration(b.service);
+        if (slotMin >= bookingStart && slotMin < bookingEnd) { occupied.add(slot); break; }
+        if (slotMin + 30 > bookingStart && slotMin < bookingEnd) { occupied.add(slot); break; }
       }
     }
     return occupied;
@@ -312,9 +355,10 @@ export default function AgendaPage() {
     );
     for (const b of barberBookings) {
       const [bh, bm] = (b.time || "0:0").split(":").map(Number);
-      const bookingMin = bh * 60 + bm;
-      if (Math.abs(slotMin - bookingMin) < 45) {
-        return `${newRDV.barber} est deja reservee a cet horaire`;
+      const bookingStart = bh * 60 + bm;
+      const bookingEnd = bookingStart + getServiceDuration(b.service);
+      if (slotMin >= bookingStart && slotMin < bookingEnd) {
+        return `${newRDV.barber} a déjà un RDV de ${b.time} à ${Math.floor(bookingEnd/60)}:${String(bookingEnd%60).padStart(2,"0")}`;
       }
     }
     return null;
@@ -323,7 +367,7 @@ export default function AgendaPage() {
   // Shared input style
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    background: "#111",
+    background: "#1C2129",
     border: "1px solid rgba(212,175,55,0.2)",
     borderRadius: "8px",
     padding: "10px 14px",
@@ -334,7 +378,7 @@ export default function AgendaPage() {
   };
 
   const labelStyle: React.CSSProperties = {
-    color: "#888",
+    color: "#8B949E",
     fontSize: "11px",
     letterSpacing: "1px",
     textTransform: "uppercase",
@@ -343,7 +387,7 @@ export default function AgendaPage() {
   };
 
   return (
-    <div style={{ background: "#080808", minHeight: "100vh", display: "flex" }}>
+    <div style={{ background: "#111318", minHeight: "100vh", display: "flex" }}>
       <AdminSidebar />
 
       <main style={{ marginLeft: isMobile ? 0 : "260px", flex: 1, padding: isMobile ? "16px 16px 88px" : "32px 40px" }}>
@@ -360,7 +404,7 @@ export default function AgendaPage() {
             <h1 style={{ fontSize: isMobile ? "22px" : "28px", fontWeight: 300, letterSpacing: "2px", color: "#F0F0F0", marginBottom: "6px" }}>
               Agenda
             </h1>
-            <p style={{ color: "#555", fontSize: "13px", letterSpacing: "1px" }}>
+            <p style={{ color: "#8B949E", fontSize: "13px", letterSpacing: "1px" }}>
               {bookings.filter(b => b.status !== "cancelled").length} reservation{bookings.filter(b => b.status !== "cancelled").length > 1 ? "s" : ""} actives
             </p>
           </div>
@@ -376,9 +420,9 @@ export default function AgendaPage() {
                 key={f.key}
                 onClick={() => setFilter(f.key)}
                 style={{
-                  background: filter === f.key ? f.color : "#0D0D0D",
-                  border: `1px solid ${filter === f.key ? f.color : "rgba(255,255,255,0.08)"}`,
-                  color: filter === f.key ? "#080808" : "#666",
+                  background: filter === f.key ? f.color : "#1C2129",
+                  border: `1px solid ${filter === f.key ? f.color : "rgba(255,255,255,0.12)"}`,
+                  color: filter === f.key ? "#080808" : "#8B949E",
                   padding: isMobile ? "6px 14px" : "8px 20px",
                   fontSize: isMobile ? "10px" : "11px",
                   letterSpacing: "1px",
@@ -425,19 +469,14 @@ export default function AgendaPage() {
             {/* Calendar */}
             <div style={{
               flex: 1,
-              background: "linear-gradient(135deg, #0D0D0D, #0A0A0A)",
-              border: "1px solid rgba(212,175,55,0.12)",
+              background: "#161B22",
+              border: "1px solid rgba(212,175,55,0.18)",
               borderRadius: "16px",
               padding: isMobile ? "12px" : "24px",
-              boxShadow: "0 8px 40px rgba(0,0,0,0.4), 0 0 60px rgba(212,175,55,0.04), inset 0 1px 0 rgba(212,175,55,0.08)",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
               position: "relative",
               overflow: "hidden",
             }}>
-              {/* Gold glow corners */}
-              <div style={{ position: "absolute", top: 0, left: 0, width: "100px", height: "100px", background: "radial-gradient(circle at top left, rgba(212,175,55,0.08), transparent 70%)", pointerEvents: "none" }} />
-              <div style={{ position: "absolute", top: 0, right: 0, width: "100px", height: "100px", background: "radial-gradient(circle at top right, rgba(212,175,55,0.08), transparent 70%)", pointerEvents: "none" }} />
-              <div style={{ position: "absolute", bottom: 0, left: 0, width: "100px", height: "100px", background: "radial-gradient(circle at bottom left, rgba(212,175,55,0.05), transparent 70%)", pointerEvents: "none" }} />
-              <div style={{ position: "absolute", bottom: 0, right: 0, width: "100px", height: "100px", background: "radial-gradient(circle at bottom right, rgba(212,175,55,0.05), transparent 70%)", pointerEvents: "none" }} />
               <style>{`
                 @keyframes goldPulse {
                   0%, 100% { box-shadow: 0 0 8px rgba(212,175,55,0.1); }
@@ -448,10 +487,10 @@ export default function AgendaPage() {
                   50% { opacity: 0.7; }
                 }
                 .fc {
-                  --fc-border-color: rgba(212,175,55,0.08);
-                  --fc-today-bg-color: rgba(212,175,55,0.06);
-                  --fc-page-bg-color: #080808;
-                  --fc-neutral-bg-color: #0D0D0D;
+                  --fc-border-color: rgba(212,175,55,0.15);
+                  --fc-today-bg-color: rgba(212,175,55,0.08);
+                  --fc-page-bg-color: #111318;
+                  --fc-neutral-bg-color: #161B22;
                   --fc-list-event-hover-bg-color: rgba(212,175,55,0.12);
                   font-family: inherit;
                 }
@@ -467,7 +506,7 @@ export default function AgendaPage() {
                   -webkit-text-fill-color: transparent !important;
                 }
                 .fc .fc-button {
-                  background: #0D0D0D !important;
+                  background: #1C2129 !important;
                   border: 1px solid rgba(212,175,55,0.2) !important;
                   color: #999 !important;
                   font-size: ${isMobile ? "9px" : "11px"} !important;
@@ -491,7 +530,7 @@ export default function AgendaPage() {
                   box-shadow: 0 0 25px rgba(212,175,55,0.3), 0 4px 16px rgba(212,175,55,0.2) !important;
                 }
                 .fc .fc-col-header-cell {
-                  background: linear-gradient(180deg, #0D0D0D, #0A0A0A) !important;
+                  background: #1C2129 !important;
                   padding: ${isMobile ? "8px 0" : "14px 0"} !important;
                   border-bottom: 1px solid rgba(212,175,55,0.12) !important;
                 }
@@ -505,14 +544,14 @@ export default function AgendaPage() {
                 }
                 .fc .fc-timegrid-slot {
                   height: ${isMobile ? "44px" : "56px"} !important;
-                  border-color: rgba(212,175,55,0.04) !important;
+                  border-color: rgba(212,175,55,0.10) !important;
                   transition: background 0.2s ease !important;
                 }
                 .fc .fc-timegrid-slot:hover {
                   background: rgba(212,175,55,0.03) !important;
                 }
                 .fc .fc-timegrid-slot-label-cushion {
-                  color: #555 !important;
+                  color: #8B949E !important;
                   font-size: ${isMobile ? "10px" : "12px"} !important;
                   font-variant-numeric: tabular-nums !important;
                   font-weight: 400 !important;
@@ -552,12 +591,12 @@ export default function AgendaPage() {
                   transform: translateY(-1px) !important;
                 }
                 .fc .fc-scrollgrid {
-                  border-color: rgba(212,175,55,0.08) !important;
+                  border-color: rgba(212,175,55,0.15) !important;
                   border-radius: 12px !important;
                   overflow: hidden !important;
                 }
                 .fc td, .fc th {
-                  border-color: rgba(212,175,55,0.05) !important;
+                  border-color: rgba(212,175,55,0.12) !important;
                 }
                 .fc .fc-timegrid-now-indicator-line {
                   border-color: #D4AF37 !important;
@@ -570,7 +609,7 @@ export default function AgendaPage() {
                   border-bottom-color: transparent !important;
                 }
                 .fc .fc-day-today {
-                  background: rgba(212,175,55,0.04) !important;
+                  background: rgba(212,175,55,0.06) !important;
                 }
                 .fc .fc-day-today .fc-col-header-cell-cushion {
                   color: #F0F0F0 !important;
@@ -581,7 +620,7 @@ export default function AgendaPage() {
                   background: rgba(212,175,55,0.05) !important;
                 }
                 .fc .fc-daygrid-day-number {
-                  color: #888 !important;
+                  color: #8B949E !important;
                   transition: all 0.2s ease !important;
                 }
                 .fc .fc-daygrid-day:hover .fc-daygrid-day-number {
@@ -638,7 +677,7 @@ export default function AgendaPage() {
               <div style={{
                 width: "320px",
                 flexShrink: 0,
-                background: "#0D0D0D",
+                background: "#161B22",
                 border: "1px solid rgba(212,175,55,0.1)",
                 borderRadius: "12px",
                 padding: "28px 24px",
@@ -669,7 +708,7 @@ export default function AgendaPage() {
               height: "auto",
               maxHeight: "80vh",
               overflowY: "auto",
-              background: "#0D0D0D",
+              background: "#161B22",
               borderTop: "2px solid #D4AF37",
               zIndex: 150,
               padding: "24px",
@@ -835,9 +874,14 @@ export default function AgendaPage() {
                     >
                       {TIME_SLOTS.map(t => {
                         const isOccupied = occupiedSlots.has(t);
+                        const now = new Date();
+                        const isToday = newRDV.date === now.toISOString().split("T")[0];
+                        const [tH, tM] = t.split(":").map(Number);
+                        const isPast = isToday && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()));
+                        const disabled = isOccupied || isPast;
                         return (
-                          <option key={t} value={t} disabled={isOccupied} style={isOccupied ? { color: "#666" } : undefined}>
-                            {t}{isOccupied ? " (occupe)" : ""}
+                          <option key={t} value={t} disabled={disabled} style={disabled ? { color: "#666" } : undefined}>
+                            {t}{isOccupied ? " (occupe)" : isPast ? " (passe)" : ""}
                           </option>
                         );
                       })}
@@ -918,14 +962,22 @@ export default function AgendaPage() {
   // Extracted detail panel content (used in both desktop sidebar and mobile bottom sheet)
   function renderDetailContent() {
     if (!selected) return null;
+    const editInputStyle: React.CSSProperties = {
+      width: "100%", background: "#111", border: "1px solid rgba(212,175,55,0.2)",
+      color: "#F0F0F0", padding: "8px 10px", borderRadius: "6px", fontSize: "13px", colorScheme: "dark",
+    };
+    const labelStyle: React.CSSProperties = {
+      color: "#7D8590", fontSize: "10px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "4px",
+    };
+
     return (
       <>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <h3 style={{ color: "#F0F0F0", fontSize: "16px", fontWeight: 400, letterSpacing: "1px" }}>
-            Details du RDV
+            {editing ? "Modifier le RDV" : "Details du RDV"}
           </h3>
           <button
-            onClick={() => setSelected(null)}
+            onClick={() => { setSelected(null); setEditing(false); }}
             style={{
               background: "none", border: "none", color: "#555", fontSize: "18px",
               cursor: "pointer", padding: "4px 8px",
@@ -937,19 +989,14 @@ export default function AgendaPage() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div>
-            <p style={{ color: "#555", fontSize: "10px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "4px" }}>Client</p>
+            <p style={labelStyle}>Client</p>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <p style={{ color: "#F0F0F0", fontSize: "15px" }}>{selected.client_name}</p>
               {selected.client_email && visitCounts[selected.client_email] ? (
                 <span style={{
                   background: "linear-gradient(135deg, #D4AF37, #B8860B)",
-                  color: "#080808",
-                  fontSize: "10px",
-                  fontWeight: 700,
-                  padding: "2px 8px",
-                  borderRadius: "10px",
-                  letterSpacing: "0.5px",
-                  whiteSpace: "nowrap",
+                  color: "#080808", fontSize: "10px", fontWeight: 700,
+                  padding: "2px 8px", borderRadius: "10px", letterSpacing: "0.5px", whiteSpace: "nowrap",
                 }}>
                   {visitCounts[selected.client_email]}e visite
                 </span>
@@ -957,148 +1004,213 @@ export default function AgendaPage() {
             </div>
           </div>
           <div>
-            <p style={{ color: "#555", fontSize: "10px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "4px" }}>Telephone</p>
+            <p style={labelStyle}>Telephone</p>
             <p style={{ color: "#F0F0F0", fontSize: "15px" }}>{selected.client_phone}</p>
           </div>
           {selected.client_email && (
             <div>
-              <p style={{ color: "#555", fontSize: "10px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "4px" }}>Email</p>
+              <p style={labelStyle}>Email</p>
               <p style={{ color: "#F0F0F0", fontSize: "14px" }}>{selected.client_email}</p>
             </div>
           )}
-          <div style={{ display: "flex", gap: "20px" }}>
-            <div>
-              <p style={{ color: "#555", fontSize: "10px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "4px" }}>Service</p>
-              <p style={{ color: "#F0F0F0", fontSize: "15px" }}>{selected.service}</p>
-            </div>
-            <div>
-              <p style={{ color: "#555", fontSize: "10px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "4px" }}>Prix</p>
-              <p style={{ color: "#D4AF37", fontSize: "15px", fontWeight: 500 }}>{selected.price}$</p>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: "20px" }}>
-            <div>
-              <p style={{ color: "#555", fontSize: "10px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "4px" }}>Barbiere</p>
-              <p style={{ color: BARBER_COLORS[selected.barber] || "#F0F0F0", fontSize: "15px" }}>{selected.barber}</p>
-            </div>
-            <div>
-              <p style={{ color: "#555", fontSize: "10px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "4px" }}>Date & heure</p>
-              <p style={{ color: "#F0F0F0", fontSize: "15px" }}>
-                {new Date(selected.date + "T12:00:00").toLocaleDateString("fr-CA", { day: "numeric", month: "short" })} a {selected.time}
-              </p>
-            </div>
-          </div>
-          {selected.note && (
-            <div>
-              <p style={{ color: "#555", fontSize: "10px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "4px" }}>Note</p>
-              <p style={{ color: "#999", fontSize: "13px", fontStyle: "italic" }}>{selected.note}</p>
-            </div>
-          )}
 
-          {/* Status */}
-          <div style={{
-            background: "rgba(255,255,255,0.02)",
-            borderRadius: "8px",
-            padding: "12px 16px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}>
-            <span style={{ color: "#555", fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase" }}>Statut</span>
-            <span style={{
-              color: STATUS_COLORS[selected.status] || "#999",
-              fontSize: "11px",
-              letterSpacing: "1px",
-              textTransform: "uppercase",
-              fontWeight: 500,
-            }}>
-              {STATUS_LABELS[selected.status] || selected.status}
-            </span>
-          </div>
+          {editing ? (
+            <>
+              <div style={{ display: "flex", gap: "12px" }}>
+                <div style={{ flex: 1 }}>
+                  <p style={labelStyle}>Service</p>
+                  <select value={editForm.service} onChange={e => {
+                    const svc = SERVICES.find(s => s.label === e.target.value);
+                    setEditForm(f => ({ ...f, service: e.target.value, price: svc ? svc.price : f.price }));
+                  }} style={editInputStyle}>
+                    {SERVICES.map(s => <option key={s.label} value={s.label}>{s.label}</option>)}
+                    {!SERVICES.find(s => s.label === editForm.service) && (
+                      <option value={editForm.service}>{editForm.service}</option>
+                    )}
+                  </select>
+                </div>
+                <div style={{ width: "80px" }}>
+                  <p style={labelStyle}>Prix</p>
+                  <input type="number" value={editForm.price} onChange={e => setEditForm(f => ({ ...f, price: Number(e.target.value) }))}
+                    style={editInputStyle} />
+                </div>
+              </div>
+              <div>
+                <p style={labelStyle}>Barbiere</p>
+                <select value={editForm.barber} onChange={e => setEditForm(f => ({ ...f, barber: e.target.value }))}
+                  style={editInputStyle}>
+                  {BARBERS_LIST.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+              <div style={{ display: "flex", gap: "12px" }}>
+                <div style={{ flex: 1 }}>
+                  <p style={labelStyle}>Date</p>
+                  <input type="date" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))}
+                    style={editInputStyle} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={labelStyle}>Heure</p>
+                  <select value={editForm.time} onChange={e => setEditForm(f => ({ ...f, time: e.target.value }))}
+                    style={editInputStyle}>
+                    {TIME_SLOTS.map(t => {
+                      const now = new Date();
+                      const isToday = editForm.date === now.toISOString().split("T")[0];
+                      const [tH, tM] = t.split(":").map(Number);
+                      const isPast = isToday && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()));
+                      return (
+                        <option key={t} value={t} disabled={isPast} style={isPast ? { color: "#666" } : undefined}>
+                          {t}{isPast ? " (passe)" : ""}
+                        </option>
+                      );
+                    })}
+                    {!TIME_SLOTS.includes(editForm.time) && (
+                      <option value={editForm.time}>{editForm.time}</option>
+                    )}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <p style={labelStyle}>Note</p>
+                <input value={editForm.note} onChange={e => setEditForm(f => ({ ...f, note: e.target.value }))}
+                  placeholder="Note (optionnel)" style={editInputStyle} />
+              </div>
+              <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+                <button onClick={() => setEditing(false)}
+                  style={{ flex: 1, background: "none", border: "1px solid rgba(255,255,255,0.08)", color: "#666", padding: "10px", cursor: "pointer", borderRadius: "8px", fontSize: "12px" }}>
+                  Annuler
+                </button>
+                <button onClick={saveEdit} disabled={editSaving}
+                  style={{ flex: 1, background: "linear-gradient(135deg, #D4AF37, #B8860B)", color: "#080808", border: "none", padding: "10px", cursor: "pointer", borderRadius: "8px", fontSize: "12px", fontWeight: 700 }}>
+                  {editSaving ? "..." : "Sauvegarder"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ display: "flex", gap: "20px" }}>
+                <div>
+                  <p style={labelStyle}>Service</p>
+                  <p style={{ color: "#F0F0F0", fontSize: "15px" }}>{selected.service}</p>
+                </div>
+                <div>
+                  <p style={labelStyle}>Prix</p>
+                  <p style={{ color: "#D4AF37", fontSize: "15px", fontWeight: 500 }}>{selected.price}$</p>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "20px" }}>
+                <div>
+                  <p style={labelStyle}>Barbiere</p>
+                  <p style={{ color: BARBER_COLORS[selected.barber] || "#F0F0F0", fontSize: "15px" }}>{selected.barber}</p>
+                </div>
+                <div>
+                  <p style={labelStyle}>Date & heure</p>
+                  <p style={{ color: "#F0F0F0", fontSize: "15px" }}>
+                    {new Date(selected.date + "T12:00:00").toLocaleDateString("fr-CA", { day: "numeric", month: "short" })} a {selected.time}
+                  </p>
+                </div>
+              </div>
+              {selected.note && (
+                <div>
+                  <p style={labelStyle}>Note</p>
+                  <p style={{ color: "#999", fontSize: "13px", fontStyle: "italic" }}>{selected.note}</p>
+                </div>
+              )}
 
-          {/* Actions */}
-          {selected.status === "confirmed" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
-              <button
-                onClick={async () => {
-                  await fetch("/api/bookings", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: selected.id, status: "completed", loyalty_counted: true }),
-                  });
-                  setBookings(prev => prev.map(b => b.id === selected.id ? { ...b, status: "completed" } : b));
-                  setSelected(prev => prev ? { ...prev, status: "completed" } : null);
-                  const booking = bookings.find(b => b.id === selected.id);
-                  if (booking?.client_email) {
-                    fetch("/api/review-request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client_name: booking.client_name, client_email: booking.client_email, barber: booking.barber, service: booking.service }) });
-                  }
-                }}
-                style={{
-                  background: "linear-gradient(135deg, rgba(212,175,55,0.15), rgba(184,134,11,0.1))",
-                  border: "1px solid rgba(212,175,55,0.4)",
-                  color: "#D4AF37",
-                  padding: "10px 16px",
-                  fontSize: "12px",
-                  cursor: "pointer",
-                  borderRadius: "8px",
-                  transition: "all 0.2s ease",
-                  letterSpacing: "0.5px",
-                  fontWeight: 600,
-                }}
-              >
-                Client satisfait (+1 fidelite)
-              </button>
-              <button
-                onClick={() => updateStatus(selected.id, "completed")}
-                style={{
-                  background: "rgba(85,170,85,0.08)",
-                  border: "1px solid rgba(85,170,85,0.2)",
-                  color: "#5a5",
-                  padding: "10px 16px",
-                  fontSize: "12px",
-                  cursor: "pointer",
-                  borderRadius: "8px",
-                  transition: "all 0.2s ease",
-                  letterSpacing: "0.5px",
-                }}
-              >
-                &#10003; Complete (sans fidelite)
-              </button>
-              <button
-                onClick={() => updateStatus(selected.id, "cancelled")}
-                style={{
-                  background: "rgba(238,85,85,0.08)",
-                  border: "1px solid rgba(238,85,85,0.2)",
-                  color: "#e55",
-                  padding: "10px 16px",
-                  fontSize: "12px",
-                  cursor: "pointer",
-                  borderRadius: "8px",
-                  transition: "all 0.2s ease",
-                  letterSpacing: "0.5px",
-                }}
-              >
-                &#10005; Annuler
-              </button>
-              {isPastBooking(selected) && (
+              {/* Status */}
+              <div style={{
+                background: "rgba(255,255,255,0.02)", borderRadius: "8px", padding: "12px 16px",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}>
+                <span style={{ color: "#555", fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase" }}>Statut</span>
+                <span style={{
+                  color: STATUS_COLORS[selected.status] || "#999", fontSize: "11px",
+                  letterSpacing: "1px", textTransform: "uppercase", fontWeight: 500,
+                }}>
+                  {STATUS_LABELS[selected.status] || selected.status}
+                </span>
+              </div>
+
+              {/* Edit button */}
+              {selected.status !== "cancelled" && (
                 <button
-                  onClick={() => markNoShow(selected.id)}
+                  onClick={() => {
+                    setEditForm({
+                      service: selected.service, price: selected.price, barber: selected.barber,
+                      date: selected.date, time: selected.time, note: selected.note || "",
+                    });
+                    setEditing(true);
+                  }}
                   style={{
-                    background: "rgba(255,153,0,0.08)",
-                    border: "1px solid rgba(255,153,0,0.2)",
-                    color: "#f90",
-                    padding: "10px 16px",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                    borderRadius: "8px",
-                    transition: "all 0.2s ease",
-                    letterSpacing: "0.5px",
+                    background: "rgba(212,175,55,0.06)", border: "1px solid rgba(212,175,55,0.25)",
+                    color: "#D4AF37", padding: "10px 16px", fontSize: "12px",
+                    cursor: "pointer", borderRadius: "8px", letterSpacing: "0.5px", fontWeight: 500,
                   }}
                 >
-                  &#8709; No-show
+                  Modifier le RDV
                 </button>
               )}
-            </div>
+
+              {/* Actions */}
+              {selected.status === "confirmed" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
+                  <button
+                    onClick={async () => {
+                      await fetch("/api/bookings", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ id: selected.id, status: "completed", loyalty_counted: true }),
+                      });
+                      setBookings(prev => prev.map(b => b.id === selected.id ? { ...b, status: "completed" } : b));
+                      setSelected(prev => prev ? { ...prev, status: "completed" } : null);
+                      const booking = bookings.find(b => b.id === selected.id);
+                      if (booking?.client_email) {
+                        fetch("/api/review-request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client_name: booking.client_name, client_email: booking.client_email, barber: booking.barber, service: booking.service }) });
+                      }
+                    }}
+                    style={{
+                      background: "linear-gradient(135deg, rgba(212,175,55,0.15), rgba(184,134,11,0.1))",
+                      border: "1px solid rgba(212,175,55,0.4)", color: "#D4AF37",
+                      padding: "10px 16px", fontSize: "12px", cursor: "pointer",
+                      borderRadius: "8px", letterSpacing: "0.5px", fontWeight: 600,
+                    }}
+                  >
+                    Client satisfait (+1 fidelite)
+                  </button>
+                  <button
+                    onClick={() => updateStatus(selected.id, "completed")}
+                    style={{
+                      background: "rgba(85,170,85,0.08)", border: "1px solid rgba(85,170,85,0.2)",
+                      color: "#5a5", padding: "10px 16px", fontSize: "12px",
+                      cursor: "pointer", borderRadius: "8px", letterSpacing: "0.5px",
+                    }}
+                  >
+                    &#10003; Complete (sans fidelite)
+                  </button>
+                  <button
+                    onClick={() => updateStatus(selected.id, "cancelled")}
+                    style={{
+                      background: "rgba(238,85,85,0.08)", border: "1px solid rgba(238,85,85,0.2)",
+                      color: "#e55", padding: "10px 16px", fontSize: "12px",
+                      cursor: "pointer", borderRadius: "8px", letterSpacing: "0.5px",
+                    }}
+                  >
+                    &#10005; Annuler
+                  </button>
+                  {isPastBooking(selected) && (
+                    <button
+                      onClick={() => markNoShow(selected.id)}
+                      style={{
+                        background: "rgba(255,153,0,0.08)", border: "1px solid rgba(255,153,0,0.2)",
+                        color: "#f90", padding: "10px 16px", fontSize: "12px",
+                        cursor: "pointer", borderRadius: "8px", letterSpacing: "0.5px",
+                      }}
+                    >
+                      &#8709; No-show
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </>

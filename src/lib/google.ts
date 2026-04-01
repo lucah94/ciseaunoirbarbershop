@@ -32,7 +32,7 @@ export async function postToGoogleMyBusiness(text: string): Promise<{ success: b
           topicType: "STANDARD",
           callToAction: {
             actionType: "BOOK",
-            url: "https://ciseunoirbarbershop.com/booking",
+            url: "https://ciseaunoirbarbershop.com/booking",
           },
         }),
       }

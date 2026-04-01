@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
     const date = searchParams.get("date");
     const barber = searchParams.get("barber");
     const id = searchParams.get("id");
+    const start = searchParams.get("start");
 
     if (id) {
       const { data, error } = await supabase.from("bookings").select("*").eq("id", id).single();
@@ -37,6 +38,7 @@ export async function GET(req: NextRequest) {
 
     if (date) query = query.eq("date", date);
     if (barber) query = query.eq("barber", barber);
+    if (start) query = query.gte("date", start);
 
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -78,6 +80,7 @@ export async function POST(req: NextRequest) {
         barber: data.barber,
         date: data.date,
         time: data.time,
+        booking_id: data.id,
       }).catch(e => console.error("SMS error:", e)) : Promise.resolve(),
       data.client_email ? sendBookingConfirmation({
         client_name: data.client_name,
@@ -156,13 +159,13 @@ export async function PATCH(req: NextRequest) {
             await twilioClient.messages.create({
               from: process.env.TWILIO_PHONE_NUMBER,
               to: formatPhone(waitlistEntry.client_phone),
-              body: `Ciseau Noir ✂️ Bonne nouvelle !\n\nUn créneau s'est libéré :\n${waitlistEntry.service} avec ${waitlistEntry.barber}\n📅 ${dateFormatted} à ${waitlistEntry.time}\n\nRéservez vite : ciseunoirbarbershop.com/booking`,
+              body: `Ciseau Noir ✂️ Bonne nouvelle !\n\nUn créneau s'est libéré :\n${waitlistEntry.service} avec ${waitlistEntry.barber}\n📅 ${dateFormatted} à ${waitlistEntry.time}\n\nRéservez vite : ciseaunoirbarbershop.com/booking`,
             }).catch((e: unknown) => console.error("Waitlist SMS error:", e));
           }
 
           if (waitlistEntry.client_email) {
             const resend = new Resend(process.env.RESEND_API_KEY);
-            const FROM_EMAIL = process.env.FROM_EMAIL || "Ciseau Noir <noreply@ciseunoirbarbershop.com>";
+            const FROM_EMAIL = process.env.FROM_EMAIL || "Ciseau Noir <noreply@ciseaunoirbarbershop.com>";
             await resend.emails.send({
               from: FROM_EMAIL,
               to: waitlistEntry.client_email,
@@ -178,7 +181,7 @@ export async function PATCH(req: NextRequest) {
                     <p style="color: #F5F5F5; margin-bottom: 8px;">${waitlistEntry.service} avec ${waitlistEntry.barber}</p>
                     <p style="color: #999; font-size: 14px;">${dateFormatted} à ${waitlistEntry.time}</p>
                   </div>
-                  <a href="https://ciseunoirbarbershop.com/booking" style="display: inline-block; background: #C9A84C; color: #0A0A0A; padding: 14px 32px; text-decoration: none; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700;">Réserver maintenant</a>
+                  <a href="https://ciseaunoirbarbershop.com/booking" style="display: inline-block; background: #C9A84C; color: #0A0A0A; padding: 14px 32px; text-decoration: none; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700;">Réserver maintenant</a>
                   <p style="color: #444; font-size: 12px; margin-top: 32px;">375 Boul. des Chutes, Québec</p>
                 </div>
               `,

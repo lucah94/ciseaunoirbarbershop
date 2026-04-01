@@ -21,9 +21,9 @@ type Comment = {
 };
 
 const TEMPLATES = [
-  { label: "Promotion", text: "✂️ Offre spéciale cette semaine chez Ciseau Noir ! Réservez votre place en ligne : ciseunoirbarbershop.com" },
+  { label: "Promotion", text: "✂️ Offre spéciale cette semaine chez Ciseau Noir ! Réservez votre place en ligne : ciseaunoirbarbershop.com" },
   { label: "Horaires", text: "📅 Nos horaires :\nMar–Mer–Sam : 8h30–16h30\nJeu–Ven : 8h30–20h30\nFermé dim & lun\n\n📍 375 Bd des Chutes, Québec | ☎️ (418) 665-5703" },
-  { label: "Invitation", text: "🔥 Nouvelle semaine, nouveau look ! Réservez votre coupe avec Melynda ou Diodis sur ciseunoirbarbershop.com ✂️" },
+  { label: "Invitation", text: "🔥 Nouvelle semaine, nouveau look ! Réservez votre coupe avec Melynda ou Diodis sur ciseaunoirbarbershop.com ✂️" },
   { label: "Avis", text: "⭐⭐⭐⭐⭐ Merci à tous nos clients pour vos avis Google ! Chaque avis nous aide à grandir. Laissez le vôtre si vous êtes passé nous voir 🙏" },
 ];
 
@@ -471,7 +471,7 @@ export default function SocialPage() {
                 "Va sur console.cloud.google.com → Nouveau projet → Ciseau Noir",
                 "APIs & Services → Bibliothèque → Active Business Profile API",
                 "Identifiants → Créer ID client OAuth → Application Web",
-                "URI de redirection : https://ciseunoirbarbershop.com/api/google/callback",
+                "URI de redirection : https://ciseaunoirbarbershop.com/api/google/callback",
                 "Copie Client ID + Secret dans .env.local",
               ].map((text, i) => (
                 <div key={i} style={{ display: "flex", gap: "16px" }}>

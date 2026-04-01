@@ -11,62 +11,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
-  // ── 0. Rappels J-2 (confirmation 48h avant) ────────────────────
-  const dayAfterTomorrow = new Date();
-  dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
-  const dayAfterTomorrowStr = dayAfterTomorrow.toISOString().split("T")[0];
-
-  const { data: j2Bookings, error: j2Error } = await supabase
-    .from("bookings")
-    .select("*")
-    .eq("date", dayAfterTomorrowStr)
-    .eq("status", "confirmed");
-
-  if (j2Error) return NextResponse.json({ error: j2Error.message }, { status: 500 });
-
-  let confirmationRemindersSent = 0;
-  for (const booking of j2Bookings || []) {
-    try {
-      const promises: Promise<unknown>[] = [];
-
-      if (booking.client_email) {
-        promises.push(
-          sendConfirmationReminderEmail({
-            client_name: booking.client_name,
-            client_email: booking.client_email,
-            service: booking.service,
-            barber: booking.barber,
-            date: booking.date,
-            time: booking.time,
-            price: booking.price,
-            booking_id: booking.id,
-          })
-        );
-      }
-
-      if (booking.client_phone && process.env.TWILIO_ACCOUNT_SID) {
-        promises.push(
-          sendConfirmationReminderSMS({
-            client_name: booking.client_name,
-            client_phone: booking.client_phone,
-            service: booking.service,
-            barber: booking.barber,
-            date: booking.date,
-            time: booking.time,
-            booking_id: booking.id,
-          }).catch(e => console.error("SMS J-2 reminder error:", e))
-        );
-      }
-
-      if (promises.length > 0) {
-        await Promise.all(promises);
-        confirmationRemindersSent++;
-      }
-    } catch (e) {
-      console.error(`J-2 reminder error for ${booking.id}:`, e);
-    }
-  }
-
   // ── 1. Rappels J-1 ──────────────────────────────────────────────
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -81,11 +25,23 @@ export async function GET(req: NextRequest) {
 
   let remindersSent = 0;
   for (const booking of bookings || []) {
-    if (!booking.client_email) continue;
+    if (!booking.client_phone && !booking.client_email) continue;
     try {
       const rdvUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/booking/rdv/${booking.id}`;
-      await Promise.all([
-        sendReminderEmail({
+      // SMS en priorité, email seulement si pas de téléphone
+      if (booking.client_phone && process.env.TWILIO_ACCOUNT_SID) {
+        await sendReminderSMS({
+          client_name: booking.client_name,
+          client_phone: booking.client_phone,
+          service: booking.service,
+          barber: booking.barber,
+          date: booking.date,
+          time: booking.time,
+          booking_id: booking.id,
+          rdv_url: rdvUrl,
+        });
+      } else if (booking.client_email) {
+        await sendReminderEmail({
           client_name: booking.client_name,
           client_email: booking.client_email,
           service: booking.service,
@@ -94,20 +50,8 @@ export async function GET(req: NextRequest) {
           time: booking.time,
           price: booking.price,
           booking_id: booking.id,
-        }),
-        booking.client_phone && process.env.TWILIO_ACCOUNT_SID
-          ? sendReminderSMS({
-              client_name: booking.client_name,
-              client_phone: booking.client_phone,
-              service: booking.service,
-              barber: booking.barber,
-              date: booking.date,
-              time: booking.time,
-              booking_id: booking.id,
-              rdv_url: rdvUrl,
-            }).catch(e => console.error("SMS reminder error:", e))
-          : Promise.resolve(),
-      ]);
+        });
+      }
       remindersSent++;
     } catch (e) {
       console.error(`Reminder error for ${booking.id}:`, e);
@@ -224,11 +168,9 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    confirmation_reminders_sent: confirmationRemindersSent,
     reminders_sent: remindersSent,
     rebooking_sent: rebookingSent,
     reengagement_sent: reengagementSent,
-    total_j2: j2Bookings?.length || 0,
     total_reminders: bookings?.length || 0,
     total_rebooking: completedBookings?.length || 0,
   });

@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     let query = supabase
       .from("bookings")
       .select("id", { count: "exact", head: true })
-      .eq("status", "completed");
+      .eq("loyalty_counted", true);
 
     if (email) {
       query = query.eq("client_email", email);

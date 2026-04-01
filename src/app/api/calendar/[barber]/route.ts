@@ -58,7 +58,7 @@ export async function GET(
 
     return [
       "BEGIN:VEVENT",
-      `UID:${booking.id}@ciseunoirbarbershop.com`,
+      `UID:${booking.id}@ciseaunoirbarbershop.com`,
       `DTSTAMP:${now}`,
       `DTSTART:${dtStart}`,
       `DTEND:${dtEnd}`,

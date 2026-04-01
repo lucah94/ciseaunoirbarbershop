@@ -23,15 +23,21 @@ export async function sendBookingConfirmationSMS(booking: {
   barber: string;
   date: string;
   time: string;
+  booking_id?: string;
 }) {
   const dateFormatted = new Date(booking.date + "T12:00:00").toLocaleDateString("fr-CA", {
     weekday: "long", month: "long", day: "numeric",
   });
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";
+  const calendarLine = booking.booking_id
+    ? `\n📆 Agenda : ${siteUrl}/api/calendar/booking/${booking.booking_id}`
+    : "";
+
   await getClient().messages.create({
     from: FROM_NUMBER(),
     to: formatPhone(booking.client_phone),
-    body: `Ciseau Noir ✂️ Réservation confirmée !\n\n${booking.service} avec ${booking.barber}\n📅 ${dateFormatted} à ${booking.time}\n📍 375 Bd des Chutes, Québec\n\nAnnulation : 1h avant — (418) 665-5703`,
+    body: `Ciseau Noir ✂️ Réservation confirmée !\n\n${booking.service} avec ${booking.barber}\n📅 ${dateFormatted} à ${booking.time}\n📍 375 Bd des Chutes, Québec${calendarLine}\n\nAnnulation : 1h avant — (418) 665-5703`,
   });
 }
 
@@ -64,7 +70,7 @@ export async function sendNoShowSMS(booking: {
   client_name: string;
   client_phone: string;
 }) {
-  const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://ciseunoirbarbershop.com"}/booking`;
+  const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com"}/booking`;
   await getClient().messages.create({
     from: FROM_NUMBER(),
     to: formatPhone(booking.client_phone),
@@ -107,5 +113,17 @@ export async function sendReminderSMS(booking: {
     from: FROM_NUMBER(),
     to: formatPhone(booking.client_phone),
     body: `Ciseau Noir ✂️ Rappel — demain à ${booking.time} !\n\n${booking.service} avec ${booking.barber}\n📍 375 Bd des Chutes, Québec${rdvLine}`,
+  });
+}
+
+/**
+ * Generic SMS sender — sends an arbitrary message to any phone number.
+ * The `to` value is auto-formatted via formatPhone.
+ */
+export async function sendSMS(to: string, message: string): Promise<void> {
+  await getClient().messages.create({
+    from: FROM_NUMBER(),
+    to: formatPhone(to),
+    body: message,
   });
 }

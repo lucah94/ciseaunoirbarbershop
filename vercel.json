@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/reminders",
-      "schedule": "0 10 * * *"
+      "schedule": "0 14 * * *"
     },
     {
       "path": "/api/cron/auto-post",
@@ -10,11 +10,19 @@
     },
     {
       "path": "/api/cron/auto-complete",
-      "schedule": "0 22 * * *"
+      "schedule": "0 2 * * *"
     },
     {
       "path": "/api/cron/weekly-report",
-      "schedule": "0 20 * * 0"
+      "schedule": "0 0 * * 1"
+    },
+    {
+      "path": "/api/cron/check-emails",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/health-check",
+      "schedule": "0 * * * *"
     }
   ]
 }

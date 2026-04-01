@@ -4,7 +4,7 @@ import { escapeHtml } from "@/lib/sanitize";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "ciseaunoirbarbershop@gmail.com";
-const FROM_EMAIL = process.env.FROM_EMAIL || "Ciseau Noir <noreply@ciseunoirbarbershop.com>";
+const FROM_EMAIL = process.env.FROM_EMAIL || "Ciseau Noir <noreply@ciseaunoirbarbershop.com>";
 
 export async function sendBookingConfirmation(booking: {
   client_name: string;
@@ -22,7 +22,7 @@ export async function sendBookingConfirmation(booking: {
   });
 
   const rdvUrl = booking.booking_id
-    ? `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/booking/rdv/${booking.booking_id}`
+    ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com"}/booking/rdv/${booking.booking_id}`
     : null;
 
   await resend.emails.send({
@@ -74,13 +74,18 @@ export async function sendBookingConfirmation(booking: {
         ${rdvUrl ? `
         <div style="text-align: center; margin-bottom: 32px;">
           <a href="${rdvUrl}"
-             style="display: inline-block; background: #C9A84C; color: #0A0A0A; padding: 14px 36px; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; text-decoration: none; font-weight: 700; border-radius: 4px;">
-            Voir / Modifier mon RDV
+             style="display: inline-block; background: #C9A84C; color: #0A0A0A; padding: 14px 36px; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; text-decoration: none; font-weight: 700; border-radius: 4px; margin-bottom: 12px;">
+            Voir mon rendez-vous
           </a>
           <br>
-          <a href="${process.env.NEXT_PUBLIC_SITE_URL}/api/bookings/ical?id=${booking.booking_id}"
-             style="display: inline-block; margin-top: 12px; color: #666; font-size: 11px; text-decoration: underline; letter-spacing: 1px;">
-            📅 Ajouter au calendrier iPhone
+          <a href="${process.env.NEXT_PUBLIC_SITE_URL}/api/bookings/${booking.booking_id}/cancel"
+             style="display: inline-block; margin-top: 8px; background: transparent; color: #888; padding: 10px 24px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; text-decoration: none; border: 1px solid #333; border-radius: 4px;">
+            Annuler mon rendez-vous
+          </a>
+          <br>
+          <a href="${process.env.NEXT_PUBLIC_SITE_URL}/api/calendar/booking/${booking.booking_id}"
+             style="display: inline-block; margin-top: 10px; color: #555; font-size: 11px; text-decoration: underline; letter-spacing: 1px;">
+            📅 Ajouter au calendrier
           </a>
         </div>` : ""}
 
@@ -157,7 +162,7 @@ export async function sendConfirmationReminderEmail(booking: {
   const dateFormatted = new Date(booking.date + "T12:00:00").toLocaleDateString("fr-CA", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";
   const rdvUrl = `${siteUrl}/booking/rdv/${booking.booking_id}`;
   const cancelUrl = `${siteUrl}/api/bookings/${booking.booking_id}/cancel`;
 
@@ -234,7 +239,7 @@ export async function sendReminderEmail(booking: {
   const dateFormatted = new Date(booking.date + "T12:00:00").toLocaleDateString("fr-CA", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
-  const rdvUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/booking/rdv/${booking.booking_id}`;
+  const rdvUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com"}/booking/rdv/${booking.booking_id}`;
 
   await resend.emails.send({
     from: FROM_EMAIL,
@@ -531,7 +536,7 @@ export async function sendWeeklyReportEmail(report: {
         </div>
 
         <div style="text-align: center; margin-bottom: 32px;">
-          <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://ciseunoirbarbershop.com"}/admin"
+          <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com"}/admin"
              style="display: inline-block; background: #C9A84C; color: #0A0A0A; padding: 14px 36px; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; text-decoration: none; font-weight: 700; border-radius: 4px;">
             Voir le tableau de bord
           </a>
@@ -549,7 +554,7 @@ export async function sendReferralEmail(params: {
   referred_email: string;
   code: string;
 }) {
-  const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://ciseunoirbarbershop.com"}/booking`;
+  const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com"}/booking`;
 
   await resend.emails.send({
     from: FROM_EMAIL,
@@ -603,7 +608,7 @@ export async function sendFirstVisitPromoEmail(params: {
   promo_code: string;
 }) {
   const barberParam = params.barber.toLowerCase().includes("melynda") ? "melynda" : "diodis";
-  const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://ciseunoirbarbershop.com"}/booking?barber=${barberParam}`;
+  const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com"}/booking?barber=${barberParam}`;
 
   await resend.emails.send({
     from: FROM_EMAIL,
