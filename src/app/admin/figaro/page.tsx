@@ -688,7 +688,7 @@ function InfoRow({ icon, title, desc }: { icon: string; title: string; desc: str
 // ─── Tab: Campagne SMS ────────────────────────────────────────────────────────
 
 function SMSCampaignTab() {
-  const DEFAULT_MSG = `Salut ! À partir de maintenant, votre 10e coupe est gratuite chez Ciseau Noir 🖤 Les places partent vite — réservez votre prochain rendez-vous : ciseaunoirbarbershop.com/fidelite — Répondez STOP pour ne plus recevoir de msgs.`;
+  const DEFAULT_MSG = `Salut, c'est Melynda de Ciseau Noir 🖤 À partir de maintenant, votre 10e coupe est gratuite ! Les places partent vite — réservez ici : ciseaunoirbarbershop.com/fidelite — Répondez STOP pour ne plus recevoir de msgs.`;
   const [message, setMessage] = useState(DEFAULT_MSG);
   const [contactCount, setContactCount] = useState<number | null>(null);
   const [twilioBalance, setTwilioBalance] = useState<string | null>(null);
