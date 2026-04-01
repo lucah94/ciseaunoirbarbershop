@@ -120,6 +120,13 @@ export default function FidelitePage() {
             ))}
           </div>
         )}
+
+        {/* Bouton réservation — toujours visible */}
+        <div style={{ textAlign: "center", marginTop: "40px" }}>
+          <Link href="/booking" style={{ display: "inline-block", background: "linear-gradient(135deg, #D4AF37, #B8860B)", color: "#080808", textDecoration: "none", padding: "16px 40px", borderRadius: "8px", fontWeight: 700, fontSize: "13px", letterSpacing: "2px", textTransform: "uppercase" }}>
+            Réserver une coupe
+          </Link>
+        </div>
       </div>
     </div>
   );
