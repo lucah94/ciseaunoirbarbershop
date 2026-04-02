@@ -138,7 +138,7 @@ function isSlotOccupied(
 const MONTHS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const DAYS_FR = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
 
-function CalendarPicker({ today, selected, onSelect, barberId, blockedDates, overrideDates, barberSchedule }: { today: string; selected: string; onSelect: (d: string) => void; barberId: string; blockedDates: string[]; overrideDates: string[]; barberSchedule?: DaySchedule }) {
+function CalendarPicker({ today, selected, onSelect, barberId, blockedDates, overrideDates, barberSchedule, isAvailableFn }: { today: string; selected: string; onSelect: (d: string) => void; barberId: string; blockedDates: string[]; overrideDates: string[]; barberSchedule?: DaySchedule; isAvailableFn?: (d: string) => boolean }) {
   const todayDate = new Date(today + "T12:00:00");
   const [viewYear, setViewYear] = useState(todayDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(todayDate.getMonth());
@@ -275,7 +275,7 @@ function CalendarPicker({ today, selected, onSelect, barberId, blockedDates, ove
           if (!day) return <div key={`empty-${i}`} />;
           const dateStr = toStr(viewYear, viewMonth, day);
           const isPast = dateStr < today;
-          const isAvailable = isDateAvailableForBarber(barberId, dateStr, blockedDates, overrideDates, barberSchedule);
+          const isAvailable = isAvailableFn ? isAvailableFn(dateStr) : isDateAvailableForBarber(barberId, dateStr, blockedDates, overrideDates, barberSchedule);
           const isClosed = !isAvailable;
           const isSelected = dateStr === selected;
           const isToday = dateStr === today;
@@ -324,7 +324,7 @@ function CalendarPicker({ today, selected, onSelect, barberId, blockedDates, ove
         })}
       </div>
 
-      {selected && isDateAvailableForBarber(barberId, selected, blockedDates, overrideDates, barberSchedule) && (
+      {selected && (isAvailableFn ? isAvailableFn(selected) : isDateAvailableForBarber(barberId, selected, blockedDates, overrideDates, barberSchedule)) && (
         <p style={{
           color: "#D4AF37",
           fontSize: "15px",
@@ -340,7 +340,7 @@ function CalendarPicker({ today, selected, onSelect, barberId, blockedDates, ove
   );
 }
 
-const stepLabels = ["Service", "Barbier", "Date & Heure", "Coordonnées"];
+const stepLabels = ["Service", "Date & Heure", "Coordonnées"];
 
 function StepIndicator({ step }: { step: number }) {
   return (
@@ -393,7 +393,7 @@ function StepIndicator({ step }: { step: number }) {
                 {label}
               </span>
             </div>
-            {i < 3 && (
+            {i < 2 && (
               <div style={{
                 width: "40px",
                 height: "2px",
@@ -437,6 +437,10 @@ function BookingContent() {
   const [blockedDates, setBlockedDates] = useState<string[]>([]);
   const [blockedRanges, setBlockedRanges] = useState<{ date: string; start_time: string; end_time: string }[]>([]);
   const [dayOverrides, setDayOverrides] = useState<{ date: string; open: string; close: string }[]>([]);
+  const [bookedSlotsOther, setBookedSlotsOther] = useState<{ time: string; service: string; end_time?: string }[]>([]);
+  const [blockedDatesDiodis, setBlockedDatesDiodis] = useState<string[]>([]);
+  const [blockedRangesOther, setBlockedRangesOther] = useState<{ date: string; start_time: string; end_time: string }[]>([]);
+  const [dayOverridesOther, setDayOverridesOther] = useState<{ date: string; open: string; close: string }[]>([]);
   const [barberSchedules, setBarberSchedules] = useState<Record<string, DaySchedule>>({});
   const [waitlistModal, setWaitlistModal] = useState<{time: string} | null>(null);
   const [waitlistForm, setWaitlistForm] = useState({ name: "", phone: "", email: "" });
@@ -463,44 +467,57 @@ function BookingContent() {
   }, []);
 
   useEffect(() => {
-    if (!selected.barber) return;
-    const barberName = BARBERS.find(b => b.id === selected.barber)?.name || selected.barber;
+    // Load blocks/overrides for Melynda
     Promise.all([
-      fetch(`/api/admin/blocks?barber=${barberName.toLowerCase()}`).then(r => r.json()).catch(() => []),
-      fetch(`/api/admin/day-overrides?barber=${barberName.toLowerCase()}`).then(r => r.json()).catch(() => []),
+      fetch(`/api/admin/blocks?barber=melynda`).then(r => r.json()).catch(() => []),
+      fetch(`/api/admin/day-overrides?barber=melynda`).then(r => r.json()).catch(() => []),
     ]).then(([blocks, overrides]) => {
       if (Array.isArray(blocks)) {
-        // Full-day blocks (no start_time) block the whole date
         setBlockedDates(blocks.filter((b: { start_time: string | null }) => !b.start_time).map((b: { date: string }) => b.date));
-        // Partial blocks (with start_time/end_time) block specific time ranges
         setBlockedRanges(blocks.filter((b: { start_time: string | null; end_time: string | null }) => b.start_time && b.end_time)
           .map((b: { date: string; start_time: string; end_time: string }) => ({ date: b.date, start_time: b.start_time, end_time: b.end_time })));
       }
       setDayOverrides(Array.isArray(overrides) ? overrides : []);
     });
-  }, [selected.barber]);
+    // Load blocks/overrides for Diodis
+    Promise.all([
+      fetch(`/api/admin/blocks?barber=diodis`).then(r => r.json()).catch(() => []),
+      fetch(`/api/admin/day-overrides?barber=diodis`).then(r => r.json()).catch(() => []),
+    ]).then(([blocks, overrides]) => {
+      if (Array.isArray(blocks)) {
+        setBlockedDatesDiodis(blocks.filter((b: { start_time: string | null }) => !b.start_time).map((b: { date: string }) => b.date));
+        setBlockedRangesOther(blocks.filter((b: { start_time: string | null; end_time: string | null }) => b.start_time && b.end_time)
+          .map((b: { date: string; start_time: string; end_time: string }) => ({ date: b.date, start_time: b.start_time, end_time: b.end_time })));
+      }
+      setDayOverridesOther(Array.isArray(overrides) ? overrides : []);
+    });
+  }, []);
 
-  const refreshBookedSlots = useCallback((date: string, barberId: string) => {
-    const barberName = BARBERS.find(b => b.id === barberId)?.name || barberId;
-    fetch(`/api/bookings?date=${date}&barber=${encodeURIComponent(barberName)}`)
+  const refreshBookedSlots = useCallback((date: string) => {
+    fetch(`/api/bookings?date=${date}&barber=Melynda`)
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data)) {
-          setBookedSlots(
-            data
-              .filter((b: { status: string }) => b.status !== "cancelled")
-              .map((b: { time: string; service: string; end_time?: string }) => ({ time: b.time, service: b.service || "", end_time: b.end_time }))
-          );
+          setBookedSlots(data.filter((b: { status: string }) => b.status !== "cancelled")
+            .map((b: { time: string; service: string; end_time?: string }) => ({ time: b.time, service: b.service || "", end_time: b.end_time })));
+        }
+      });
+    fetch(`/api/bookings?date=${date}&barber=Diodis`)
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setBookedSlotsOther(data.filter((b: { status: string }) => b.status !== "cancelled")
+            .map((b: { time: string; service: string; end_time?: string }) => ({ time: b.time, service: b.service || "", end_time: b.end_time })));
         }
       });
   }, []);
 
   useEffect(() => {
-    if (!selected.date || !selected.barber) return;
-    refreshBookedSlots(selected.date, selected.barber);
-    const interval = setInterval(() => refreshBookedSlots(selected.date, selected.barber), 30000);
+    if (!selected.date) return;
+    refreshBookedSlots(selected.date);
+    const interval = setInterval(() => refreshBookedSlots(selected.date), 30000);
     return () => clearInterval(interval);
-  }, [selected.date, selected.barber, refreshBookedSlots]);
+  }, [selected.date, refreshBookedSlots]);
 
   async function handleSubmit() {
     setBookingError(null);
@@ -524,7 +541,7 @@ function BookingContent() {
     });
     const resData = await res.json().catch(() => ({}));
     if (!res.ok) {
-      refreshBookedSlots(selected.date, selected.barber);
+      refreshBookedSlots(selected.date);
       setSelected(s => ({ ...s, time: "" }));
       setBookingError(res.status === 409
         ? "Ce créneau vient d'être pris par quelqu'un d'autre. Choisis un autre horaire."
@@ -993,7 +1010,7 @@ function BookingContent() {
               </motion.div>
             )}
 
-            {/* STEP 2 - Barber */}
+            {/* STEP 2 - Date & Heure (2 colonnes : Melynda or | Diodis mauve) */}
             {step === 2 && (
               <motion.div
                 key="step2"
@@ -1002,6 +1019,20 @@ function BookingContent() {
                 exit={{ opacity: 0, x: -30 }}
                 transition={{ duration: 0.3 }}
               >
+                <style>{`
+                  .slot-melynda:not(:disabled):hover {
+                    background: rgba(212,175,55,0.15) !important;
+                    border-color: #D4AF37 !important;
+                    color: #D4AF37 !important;
+                    transform: translateY(-2px);
+                  }
+                  .slot-diodis:not(:disabled):hover {
+                    background: rgba(155,89,182,0.18) !important;
+                    border-color: #9B59B6 !important;
+                    color: #C39BD3 !important;
+                    transform: translateY(-2px);
+                  }
+                `}</style>
                 <h2 style={{
                   fontSize: "20px",
                   letterSpacing: "3px",
@@ -1010,66 +1041,154 @@ function BookingContent() {
                   marginBottom: "32px",
                   textAlign: "center",
                   fontWeight: 400,
-                }}>Choisissez votre barbier</h2>
-                <div style={{ display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap" }}>
-                  {BARBERS.map((b, index) => (
-                    <motion.button
-                      key={b.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      onClick={() => { setSelected({ ...selected, barber: b.id }); setStep(3); }}
-                      aria-pressed={selected.barber === b.id}
-                      className="booking-barber-card"
-                      style={{
-                        borderColor: selected.barber === b.id ? "rgba(212,175,55,0.6)" : undefined,
-                        background: selected.barber === b.id ? "rgba(184,134,11,0.08)" : undefined,
-                        boxShadow: selected.barber === b.id ? "0 0 30px rgba(212,175,55,0.2)" : undefined,
-                      }}
-                    >
-                      <div style={{
-                        width: "96px",
-                        height: "96px",
-                        borderRadius: "50%",
-                        border: "2px solid rgba(212,175,55,0.4)",
-                        margin: "0 auto 20px",
-                        overflow: "hidden",
-                        transition: "all 0.3s",
-                        boxShadow: selected.barber === b.id ? "0 0 25px rgba(212,175,55,0.4)" : "none",
-                      }}>
-                        <Image
-                          src={b.id === "melynda" ? "/images/melynda.jpg" : "/images/diodis.jpg"}
-                          alt={b.name}
-                          width={120}
-                          height={120}
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        />
-                      </div>
-                      <p style={{ color: "#F0F0F0", fontSize: "20px", letterSpacing: "3px", marginBottom: "8px", fontWeight: 400 }}>{b.name}</p>
-                      <p style={{
-                        fontSize: "11px",
-                        letterSpacing: "2px",
-                        textTransform: "uppercase",
-                        marginBottom: "6px",
-                        background: "linear-gradient(90deg, #B8860B, #D4AF37, #E8C84A)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                      }}>{b.role}</p>
-                      <p style={{ color: "#666", fontSize: "12px", marginBottom: "10px" }}>{b.exp}</p>
-                      <p style={{
-                        color: "#444",
-                        fontSize: "10px",
-                        letterSpacing: "1px",
-                        textTransform: "uppercase",
-                        borderTop: "1px solid rgba(212,175,55,0.08)",
-                        paddingTop: "10px",
-                        marginTop: "4px",
-                      }}>
-                        {b.id === "diodis" ? "Ven · Sam seulement" : "Mar → Sam"}
-                      </p>
-                    </motion.button>
-                  ))}
+                }}>Choisissez la date et l'heure</h2>
+
+                {/* Calendar — dispo si au moins un barbier travaille ce jour */}
+                <div style={{ marginBottom: "32px" }}>
+                  <label style={{
+                    display: "block",
+                    color: "#D4AF37",
+                    fontSize: "11px",
+                    letterSpacing: "3px",
+                    textTransform: "uppercase",
+                    marginBottom: "16px",
+                    fontWeight: 500,
+                  }}>Date</label>
+                  <CalendarPicker
+                    today={today}
+                    selected={selected.date}
+                    onSelect={(val) => setSelected({ ...selected, date: val, time: "", barber: "" })}
+                    barberId=""
+                    blockedDates={[]}
+                    overrideDates={[]}
+                    isAvailableFn={(dateStr) =>
+                      isDateAvailableForBarber("melynda", dateStr, blockedDates, dayOverrides.map(o => o.date), barberSchedules["melynda"]) ||
+                      isDateAvailableForBarber("diodis", dateStr, blockedDatesDiodis, dayOverridesOther.map(o => o.date), barberSchedules["diodis"])
+                    }
+                  />
                 </div>
+
+                {/* 2 colonnes de créneaux */}
+                {selected.date && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <p style={{ color: "#D4AF37", fontSize: "13px", letterSpacing: "2px", textTransform: "uppercase", textAlign: "center", marginBottom: "24px", fontWeight: 500 }}>
+                      Choisissez un créneau
+                    </p>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+
+                      {/* Colonne Melynda (or) */}
+                      <div>
+                        <div style={{ textAlign: "center", marginBottom: "16px" }}>
+                          <div style={{
+                            width: "64px", height: "64px", borderRadius: "50%",
+                            border: "2px solid rgba(212,175,55,0.5)",
+                            margin: "0 auto 10px", overflow: "hidden",
+                            boxShadow: "0 0 16px rgba(212,175,55,0.2)",
+                          }}>
+                            <Image src="/images/melynda.jpg" alt="Melynda" width={80} height={80} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          </div>
+                          <p style={{ color: "#D4AF37", fontSize: "13px", letterSpacing: "3px", textTransform: "uppercase", fontWeight: 600 }}>Melynda</p>
+                          <p style={{ color: "#666", fontSize: "10px", letterSpacing: "1px" }}>Mar → Sam</p>
+                        </div>
+                        {isDateAvailableForBarber("melynda", selected.date, blockedDates, dayOverrides.map(o => o.date), barberSchedules["melynda"]) ? (() => {
+                          const serviceDur = getServiceDuration(SERVICES.find(s => s.id === selected.service)?.name || "");
+                          const slots = getTimesForBarberAndDate("melynda", selected.date, dayOverrides, barberSchedules["melynda"]).filter(t => {
+                            const now = new Date();
+                            const [tH, tM] = t.split(":").map(Number);
+                            if (selected.date === today && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()))) return false;
+                            return !isSlotOccupied(t, bookedSlots, blockedRanges, selected.date, serviceDur);
+                          });
+                          return slots.length > 0 ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                              {slots.map(t => (
+                                <button
+                                  key={t}
+                                  onClick={() => { setSelected({ ...selected, barber: "melynda", time: t }); setStep(3); }}
+                                  className="slot-melynda"
+                                  style={{
+                                    background: "#0D0D0D",
+                                    border: "1px solid rgba(212,175,55,0.25)",
+                                    color: "#D4AF37",
+                                    padding: "12px 8px",
+                                    cursor: "pointer",
+                                    fontSize: "15px",
+                                    fontWeight: 500,
+                                    borderRadius: "10px",
+                                    transition: "all 0.25s ease",
+                                    letterSpacing: "1px",
+                                    width: "100%",
+                                  }}
+                                >{t}</button>
+                              ))}
+                            </div>
+                          ) : (
+                            <p style={{ color: "#444", fontSize: "12px", textAlign: "center", padding: "20px 0", lineHeight: 1.6 }}>Complet ce jour</p>
+                          );
+                        })() : (
+                          <p style={{ color: "#333", fontSize: "12px", textAlign: "center", padding: "20px 0", lineHeight: 1.6 }}>Pas disponible<br/>ce jour</p>
+                        )}
+                      </div>
+
+                      {/* Colonne Diodis (mauve) */}
+                      <div>
+                        <div style={{ textAlign: "center", marginBottom: "16px" }}>
+                          <div style={{
+                            width: "64px", height: "64px", borderRadius: "50%",
+                            border: "2px solid rgba(155,89,182,0.5)",
+                            margin: "0 auto 10px", overflow: "hidden",
+                            boxShadow: "0 0 16px rgba(155,89,182,0.2)",
+                          }}>
+                            <Image src="/images/diodis.jpg" alt="Diodis" width={80} height={80} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          </div>
+                          <p style={{ color: "#9B59B6", fontSize: "13px", letterSpacing: "3px", textTransform: "uppercase", fontWeight: 600 }}>Diodis</p>
+                          <p style={{ color: "#666", fontSize: "10px", letterSpacing: "1px" }}>Ven · Sam</p>
+                        </div>
+                        {isDateAvailableForBarber("diodis", selected.date, blockedDatesDiodis, dayOverridesOther.map(o => o.date), barberSchedules["diodis"]) ? (() => {
+                          const serviceDur = getServiceDuration(SERVICES.find(s => s.id === selected.service)?.name || "");
+                          const slots = getTimesForBarberAndDate("diodis", selected.date, dayOverridesOther, barberSchedules["diodis"]).filter(t => {
+                            const now = new Date();
+                            const [tH, tM] = t.split(":").map(Number);
+                            if (selected.date === today && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()))) return false;
+                            return !isSlotOccupied(t, bookedSlotsOther, blockedRangesOther, selected.date, serviceDur);
+                          });
+                          return slots.length > 0 ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                              {slots.map(t => (
+                                <button
+                                  key={t}
+                                  onClick={() => { setSelected({ ...selected, barber: "diodis", time: t }); setStep(3); }}
+                                  className="slot-diodis"
+                                  style={{
+                                    background: "#0D0D0D",
+                                    border: "1px solid rgba(155,89,182,0.25)",
+                                    color: "#9B59B6",
+                                    padding: "12px 8px",
+                                    cursor: "pointer",
+                                    fontSize: "15px",
+                                    fontWeight: 500,
+                                    borderRadius: "10px",
+                                    transition: "all 0.25s ease",
+                                    letterSpacing: "1px",
+                                    width: "100%",
+                                  }}
+                                >{t}</button>
+                              ))}
+                            </div>
+                          ) : (
+                            <p style={{ color: "#444", fontSize: "12px", textAlign: "center", padding: "20px 0", lineHeight: 1.6 }}>Complet ce jour</p>
+                          );
+                        })() : (
+                          <p style={{ color: "#333", fontSize: "12px", textAlign: "center", padding: "20px 0", lineHeight: 1.6 }}>Pas disponible<br/>ce jour</p>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
                 <div style={{ textAlign: "center", marginTop: "36px" }}>
                   <button onClick={() => setStep(1)} style={{
                     background: "none",
@@ -1086,142 +1205,8 @@ function BookingContent() {
               </motion.div>
             )}
 
-            {/* STEP 3 - Date & Time */}
+            {/* STEP 3 - Contact info */}
             {step === 3 && (
-              <motion.div
-                key="step3"
-                initial={{ opacity: 0, x: 30 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -30 }}
-                transition={{ duration: 0.3 }}
-              >
-                <h2 style={{
-                  fontSize: "20px",
-                  letterSpacing: "3px",
-                  color: "#F0F0F0",
-                  textTransform: "uppercase",
-                  marginBottom: "32px",
-                  textAlign: "center",
-                  fontWeight: 400,
-                }}>Choisissez la date et l'heure</h2>
-                <div style={{ marginBottom: "32px" }}>
-                  <label style={{
-                    display: "block",
-                    color: "#D4AF37",
-                    fontSize: "11px",
-                    letterSpacing: "3px",
-                    textTransform: "uppercase",
-                    marginBottom: "16px",
-                    fontWeight: 500,
-                  }}>Date</label>
-                  <CalendarPicker
-                    today={today}
-                    selected={selected.date}
-                    onSelect={(val) => setSelected({ ...selected, date: val, time: "" })}
-                    barberId={selected.barber}
-                    blockedDates={blockedDates}
-                    overrideDates={dayOverrides.map(o => o.date)}
-                    barberSchedule={barberSchedules[selected.barber]}
-                  />
-                  {selected.date && isDateAvailableForBarber(selected.barber, selected.date, blockedDates, dayOverrides.map(o => o.date), barberSchedules[selected.barber]) && (
-                    <p style={{ color: "#555", fontSize: "12px", marginTop: "12px" }}>
-                      {(() => {
-                        const ov = dayOverrides.find(o => o.date === selected.date);
-                        if (ov) return `Disponible · ${ov.open.slice(0,5)}–${ov.close.slice(0,5)}`;
-                        const sched = barberSchedules[selected.barber];
-                        if (sched) {
-                          const dayKey = DAY_KEYS[new Date(selected.date + "T12:00:00").getDay()];
-                          const ds = sched[dayKey];
-                          if (ds) return `Horaire · ${ds.open}–${ds.close}`;
-                        }
-                        if (selected.barber === "diodis")
-                          return new Date(selected.date + "T12:00:00").getDay() === 5 ? "Diodis · Vendredi : 15h00–20h30" : "Diodis · Samedi : 9h00–16h30";
-                        return [4,5].includes(new Date(selected.date + "T12:00:00").getDay()) ? "Horaire étendu : 8h30–20h30" : "Horaire : 8h30–16h30";
-                      })()}
-                    </p>
-                  )}
-                </div>
-                {selected.date && isDateAvailableForBarber(selected.barber, selected.date, blockedDates, dayOverrides.map(o => o.date), barberSchedules[selected.barber]) && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <label style={{
-                      display: "block",
-                      color: "#D4AF37",
-                      fontSize: "11px",
-                      letterSpacing: "3px",
-                      textTransform: "uppercase",
-                      marginBottom: "12px",
-                      fontWeight: 500,
-                    }}>Heure</label>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "12px" }}>
-                      {getTimesForBarberAndDate(selected.barber, selected.date, dayOverrides, barberSchedules[selected.barber]).filter((t) => {
-                        const now = new Date();
-                        const isToday = selected.date === today;
-                        const [tH, tM] = t.split(":").map(Number);
-                        const isPastTime = isToday && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()));
-                        if (isPastTime) return false;
-                        return !isSlotOccupied(t, bookedSlots, blockedRanges, selected.date, getServiceDuration(SERVICES.find(s => s.id === selected.service)?.name || ""));
-                      }).map((t) => {
-                        const isSelected = selected.time === t;
-                        return (
-                          <button
-                            key={t}
-                            onClick={() => setSelected({ ...selected, time: t })}
-                            aria-label={t}
-                            aria-pressed={isSelected}
-                            className={`time-btn${isSelected ? " time-selected" : ""}`}
-                            style={{
-                              background: isSelected ? "rgba(184,134,11,0.2)" : "#0D0D0D",
-                              border: isSelected ? "2px solid #D4AF37" : "1px solid rgba(255,255,255,0.08)",
-                              color: isSelected ? "#E8C84A" : "#BBB",
-                              padding: "14px 12px",
-                              cursor: "pointer",
-                              fontSize: "16px",
-                              fontWeight: isSelected ? 700 : 500,
-                              borderRadius: "10px",
-                              transition: "all 0.25s ease",
-                              boxShadow: isSelected ? "0 0 24px rgba(212,175,55,0.3), inset 0 0 10px rgba(212,175,55,0.1)" : "none",
-                              letterSpacing: "1px",
-                            }}
-                          >
-                            {t}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "40px" }}>
-                  <button onClick={() => setStep(2)} style={{
-                    background: "none",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    color: "#666",
-                    cursor: "pointer",
-                    fontSize: "13px",
-                    letterSpacing: "1px",
-                    padding: "10px 24px",
-                    borderRadius: "6px",
-                    transition: "all 0.3s",
-                  }}>← Retour</button>
-                  {selected.date && selected.time && (
-                    <motion.button
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      onClick={() => setStep(4)}
-                      className="cta-btn-gold"
-                    >
-                      Continuer →
-                    </motion.button>
-                  )}
-                </div>
-              </motion.div>
-            )}
-
-            {/* STEP 4 - Contact info */}
-            {step === 4 && (
               <motion.div
                 key="step4"
                 initial={{ opacity: 0, x: 30 }}
@@ -1322,7 +1307,7 @@ function BookingContent() {
                   </div>
                 )}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "32px" }}>
-                  <button onClick={() => setStep(3)} style={{
+                  <button onClick={() => setStep(2)} style={{
                     background: "none",
                     border: "1px solid rgba(255,255,255,0.08)",
                     color: "#666",
