@@ -1032,6 +1032,17 @@ function BookingContent() {
                     color: #C39BD3 !important;
                     transform: translateY(-2px);
                   }
+                  .barbers-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 20px;
+                  }
+                  @media (max-width: 520px) {
+                    .barbers-grid {
+                      grid-template-columns: 1fr;
+                      gap: 32px;
+                    }
+                  }
                 `}</style>
                 <h2 style={{
                   fontSize: "20px",
@@ -1078,7 +1089,7 @@ function BookingContent() {
                     <p style={{ color: "#D4AF37", fontSize: "13px", letterSpacing: "2px", textTransform: "uppercase", textAlign: "center", marginBottom: "24px", fontWeight: 500 }}>
                       Choisissez un créneau
                     </p>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+                    <div className="barbers-grid">
 
                       {/* Colonne Melynda (or) */}
                       <div>
