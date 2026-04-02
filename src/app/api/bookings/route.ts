@@ -12,12 +12,12 @@ const bookingSchema = z.object({
   client_email: z.string().email("Courriel invalide").optional().or(z.literal("")),
   client_phone: z.string().optional().or(z.literal("")),
   service: z.string().min(1, "Le service est requis"),
-  barber: z.string().min(1, "Le coiffeur est requis"),
+  barber: z.enum(["Melynda", "Diodis"] as const, { message: "Barbière invalide" }),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (AAAA-MM-JJ)"),
-  time: z.string().regex(/^\d{1,2}:\d{2}$/, "Format d'heure invalide (H:MM ou HH:MM)"),
+  time: z.string().regex(/^([01]?\d|2[0-3]):[0-5]\d$/, "Format d'heure invalide"),
   price: z.number().optional(),
   note: z.string().max(500).optional().or(z.literal("")),
-  status: z.string().optional(),
+  status: z.enum(["confirmed", "completed", "cancelled", "no_show"]).optional().default("confirmed"),
 });
 
 export async function GET(req: NextRequest) {
@@ -67,6 +67,48 @@ export async function POST(req: NextRequest) {
   }
 
   const body = result.data;
+
+  // ── Vérification chevauchement ──────────────────────────────────
+  function svcDuration(service: string): number {
+    const s = service.toLowerCase();
+    if (s.includes("premium")) return 75;
+    if ((s.includes("barbe") || s.includes("rasage")) && s.includes("coupe")) return 60;
+    if (s.includes("coupe") || s.includes("lavage")) return 45;
+    return 30;
+  }
+  const [nh, nm] = body.time.split(":").map(Number);
+  const newStart = nh * 60 + nm;
+  const newEnd = newStart + svcDuration(body.service);
+
+  const [{ data: existing }, { data: blocks }] = await Promise.all([
+    supabase.from("bookings").select("time, service, status, end_time")
+      .eq("barber", body.barber).eq("date", body.date).neq("status", "cancelled"),
+    supabase.from("barber_blocks").select("start_time, end_time")
+      .eq("barber", body.barber.toLowerCase()).eq("date", body.date).not("start_time", "is", null),
+  ]);
+
+  for (const b of existing || []) {
+    const [bh, bm] = (b.time || "0:0").split(":").map(Number);
+    const bStart = bh * 60 + bm;
+    const bEnd = b.end_time
+      ? (() => { const [eh, em] = b.end_time.split(":").map(Number); return eh * 60 + em; })()
+      : bStart + svcDuration(b.service);
+    if (newStart < bEnd && newEnd > bStart) {
+      return NextResponse.json({ error: "Ce créneau est déjà occupé — chevauchement détecté." }, { status: 409 });
+    }
+  }
+
+  for (const bl of blocks || []) {
+    if (!bl.start_time || !bl.end_time) continue;
+    const [bh, bm] = bl.start_time.split(":").map(Number);
+    const [eh, em] = bl.end_time.split(":").map(Number);
+    const blStart = bh * 60 + bm;
+    const blEnd = eh * 60 + em;
+    if (newStart < blEnd && newEnd > blStart) {
+      return NextResponse.json({ error: "Ce créneau est bloqué par la barbière." }, { status: 409 });
+    }
+  }
+  // ────────────────────────────────────────────────────────────────
 
   const { data, error } = await supabase.from("bookings").insert([body]).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

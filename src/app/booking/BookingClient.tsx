@@ -104,7 +104,12 @@ function getServiceDuration(service: string): number {
   return 30;
 }
 
-function isSlotOccupied(slot: string, bookedSlots: { time: string; service: string; end_time?: string }[]): boolean {
+function isSlotOccupied(
+  slot: string,
+  bookedSlots: { time: string; service: string; end_time?: string }[],
+  blockedRanges?: { date: string; start_time: string; end_time: string }[],
+  date?: string
+): boolean {
   const [sh, sm] = slot.split(":").map(Number);
   const slotMin = sh * 60 + sm;
   for (const b of bookedSlots) {
@@ -119,6 +124,17 @@ function isSlotOccupied(slot: string, bookedSlots: { time: string; service: stri
     }
     if (slotMin >= bookingStart && slotMin < bookingEnd) return true;
     if (slotMin + 30 > bookingStart && slotMin < bookingEnd) return true;
+  }
+  if (blockedRanges && date) {
+    for (const r of blockedRanges) {
+      if (r.date !== date) continue;
+      const [rh, rm] = r.start_time.split(":").map(Number);
+      const [eh, em] = r.end_time.split(":").map(Number);
+      const blockStart = rh * 60 + rm;
+      const blockEnd = eh * 60 + em;
+      if (slotMin >= blockStart && slotMin < blockEnd) return true;
+      if (slotMin + 30 > blockStart && slotMin < blockEnd) return true;
+    }
   }
   return false;
 }
@@ -423,6 +439,7 @@ function BookingContent() {
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [bookedSlots, setBookedSlots] = useState<{ time: string; service: string; end_time?: string }[]>([]);
   const [blockedDates, setBlockedDates] = useState<string[]>([]);
+  const [blockedRanges, setBlockedRanges] = useState<{ date: string; start_time: string; end_time: string }[]>([]);
   const [dayOverrides, setDayOverrides] = useState<{ date: string; open: string; close: string }[]>([]);
   const [barberSchedules, setBarberSchedules] = useState<Record<string, DaySchedule>>({});
   const [waitlistModal, setWaitlistModal] = useState<{time: string} | null>(null);
@@ -451,11 +468,18 @@ function BookingContent() {
 
   useEffect(() => {
     if (!selected.barber) return;
+    const barberName = BARBERS.find(b => b.id === selected.barber)?.name || selected.barber;
     Promise.all([
-      fetch(`/api/admin/blocks?barber=${selected.barber}`).then(r => r.json()).catch(() => []),
-      fetch(`/api/admin/day-overrides?barber=${selected.barber}`).then(r => r.json()).catch(() => []),
+      fetch(`/api/admin/blocks?barber=${barberName.toLowerCase()}`).then(r => r.json()).catch(() => []),
+      fetch(`/api/admin/day-overrides?barber=${barberName.toLowerCase()}`).then(r => r.json()).catch(() => []),
     ]).then(([blocks, overrides]) => {
-      setBlockedDates(Array.isArray(blocks) ? blocks.map((b: { date: string }) => b.date) : []);
+      if (Array.isArray(blocks)) {
+        // Full-day blocks (no start_time) block the whole date
+        setBlockedDates(blocks.filter((b: { start_time: string | null }) => !b.start_time).map((b: { date: string }) => b.date));
+        // Partial blocks (with start_time/end_time) block specific time ranges
+        setBlockedRanges(blocks.filter((b: { start_time: string | null; end_time: string | null }) => b.start_time && b.end_time)
+          .map((b: { date: string; start_time: string; end_time: string }) => ({ date: b.date, start_time: b.start_time, end_time: b.end_time })));
+      }
       setDayOverrides(Array.isArray(overrides) ? overrides : []);
     });
   }, [selected.barber]);
@@ -1141,7 +1165,7 @@ function BookingContent() {
                     </p>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "12px" }}>
                       {getTimesForBarberAndDate(selected.barber, selected.date, dayOverrides, barberSchedules[selected.barber]).map((t) => {
-                        const isBooked = isSlotOccupied(t, bookedSlots);
+                        const isBooked = isSlotOccupied(t, bookedSlots, blockedRanges, selected.date);
                         const isSelected = selected.time === t;
                         const now = new Date();
                         const isToday = selected.date === today;
