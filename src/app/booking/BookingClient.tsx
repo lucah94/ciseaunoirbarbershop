@@ -108,22 +108,19 @@ function isSlotOccupied(
   slot: string,
   bookedSlots: { time: string; service: string; end_time?: string }[],
   blockedRanges?: { date: string; start_time: string; end_time: string }[],
-  date?: string
+  date?: string,
+  newDuration?: number
 ): boolean {
   const [sh, sm] = slot.split(":").map(Number);
   const slotMin = sh * 60 + sm;
+  const dur = newDuration ?? 30;
   for (const b of bookedSlots) {
     const [bh, bm] = (b.time || "0:0").split(":").map(Number);
     const bookingStart = bh * 60 + bm;
-    let bookingEnd: number;
-    if (b.end_time) {
-      const [eh, em] = b.end_time.split(":").map(Number);
-      bookingEnd = eh * 60 + em;
-    } else {
-      bookingEnd = bookingStart + getServiceDuration(b.service);
-    }
-    if (slotMin >= bookingStart && slotMin < bookingEnd) return true;
-    if (slotMin + 30 > bookingStart && slotMin < bookingEnd) return true;
+    const bookingEnd = b.end_time
+      ? (() => { const [eh, em] = b.end_time!.split(":").map(Number); return eh * 60 + em; })()
+      : bookingStart + getServiceDuration(b.service);
+    if (slotMin < bookingEnd && slotMin + dur > bookingStart) return true;
   }
   if (blockedRanges && date) {
     for (const r of blockedRanges) {
@@ -132,8 +129,7 @@ function isSlotOccupied(
       const [eh, em] = r.end_time.split(":").map(Number);
       const blockStart = rh * 60 + rm;
       const blockEnd = eh * 60 + em;
-      if (slotMin >= blockStart && slotMin < blockEnd) return true;
-      if (slotMin + 30 > blockStart && slotMin < blockEnd) return true;
+      if (slotMin < blockEnd && slotMin + dur > blockStart) return true;
     }
   }
   return false;
@@ -1165,7 +1161,7 @@ function BookingContent() {
                     </p>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "12px" }}>
                       {getTimesForBarberAndDate(selected.barber, selected.date, dayOverrides, barberSchedules[selected.barber]).map((t) => {
-                        const isBooked = isSlotOccupied(t, bookedSlots, blockedRanges, selected.date);
+                        const isBooked = isSlotOccupied(t, bookedSlots, blockedRanges, selected.date, getServiceDuration(SERVICES.find(s => s.id === selected.service)?.name || ""));
                         const isSelected = selected.time === t;
                         const now = new Date();
                         const isToday = selected.date === today;
