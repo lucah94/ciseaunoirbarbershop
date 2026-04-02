@@ -1156,52 +1156,34 @@ function BookingContent() {
                       marginBottom: "12px",
                       fontWeight: 500,
                     }}>Heure</label>
-                    <p style={{ color: "#555", fontSize: "12px", marginBottom: "14px" }}>
-                      Les créneaux barrés sont complets — cliquez dessus pour rejoindre la liste d'attente.
-                    </p>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "12px" }}>
-                      {getTimesForBarberAndDate(selected.barber, selected.date, dayOverrides, barberSchedules[selected.barber]).map((t) => {
-                        const isBooked = isSlotOccupied(t, bookedSlots, blockedRanges, selected.date, getServiceDuration(SERVICES.find(s => s.id === selected.service)?.name || ""));
-                        const isSelected = selected.time === t;
+                      {getTimesForBarberAndDate(selected.barber, selected.date, dayOverrides, barberSchedules[selected.barber]).filter((t) => {
                         const now = new Date();
                         const isToday = selected.date === today;
                         const [tH, tM] = t.split(":").map(Number);
                         const isPastTime = isToday && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()));
-                        const isUnavailable = isBooked || isPastTime;
+                        if (isPastTime) return false;
+                        return !isSlotOccupied(t, bookedSlots, blockedRanges, selected.date, getServiceDuration(SERVICES.find(s => s.id === selected.service)?.name || ""));
+                      }).map((t) => {
+                        const isSelected = selected.time === t;
                         return (
                           <button
                             key={t}
-                            onClick={() => isPastTime ? undefined : isBooked ? setWaitlistModal({ time: t }) : setSelected({ ...selected, time: t })}
-                            disabled={isPastTime}
-                            aria-label={`${t}${isPastTime ? " — heure passée" : isBooked ? " — déjà réservé, rejoindre la liste d'attente" : ""}`}
+                            onClick={() => setSelected({ ...selected, time: t })}
+                            aria-label={t}
                             aria-pressed={isSelected}
-                            className={`time-btn${isSelected ? " time-selected" : ""}${isBooked ? " time-booked" : ""}${isPastTime ? " time-booked" : ""}`}
+                            className={`time-btn${isSelected ? " time-selected" : ""}`}
                             style={{
-                              background: isUnavailable
-                                ? "rgba(255,255,255,0.02)"
-                                : isSelected
-                                  ? "rgba(184,134,11,0.2)"
-                                  : "#0D0D0D",
-                              border: isUnavailable
-                                ? "1px solid rgba(255,255,255,0.04)"
-                                : isSelected
-                                  ? "2px solid #D4AF37"
-                                  : "1px solid rgba(255,255,255,0.08)",
-                              color: isUnavailable
-                                ? "#2A2A2A"
-                                : isSelected
-                                  ? "#E8C84A"
-                                  : "#BBB",
+                              background: isSelected ? "rgba(184,134,11,0.2)" : "#0D0D0D",
+                              border: isSelected ? "2px solid #D4AF37" : "1px solid rgba(255,255,255,0.08)",
+                              color: isSelected ? "#E8C84A" : "#BBB",
                               padding: "14px 12px",
-                              cursor: isPastTime ? "not-allowed" : "pointer",
+                              cursor: "pointer",
                               fontSize: "16px",
-                              textDecoration: (isPastTime || isBooked) ? "line-through" : "none",
                               fontWeight: isSelected ? 700 : 500,
                               borderRadius: "10px",
                               transition: "all 0.25s ease",
-                              boxShadow: isSelected
-                                ? "0 0 24px rgba(212,175,55,0.3), inset 0 0 10px rgba(212,175,55,0.1)"
-                                : "none",
+                              boxShadow: isSelected ? "0 0 24px rgba(212,175,55,0.3), inset 0 0 10px rgba(212,175,55,0.1)" : "none",
                               letterSpacing: "1px",
                             }}
                           >
