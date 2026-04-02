@@ -98,20 +98,25 @@ function isDateAvailableForBarber(
 
 function getServiceDuration(service: string): number {
   const s = service.toLowerCase();
-  if (s.includes("premium")) return 75;
-  if (s.includes("barbe") && s.includes("coupe")) return 60;
-  if (s.includes("coupe")) return 45;
+  if (s.includes("premium") || s.includes("forfait")) return 75;
+  if ((s.includes("barbe") || s.includes("rasage") || s.includes("lame")) && s.includes("coupe")) return 60;
+  if (s.includes("coupe") || s.includes("lavage") || s.includes("enfant") || s.includes("étudiant") || s.includes("etudiant") || s.includes("student")) return 45;
   return 30;
 }
 
-function isSlotOccupied(slot: string, bookedSlots: { time: string; service: string }[]): boolean {
+function isSlotOccupied(slot: string, bookedSlots: { time: string; service: string; end_time?: string }[]): boolean {
   const [sh, sm] = slot.split(":").map(Number);
   const slotMin = sh * 60 + sm;
   for (const b of bookedSlots) {
     const [bh, bm] = (b.time || "0:0").split(":").map(Number);
     const bookingStart = bh * 60 + bm;
-    const bookingEnd = bookingStart + getServiceDuration(b.service);
-    // Slot overlaps if it starts during an existing booking, or if a new 30-min service would overlap
+    let bookingEnd: number;
+    if (b.end_time) {
+      const [eh, em] = b.end_time.split(":").map(Number);
+      bookingEnd = eh * 60 + em;
+    } else {
+      bookingEnd = bookingStart + getServiceDuration(b.service);
+    }
     if (slotMin >= bookingStart && slotMin < bookingEnd) return true;
     if (slotMin + 30 > bookingStart && slotMin < bookingEnd) return true;
   }
@@ -415,7 +420,7 @@ function BookingContent() {
   });
   const [submitted, setSubmitted] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
-  const [bookedSlots, setBookedSlots] = useState<{ time: string; service: string }[]>([]);
+  const [bookedSlots, setBookedSlots] = useState<{ time: string; service: string; end_time?: string }[]>([]);
   const [blockedDates, setBlockedDates] = useState<string[]>([]);
   const [dayOverrides, setDayOverrides] = useState<{ date: string; open: string; close: string }[]>([]);
   const [barberSchedules, setBarberSchedules] = useState<Record<string, DaySchedule>>({});
@@ -464,7 +469,7 @@ function BookingContent() {
           setBookedSlots(
             data
               .filter((b: { status: string }) => b.status !== "cancelled")
-              .map((b: { time: string; service: string }) => ({ time: b.time, service: b.service || "" }))
+              .map((b: { time: string; service: string; end_time?: string }) => ({ time: b.time, service: b.service || "", end_time: b.end_time }))
           );
         }
       });

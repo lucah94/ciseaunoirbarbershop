@@ -383,10 +383,20 @@ export default function AgendaPage() {
     return 30;
   }
 
+  function bookingEndMin(b: Booking & { end_time?: string }): number {
+    const [bh, bm] = (b.time || "0:0").split(":").map(Number);
+    const start = bh * 60 + bm;
+    if (b.end_time) {
+      const [eh, em] = b.end_time.split(":").map(Number);
+      return eh * 60 + em;
+    }
+    return start + getServiceDuration(b.service);
+  }
+
   // Conflict detection for new RDV form
   const occupiedSlots = useMemo(() => {
     if (!newRDV.barber || !newRDV.date) return new Set<string>();
-    const barberBookings = bookings.filter(
+    const barberBookings = (bookings as (Booking & { end_time?: string })[]).filter(
       b => b.barber === newRDV.barber && b.date === newRDV.date && b.status !== "cancelled"
     );
     const occupied = new Set<string>();
@@ -396,7 +406,7 @@ export default function AgendaPage() {
       for (const b of barberBookings) {
         const [bh, bm] = (b.time || "0:0").split(":").map(Number);
         const bookingStart = bh * 60 + bm;
-        const bookingEnd = bookingStart + getServiceDuration(b.service);
+        const bookingEnd = bookingEndMin(b);
         if (slotMin >= bookingStart && slotMin < bookingEnd) { occupied.add(slot); break; }
         if (slotMin + 30 > bookingStart && slotMin < bookingEnd) { occupied.add(slot); break; }
       }
@@ -408,13 +418,13 @@ export default function AgendaPage() {
     if (!newRDV.barber || !newRDV.date || !newRDV.time) return null;
     const [sh, sm] = newRDV.time.split(":").map(Number);
     const slotMin = sh * 60 + sm;
-    const barberBookings = bookings.filter(
+    const barberBookings = (bookings as (Booking & { end_time?: string })[]).filter(
       b => b.barber === newRDV.barber && b.date === newRDV.date && b.status !== "cancelled"
     );
     for (const b of barberBookings) {
       const [bh, bm] = (b.time || "0:0").split(":").map(Number);
       const bookingStart = bh * 60 + bm;
-      const bookingEnd = bookingStart + getServiceDuration(b.service);
+      const bookingEnd = bookingEndMin(b);
       if (slotMin >= bookingStart && slotMin < bookingEnd) {
         return `${newRDV.barber} a déjà un RDV de ${b.time} à ${Math.floor(bookingEnd/60)}:${String(bookingEnd%60).padStart(2,"0")}`;
       }
