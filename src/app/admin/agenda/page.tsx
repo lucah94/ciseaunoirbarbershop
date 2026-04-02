@@ -19,6 +19,10 @@ type ClientResult = {
   email: string;
 };
 
+type Block = {
+  id: string; barber: string; date: string; start_time: string; end_time: string; reason: string | null;
+};
+
 const STATUS_COLORS: Record<string, string> = {
   confirmed: "#D4AF37",
   completed: "#5a5",
@@ -49,7 +53,7 @@ const SERVICES = [
 const BARBERS_LIST = ["Melynda", "Diodis"];
 
 const TIME_SLOTS: string[] = [];
-for (let h = 8; h < 20; h++) {
+for (let h = 8; h < 21; h++) {
   for (const m of [0, 30]) {
     if (h === 8 && m === 0) continue; // start at 08:30
     TIME_SLOTS.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
@@ -77,9 +81,15 @@ export default function AgendaPage() {
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Block tranche horaire
+  const [showBlock, setShowBlock] = useState(false);
+  const [blockForm, setBlockForm] = useState({ barber: "Melynda", date: new Date().toISOString().split("T")[0], start_time: "09:00", end_time: "11:00", reason: "" });
+  const [blockSaving, setBlockSaving] = useState(false);
+  const [blocks, setBlocks] = useState<Block[]>([]);
+
   // Edit mode state
   const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ service: "", price: 0, barber: "", date: "", time: "", note: "" });
+  const [editForm, setEditForm] = useState({ service: "", price: 0, barber: "", date: "", time: "", end_time: "", note: "" });
   const [editSaving, setEditSaving] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clientDropdownRef = useRef<HTMLDivElement>(null);
@@ -137,7 +147,14 @@ export default function AgendaPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  useEffect(() => { fetchBookings(); }, [fetchBookings]);
+  const fetchBlocks = useCallback(() => {
+    fetch("/api/admin/blocks")
+      .then(r => r.json())
+      .then(data => setBlocks(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { fetchBookings(); fetchBlocks(); }, [fetchBookings, fetchBlocks]);
 
   // Client search with debounce
   useEffect(() => {
@@ -215,6 +232,19 @@ export default function AgendaPage() {
     setShowClientDropdown(false);
   }
 
+  async function saveBlock() {
+    if (!blockForm.date || !blockForm.start_time || !blockForm.end_time) return;
+    setBlockSaving(true);
+    await fetch("/api/admin/blocks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ barber: blockForm.barber.toLowerCase(), date: blockForm.date, start_time: blockForm.start_time, end_time: blockForm.end_time, reason: blockForm.reason || null }),
+    });
+    setShowBlock(false);
+    setBlockSaving(false);
+    fetchBlocks();
+  }
+
   async function saveEdit() {
     if (!selected) return;
     setEditSaving(true);
@@ -224,6 +254,7 @@ export default function AgendaPage() {
     if (editForm.barber !== selected.barber) updates.barber = editForm.barber;
     if (editForm.date !== selected.date) updates.date = editForm.date;
     if (editForm.time !== selected.time) updates.time = editForm.time;
+    if (editForm.end_time && editForm.end_time !== (selected as Booking & { end_time?: string }).end_time) updates.end_time = editForm.end_time;
     if (editForm.note !== (selected.note || "")) updates.note = editForm.note;
     if (Object.keys(updates).length > 0) {
       const res = await fetch("/api/bookings", {
@@ -294,12 +325,26 @@ export default function AgendaPage() {
     return true;
   });
 
+  function svcDuration(service: string): number {
+    const s = service.toLowerCase();
+    if (s.includes("premium") || s.includes("forfait")) return 75;
+    if ((s.includes("barbe") || s.includes("rasage") || s.includes("lame")) && s.includes("coupe")) return 60;
+    if (s.includes("coupe") || s.includes("lavage") || s.includes("enfant") || s.includes("étudiant") || s.includes("etudiant")) return 45;
+    return 30;
+  }
+
   const events = filtered.map(b => {
     const [h, m] = (b.time || "0:0").split(":").map(Number);
     const padded = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
     const start = new Date(`${b.date}T${padded}:00`);
     const end = new Date(start.getTime());
-    end.setMinutes(end.getMinutes() + 45);
+    const bWithEnd = b as Booking & { end_time?: string };
+    if (bWithEnd.end_time) {
+      const [eh, em] = bWithEnd.end_time.split(":").map(Number);
+      end.setHours(eh, em, 0, 0);
+    } else {
+      end.setMinutes(end.getMinutes() + svcDuration(b.service));
+    }
 
     const startStr = isNaN(start.getTime()) ? b.date : start.toISOString();
     const endStr = isNaN(end.getTime()) ? b.date : end.toISOString();
@@ -316,6 +361,19 @@ export default function AgendaPage() {
       classNames: b.status === "cancelled" ? ["event-cancelled"] : b.status === "no_show" ? ["event-noshow"] : [],
     };
   });
+
+  const blockEvents = blocks
+    .filter(bl => filter === "all" || bl.barber.toLowerCase() === filter.toLowerCase())
+    .map(bl => ({
+      id: `block-${bl.id}`,
+      title: `🚫 ${bl.reason || "Bloqué"} — ${bl.barber.charAt(0).toUpperCase() + bl.barber.slice(1)}`,
+      start: `${bl.date}T${bl.start_time}:00`,
+      end: `${bl.date}T${bl.end_time}:00`,
+      backgroundColor: "rgba(238,85,85,0.85)",
+      borderColor: "#c33",
+      textColor: "#fff",
+      extendedProps: { isBlock: true, block: bl },
+    }));
 
   function getServiceDuration(service: string): number {
     const s = service.toLowerCase();
@@ -456,6 +514,17 @@ export default function AgendaPage() {
               }}
             >
               + Nouveau RDV
+            </button>
+            <button
+              onClick={() => setShowBlock(true)}
+              style={{
+                background: "rgba(238,85,85,0.1)", border: "1px solid rgba(238,85,85,0.3)", color: "#e55",
+                padding: isMobile ? "6px 14px" : "8px 20px", fontSize: isMobile ? "10px" : "11px",
+                letterSpacing: "1px", textTransform: "uppercase", cursor: "pointer", borderRadius: "20px",
+                fontWeight: 600, whiteSpace: "nowrap",
+              }}
+            >
+              🚫 Bloquer
             </button>
           </div>
         </div>
@@ -652,14 +721,15 @@ export default function AgendaPage() {
                 locale="fr"
                 firstDay={1}
                 slotMinTime="08:00:00"
-                slotMaxTime="20:00:00"
+                slotMaxTime="21:00:00"
                 slotDuration="00:30:00"
                 allDaySlot={false}
                 nowIndicator={true}
                 height="auto"
                 expandRows={true}
-                events={events}
+                events={[...events, ...blockEvents]}
                 eventClick={(info) => {
+                  if (info.event.extendedProps.isBlock) return;
                   const b = info.event.extendedProps.booking as Booking;
                   setSelected(b);
                 }}
@@ -955,6 +1025,53 @@ export default function AgendaPage() {
             </div>
           </>
         )}
+      {/* Modal Bloquer tranche horaire */}
+      {showBlock && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 500, padding: "20px" }}
+          onClick={e => { if (e.target === e.currentTarget) setShowBlock(false); }}>
+          <div style={{ background: "#111318", border: "1px solid rgba(238,85,85,0.3)", borderRadius: "16px", width: "100%", maxWidth: "440px", padding: "32px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "24px" }}>
+              <p style={{ color: "#e55", fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase" }}>🚫 Bloquer une tranche</p>
+              <button onClick={() => setShowBlock(false)} style={{ background: "none", border: "none", color: "#666", fontSize: "24px", cursor: "pointer" }}>×</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div>
+                <p style={{ color: "#555", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>Barbière</p>
+                <select value={blockForm.barber} onChange={e => setBlockForm(f => ({ ...f, barber: e.target.value }))}
+                  style={{ background: "#1C2129", border: "1px solid rgba(238,85,85,0.2)", color: "#F0F0F0", padding: "10px 14px", borderRadius: "8px", fontSize: "14px", width: "100%" }}>
+                  <option>Melynda</option><option>Diodis</option>
+                </select>
+              </div>
+              <div>
+                <p style={{ color: "#555", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>Date</p>
+                <input type="date" value={blockForm.date} onChange={e => setBlockForm(f => ({ ...f, date: e.target.value }))}
+                  style={{ background: "#1C2129", border: "1px solid rgba(238,85,85,0.2)", color: "#F0F0F0", padding: "10px 14px", borderRadius: "8px", fontSize: "14px", width: "100%", colorScheme: "dark" }} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <p style={{ color: "#555", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>Début</p>
+                  <input type="time" value={blockForm.start_time} onChange={e => setBlockForm(f => ({ ...f, start_time: e.target.value }))}
+                    style={{ background: "#1C2129", border: "1px solid rgba(238,85,85,0.2)", color: "#F0F0F0", padding: "10px 14px", borderRadius: "8px", fontSize: "14px", width: "100%", colorScheme: "dark" }} />
+                </div>
+                <div>
+                  <p style={{ color: "#555", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>Fin</p>
+                  <input type="time" value={blockForm.end_time} onChange={e => setBlockForm(f => ({ ...f, end_time: e.target.value }))}
+                    style={{ background: "#1C2129", border: "1px solid rgba(238,85,85,0.2)", color: "#F0F0F0", padding: "10px 14px", borderRadius: "8px", fontSize: "14px", width: "100%", colorScheme: "dark" }} />
+                </div>
+              </div>
+              <div>
+                <p style={{ color: "#555", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>Raison (optionnel)</p>
+                <input value={blockForm.reason} onChange={e => setBlockForm(f => ({ ...f, reason: e.target.value }))}
+                  placeholder="ex: Réunion, Lunch, Personnel..." style={{ background: "#1C2129", border: "1px solid rgba(238,85,85,0.2)", color: "#F0F0F0", padding: "10px 14px", borderRadius: "8px", fontSize: "14px", width: "100%" }} />
+              </div>
+              <button onClick={saveBlock} disabled={blockSaving || !blockForm.date}
+                style={{ background: "rgba(238,85,85,0.15)", border: "1px solid rgba(238,85,85,0.4)", color: "#e55", padding: "14px", cursor: "pointer", borderRadius: "8px", fontSize: "13px", fontWeight: 700, letterSpacing: "1px", marginTop: "4px" }}>
+                {blockSaving ? "..." : "Bloquer cette tranche"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </main>
     </div>
   );
@@ -1068,6 +1185,11 @@ export default function AgendaPage() {
                     )}
                   </select>
                 </div>
+                <div style={{ flex: 1 }}>
+                  <p style={labelStyle}>Heure de fin</p>
+                  <input type="time" value={editForm.end_time} onChange={e => setEditForm(f => ({ ...f, end_time: e.target.value }))}
+                    style={editInputStyle} />
+                </div>
               </div>
               <div>
                 <p style={labelStyle}>Note</p>
@@ -1136,7 +1258,7 @@ export default function AgendaPage() {
                   onClick={() => {
                     setEditForm({
                       service: selected.service, price: selected.price, barber: selected.barber,
-                      date: selected.date, time: selected.time, note: selected.note || "",
+                      date: selected.date, time: selected.time, end_time: (selected as Booking & { end_time?: string }).end_time || "", note: selected.note || "",
                     });
                     setEditing(true);
                   }}
