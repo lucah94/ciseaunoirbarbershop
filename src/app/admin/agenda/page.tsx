@@ -154,7 +154,12 @@ export default function AgendaPage() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => { fetchBookings(); fetchBlocks(); }, [fetchBookings, fetchBlocks]);
+  useEffect(() => {
+    fetchBookings();
+    fetchBlocks();
+    const interval = setInterval(() => { fetchBookings(); fetchBlocks(); }, 60000);
+    return () => clearInterval(interval);
+  }, [fetchBookings, fetchBlocks]);
 
   // Client search with debounce
   useEffect(() => {

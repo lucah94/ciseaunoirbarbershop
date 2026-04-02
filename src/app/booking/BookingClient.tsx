@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -420,6 +420,7 @@ function BookingContent() {
   });
   const [submitted, setSubmitted] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
   const [bookedSlots, setBookedSlots] = useState<{ time: string; service: string; end_time?: string }[]>([]);
   const [blockedDates, setBlockedDates] = useState<string[]>([]);
   const [dayOverrides, setDayOverrides] = useState<{ date: string; open: string; close: string }[]>([]);
@@ -459,10 +460,9 @@ function BookingContent() {
     });
   }, [selected.barber]);
 
-  useEffect(() => {
-    if (!selected.date || !selected.barber) return;
-    const barberName = BARBERS.find(b => b.id === selected.barber)?.name || selected.barber;
-    fetch(`/api/bookings?date=${selected.date}&barber=${encodeURIComponent(barberName)}`)
+  const refreshBookedSlots = useCallback((date: string, barberId: string) => {
+    const barberName = BARBERS.find(b => b.id === barberId)?.name || barberId;
+    fetch(`/api/bookings?date=${date}&barber=${encodeURIComponent(barberName)}`)
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -473,9 +473,17 @@ function BookingContent() {
           );
         }
       });
-  }, [selected.date, selected.barber]);
+  }, []);
+
+  useEffect(() => {
+    if (!selected.date || !selected.barber) return;
+    refreshBookedSlots(selected.date, selected.barber);
+    const interval = setInterval(() => refreshBookedSlots(selected.date, selected.barber), 30000);
+    return () => clearInterval(interval);
+  }, [selected.date, selected.barber, refreshBookedSlots]);
 
   async function handleSubmit() {
+    setBookingError(null);
     const service = SERVICES.find((s) => s.id === selected.service);
     const price = service ? parseInt(service.price) : 0;
     const res = await fetch("/api/bookings", {
@@ -495,6 +503,14 @@ function BookingContent() {
       }),
     });
     const resData = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      refreshBookedSlots(selected.date, selected.barber);
+      setSelected(s => ({ ...s, time: "" }));
+      setBookingError(res.status === 409
+        ? "Ce créneau vient d'être pris par quelqu'un d'autre. Choisis un autre horaire."
+        : (resData?.error || "Une erreur est survenue. Réessaie."));
+      return;
+    }
     if (resData?.id) setBookingId(resData.id);
     setSubmitted(true);
 
@@ -1298,6 +1314,11 @@ function BookingContent() {
                   Politique d'annulation : minimum 1 heure avant le rendez-vous.
                 </p>
 
+                {bookingError && (
+                  <div style={{ background: "rgba(238,85,85,0.1)", border: "1px solid rgba(238,85,85,0.3)", borderRadius: "8px", padding: "12px 16px", marginBottom: "16px", color: "#e55", fontSize: "13px" }}>
+                    {bookingError}
+                  </div>
+                )}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "32px" }}>
                   <button onClick={() => setStep(3)} style={{
                     background: "none",
