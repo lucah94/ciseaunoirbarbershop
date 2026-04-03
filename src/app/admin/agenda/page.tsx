@@ -63,6 +63,8 @@ for (let h = 8; h < 21; h++) {
 export default function AgendaPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const retryRef = useRef(0);
   const [selected, setSelected] = useState<Booking | null>(null);
   const [filter, setFilter] = useState<"all" | "Melynda" | "Diodis">("all");
   const calendarRef = useRef<FullCalendar>(null);
@@ -124,12 +126,18 @@ export default function AgendaPage() {
 
   const fetchBookings = useCallback(() => {
     setLoading(true);
-    fetch("/api/bookings?start=2026-01-01")
-      .then(r => r.json())
+    setLoadError(false);
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 12000);
+    fetch("/api/bookings?start=2026-01-01", { signal: ctrl.signal })
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
       .then(data => {
+        clearTimeout(timeout);
         const list = Array.isArray(data) ? data : [];
         setBookings(list);
         setLoading(false);
+        setLoadError(false);
+        retryRef.current = 0;
 
         // Fetch loyalty visit counts for unique client emails
         const emails = [...new Set(list.map((b: Booking) => b.client_email).filter(Boolean))] as string[];
@@ -144,7 +152,16 @@ export default function AgendaPage() {
             .catch(() => {});
         });
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        clearTimeout(timeout);
+        setLoading(false);
+        setLoadError(true);
+        // Auto-retry up to 5 times with increasing delay
+        if (retryRef.current < 5) {
+          retryRef.current += 1;
+          setTimeout(fetchBookings, retryRef.current * 3000);
+        }
+      });
   }, []);
 
   const fetchBlocks = useCallback(() => {
@@ -546,7 +563,32 @@ export default function AgendaPage() {
 
         {loading ? (
           <div style={{ textAlign: "center", padding: "80px 20px" }}>
+            <div style={{
+              width: "40px", height: "40px", border: "3px solid rgba(212,175,55,0.2)",
+              borderTop: "3px solid #D4AF37", borderRadius: "50%",
+              animation: "spin 0.8s linear infinite", margin: "0 auto 16px",
+            }} />
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             <p style={{ color: "#D4AF37", letterSpacing: "4px", fontSize: "13px" }}>CHARGEMENT</p>
+            {loadError && (
+              <p style={{ color: "#e55", fontSize: "12px", marginTop: "8px" }}>Reconnexion en cours...</p>
+            )}
+          </div>
+        ) : loadError ? (
+          <div style={{ textAlign: "center", padding: "80px 20px" }}>
+            <p style={{ color: "#e55", fontSize: "18px", marginBottom: "12px" }}>Connexion interrompue</p>
+            <p style={{ color: "#888", fontSize: "13px", marginBottom: "24px", lineHeight: 1.6 }}>
+              Le serveur ne répond pas. Vérifiez que Supabase est actif.
+            </p>
+            <button
+              onClick={() => { retryRef.current = 0; fetchBookings(); }}
+              style={{
+                background: "linear-gradient(135deg, #D4AF37, #B8860B)",
+                color: "#080808", border: "none", padding: "14px 32px",
+                borderRadius: "8px", cursor: "pointer", fontSize: "13px",
+                fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase",
+              }}
+            >Réessayer</button>
           </div>
         ) : (
           <div style={{ display: "flex", gap: "24px", flexDirection: isMobile ? "column" : "row" }}>

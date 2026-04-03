@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -447,6 +447,9 @@ function BookingContent() {
   const [waitlistSent, setWaitlistSent] = useState(false);
   const [pushPrompt, setPushPrompt] = useState<"idle" | "asking" | "subscribed" | "declined">("idle");
   const [loyalty, setLoyalty] = useState<{ visits: number; progress: number; nextFree: boolean; isFree: boolean } | null>(null);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState(false);
+  const retryCountRef = useRef(0);
 
   const service = SERVICES.find((s) => s.id === selected.service);
   const barber = BARBERS.find((b) => b.id === selected.barber);
@@ -494,22 +497,37 @@ function BookingContent() {
   }, []);
 
   const refreshBookedSlots = useCallback((date: string) => {
-    fetch(`/api/bookings?date=${date}&barber=Melynda`)
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setBookedSlots(data.filter((b: { status: string }) => b.status !== "cancelled")
-            .map((b: { time: string; service: string; end_time?: string }) => ({ time: b.time, service: b.service || "", end_time: b.end_time })));
-        }
-      });
-    fetch(`/api/bookings?date=${date}&barber=Diodis`)
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setBookedSlotsOther(data.filter((b: { status: string }) => b.status !== "cancelled")
-            .map((b: { time: string; service: string; end_time?: string }) => ({ time: b.time, service: b.service || "", end_time: b.end_time })));
-        }
-      });
+    setSlotsLoading(true);
+    setSlotsError(false);
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 8000);
+    Promise.all([
+      fetch(`/api/bookings?date=${date}&barber=Melynda`, { signal: ctrl.signal }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+      fetch(`/api/bookings?date=${date}&barber=Diodis`, { signal: ctrl.signal }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+    ]).then(([melData, dioData]) => {
+      clearTimeout(timeout);
+      if (Array.isArray(melData)) {
+        setBookedSlots(melData.filter((b: { status: string }) => b.status !== "cancelled")
+          .map((b: { time: string; service: string; end_time?: string }) => ({ time: b.time, service: b.service || "", end_time: b.end_time })));
+      }
+      if (Array.isArray(dioData)) {
+        setBookedSlotsOther(dioData.filter((b: { status: string }) => b.status !== "cancelled")
+          .map((b: { time: string; service: string; end_time?: string }) => ({ time: b.time, service: b.service || "", end_time: b.end_time })));
+      }
+      setSlotsLoading(false);
+      setSlotsError(false);
+      retryCountRef.current = 0;
+    }).catch(() => {
+      clearTimeout(timeout);
+      setSlotsLoading(false);
+      setSlotsError(true);
+      // Auto-retry up to 3 times with increasing delay
+      if (retryCountRef.current < 3) {
+        retryCountRef.current += 1;
+        const delay = retryCountRef.current * 3000;
+        setTimeout(() => refreshBookedSlots(date), delay);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -1089,7 +1107,49 @@ function BookingContent() {
                     <p style={{ color: "#D4AF37", fontSize: "13px", letterSpacing: "2px", textTransform: "uppercase", textAlign: "center", marginBottom: "24px", fontWeight: 500 }}>
                       Choisissez un créneau
                     </p>
-                    <div className="barbers-grid">
+
+                    {/* Loading state */}
+                    {slotsLoading && (
+                      <div style={{ textAlign: "center", padding: "40px 0" }}>
+                        <div style={{
+                          width: "40px", height: "40px", border: "3px solid rgba(212,175,55,0.2)",
+                          borderTop: "3px solid #D4AF37", borderRadius: "50%",
+                          animation: "spin 0.8s linear infinite", margin: "0 auto 16px",
+                        }} />
+                        <p style={{ color: "#888", fontSize: "13px" }}>Chargement des disponibilités...</p>
+                        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                      </div>
+                    )}
+
+                    {/* Error state — NEVER show slots as available if API failed */}
+                    {!slotsLoading && slotsError && (
+                      <div style={{
+                        textAlign: "center", padding: "40px 20px",
+                        background: "rgba(238,85,85,0.05)",
+                        border: "1px solid rgba(238,85,85,0.2)",
+                        borderRadius: "16px",
+                      }}>
+                        <p style={{ color: "#e55", fontSize: "16px", marginBottom: "8px", fontWeight: 500 }}>Connexion temporairement interrompue</p>
+                        <p style={{ color: "#888", fontSize: "13px", marginBottom: "20px", lineHeight: 1.6 }}>
+                          Impossible de vérifier les disponibilités. Réessai automatique en cours...
+                        </p>
+                        <button
+                          onClick={() => { retryCountRef.current = 0; refreshBookedSlots(selected.date); }}
+                          style={{
+                            background: "linear-gradient(135deg, #D4AF37, #B8860B)",
+                            color: "#080808", border: "none", padding: "12px 28px",
+                            borderRadius: "8px", cursor: "pointer", fontSize: "13px",
+                            fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase",
+                          }}
+                        >Réessayer maintenant</button>
+                        <p style={{ color: "#555", fontSize: "11px", marginTop: "16px" }}>
+                          Vous pouvez aussi nous appeler : <a href="tel:+14185555555" style={{ color: "#D4AF37" }}>418-555-5555</a>
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Slots — only show when data loaded successfully */}
+                    {!slotsLoading && !slotsError && <div className="barbers-grid">
 
                       {/* Colonne Melynda (or) */}
                       <div>
@@ -1196,7 +1256,7 @@ function BookingContent() {
                           <p style={{ color: "#333", fontSize: "12px", textAlign: "center", padding: "20px 0", lineHeight: 1.6 }}>Pas disponible<br/>ce jour</p>
                         )}
                       </div>
-                    </div>
+                    </div>}
                   </motion.div>
                 )}
 
