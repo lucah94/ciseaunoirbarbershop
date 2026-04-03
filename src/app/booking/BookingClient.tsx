@@ -456,7 +456,8 @@ function BookingContent() {
 
   const today = new Date().toISOString().split("T")[0];
 
-  useEffect(() => {
+  const refreshAvailability = useCallback(() => {
+    // Barber schedules
     fetch("/api/barbers")
       .then(r => r.json())
       .then((data: { name: string; schedule: DaySchedule }[]) => {
@@ -467,10 +468,7 @@ function BookingContent() {
         }
       })
       .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    // Load blocks/overrides for Melynda
+    // Blocks/overrides Melynda
     Promise.all([
       fetch(`/api/admin/blocks?barber=melynda`).then(r => r.json()).catch(() => []),
       fetch(`/api/admin/day-overrides?barber=melynda`).then(r => r.json()).catch(() => []),
@@ -482,7 +480,7 @@ function BookingContent() {
       }
       setDayOverrides(Array.isArray(overrides) ? overrides : []);
     });
-    // Load blocks/overrides for Diodis
+    // Blocks/overrides Diodis
     Promise.all([
       fetch(`/api/admin/blocks?barber=diodis`).then(r => r.json()).catch(() => []),
       fetch(`/api/admin/day-overrides?barber=diodis`).then(r => r.json()).catch(() => []),
@@ -495,6 +493,13 @@ function BookingContent() {
       setDayOverridesOther(Array.isArray(overrides) ? overrides : []);
     });
   }, []);
+
+  // Load on mount + auto-refresh every 30s
+  useEffect(() => {
+    refreshAvailability();
+    const interval = setInterval(refreshAvailability, 30000);
+    return () => clearInterval(interval);
+  }, [refreshAvailability]);
 
   const refreshBookedSlots = useCallback((date: string) => {
     setSlotsLoading(true);
