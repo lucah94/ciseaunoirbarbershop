@@ -6,8 +6,8 @@ import { createClient } from "@supabase/supabase-js";
 
 const WIX_API_KEY = process.argv[2];
 const WIX_SITE_ID = "a41bed47-dd0d-408b-a496-ff48dda7e0df";
-const SUPABASE_URL = "https://kgkkwvchpghjdfajmrnz.supabase.co";
-const SUPABASE_KEY = "sb_secret_3gQZcC6egE5Z-4aUdHWa1Q_D55tokdf";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://kgkkwvchpghjdfajmrnz.supabase.co";
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 // Import depuis cette date (lendemain du dernier import)
 const IMPORT_FROM = "2026-03-24";
