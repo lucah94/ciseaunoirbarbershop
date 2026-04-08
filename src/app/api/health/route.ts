@@ -62,15 +62,35 @@ async function checkClaude(): Promise<Check> {
   }
 }
 
+async function checkRLS(): Promise<Check> {
+  const start = Date.now();
+  try {
+    const { data, error } = await supabaseAdmin.rpc("check_rls_status" as never);
+    if (error) return { status: "error", latency: Date.now() - start, message: "Impossible de vérifier RLS" };
+
+    const unprotected = (data as { tablename: string; rowsecurity: boolean }[] || [])
+      .filter(t => !t.rowsecurity)
+      .map(t => t.tablename);
+
+    if (unprotected.length > 0) {
+      return { status: "error", latency: Date.now() - start, message: `Tables sans RLS: ${unprotected.join(", ")}` };
+    }
+    return { status: "ok", latency: Date.now() - start };
+  } catch (e) {
+    return { status: "error", latency: Date.now() - start, message: String(e) };
+  }
+}
+
 export async function GET() {
-  const [supabase, resend, twilio, claude] = await Promise.all([
+  const [supabase, resend, twilio, claude, security] = await Promise.all([
     checkSupabase(),
     checkResend(),
     checkTwilio(),
     checkClaude(),
+    checkRLS(),
   ]);
 
-  const checks = { supabase, resend, twilio, claude };
+  const checks = { supabase, resend, twilio, claude, security };
   const hasError = Object.values(checks).some(c => c.status === "error");
   const hasSlow = Object.values(checks).some(c => c.status === "slow");
   const overall = hasError ? "error" : hasSlow ? "degraded" : "ok";
