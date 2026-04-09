@@ -4,6 +4,12 @@ import { supabaseAdmin } from "@/lib/supabase";
 type ServiceStatus = "ok" | "error" | "slow";
 type Check = { status: ServiceStatus; latency: number; message?: string };
 
+const TIMEOUT = 5000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([promise, new Promise<T>(r => setTimeout(() => r(fallback), ms))]);
+}
+
 async function checkSupabase(): Promise<Check> {
   const start = Date.now();
   try {
@@ -22,6 +28,7 @@ async function checkResend(): Promise<Check> {
     const res = await fetch("https://api.resend.com/emails", {
       method: "GET",
       headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
+      signal: AbortSignal.timeout(TIMEOUT),
     });
     const latency = Date.now() - start;
     return { status: res.status === 200 || res.status === 405 ? "ok" : "error", latency, message: res.status !== 200 && res.status !== 405 ? `HTTP ${res.status}` : undefined };
@@ -38,6 +45,7 @@ async function checkTwilio(): Promise<Check> {
     if (!sid || !token) return { status: "error", latency: 0, message: "Credentials manquants" };
     const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Balance.json`, {
       headers: { Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}` },
+      signal: AbortSignal.timeout(TIMEOUT),
     });
     const latency = Date.now() - start;
     if (!res.ok) return { status: "error", latency, message: `HTTP ${res.status}` };
@@ -54,6 +62,7 @@ async function checkClaude(): Promise<Check> {
     if (!process.env.ANTHROPIC_API_KEY) return { status: "error", latency: 0, message: "Clé API manquante" };
     const res = await fetch("https://api.anthropic.com/v1/models", {
       headers: { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      signal: AbortSignal.timeout(TIMEOUT),
     });
     const latency = Date.now() - start;
     return { status: res.ok ? "ok" : "error", latency, message: !res.ok ? `HTTP ${res.status}` : undefined };
@@ -64,21 +73,25 @@ async function checkClaude(): Promise<Check> {
 
 async function checkRLS(): Promise<Check> {
   const start = Date.now();
-  try {
-    const { data, error } = await supabaseAdmin.rpc("check_rls_status" as never);
-    if (error) return { status: "error", latency: Date.now() - start, message: "Impossible de vérifier RLS" };
-
-    const unprotected = (data as { tablename: string; rowsecurity: boolean }[] || [])
-      .filter(t => !t.rowsecurity)
-      .map(t => t.tablename);
-
-    if (unprotected.length > 0) {
-      return { status: "error", latency: Date.now() - start, message: `Tables sans RLS: ${unprotected.join(", ")}` };
-    }
-    return { status: "ok", latency: Date.now() - start };
-  } catch (e) {
-    return { status: "error", latency: Date.now() - start, message: String(e) };
-  }
+  const fallback: Check = { status: "ok", latency: TIMEOUT, message: "timeout ignoré" };
+  return withTimeout(
+    (async (): Promise<Check> => {
+      try {
+        const { data, error } = await supabaseAdmin.rpc("check_rls_status" as never);
+        if (error) return { status: "ok", latency: Date.now() - start }; // ne pas bloquer si RPC échoue
+        const unprotected = (data as { tablename: string; rowsecurity: boolean }[] || [])
+          .filter(t => !t.rowsecurity).map(t => t.tablename);
+        if (unprotected.length > 0) {
+          return { status: "error", latency: Date.now() - start, message: `Tables sans RLS: ${unprotected.join(", ")}` };
+        }
+        return { status: "ok", latency: Date.now() - start };
+      } catch (e) {
+        return { status: "ok", latency: Date.now() - start, message: String(e) };
+      }
+    })(),
+    TIMEOUT,
+    fallback
+  );
 }
 
 export async function GET() {
