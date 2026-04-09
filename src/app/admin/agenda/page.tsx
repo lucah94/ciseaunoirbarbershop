@@ -54,8 +54,8 @@ const BARBERS_LIST = ["Melynda", "Diodis"];
 
 const TIME_SLOTS: string[] = [];
 for (let h = 8; h < 21; h++) {
-  for (const m of [0, 30]) {
-    if (h === 8 && m === 0) continue; // start at 08:30
+  for (const m of [0, 15, 30, 45]) {
+    if (h === 8 && m === 0) continue; // start at 08:15
     TIME_SLOTS.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
   }
 }
@@ -77,6 +77,7 @@ export default function AgendaPage() {
     client_name: "", client_phone: "", client_email: "",
     barber: "Melynda", service: "Coupe + Lavage", price: 35,
     date: new Date().toISOString().split("T")[0], time: "09:00", note: "",
+    is_recurring: false, recurrence_pattern: "biweekly", recurrence_count: 8,
   });
   const [clientSearch, setClientSearch] = useState("");
   const [clientResults, setClientResults] = useState<ClientResult[]>([]);
@@ -215,21 +216,37 @@ export default function AgendaPage() {
     if (!newRDV.client_name.trim() || !newRDV.date || !newRDV.time) return;
     setSubmitting(true);
     try {
-      const res = await fetch("/api/bookings", {
+      const endpoint = newRDV.is_recurring ? "/api/bookings/recurring" : "/api/bookings";
+      const body = newRDV.is_recurring
+        ? {
+            client_name: newRDV.client_name.trim(),
+            client_phone: newRDV.client_phone.trim(),
+            client_email: newRDV.client_email.trim(),
+            barber: newRDV.barber,
+            service: newRDV.service,
+            price: newRDV.price,
+            date: newRDV.date,
+            time: newRDV.time,
+            note: newRDV.note.trim(),
+            recurrence_pattern: newRDV.recurrence_pattern,
+            recurrence_count: newRDV.recurrence_count,
+          }
+        : {
+            client_name: newRDV.client_name.trim(),
+            client_phone: newRDV.client_phone.trim(),
+            client_email: newRDV.client_email.trim(),
+            barber: newRDV.barber,
+            service: newRDV.service,
+            price: newRDV.price,
+            date: newRDV.date,
+            time: newRDV.time,
+            note: newRDV.note.trim(),
+            status: "confirmed",
+          };
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          client_name: newRDV.client_name.trim(),
-          client_phone: newRDV.client_phone.trim(),
-          client_email: newRDV.client_email.trim(),
-          barber: newRDV.barber,
-          service: newRDV.service,
-          price: newRDV.price,
-          date: newRDV.date,
-          time: newRDV.time,
-          note: newRDV.note.trim(),
-          status: "confirmed",
-        }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         setShowNewRDV(false);
@@ -248,6 +265,7 @@ export default function AgendaPage() {
       client_name: "", client_phone: "", client_email: "",
       barber: "Melynda", service: "Coupe + Lavage", price: 35,
       date: new Date().toISOString().split("T")[0], time: "09:00", note: "",
+      is_recurring: false, recurrence_pattern: "biweekly", recurrence_count: 8,
     });
     setClientSearch("");
     setClientResults([]);
@@ -779,16 +797,32 @@ export default function AgendaPage() {
                 firstDay={1}
                 slotMinTime="08:00:00"
                 slotMaxTime="21:00:00"
-                slotDuration="00:30:00"
+                slotDuration="00:15:00"
+                snapDuration="00:15:00"
                 allDaySlot={false}
                 nowIndicator={true}
                 height="auto"
                 expandRows={true}
+                editable={true}
                 events={[...events, ...blockEvents]}
                 eventClick={(info) => {
                   if (info.event.extendedProps.isBlock) return;
                   const b = info.event.extendedProps.booking as Booking;
                   setSelected(b);
+                }}
+                eventDrop={async (info) => {
+                  if (info.event.extendedProps.isBlock) { info.revert(); return; }
+                  const b = info.event.extendedProps.booking as Booking;
+                  const newDate = info.event.startStr.split("T")[0];
+                  const newTime = info.event.startStr.split("T")[1]?.slice(0, 5) || b.time;
+                  const res = await fetch("/api/bookings", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: b.id, date: newDate, time: newTime }),
+                  });
+                  if (!res.ok) { info.revert(); return; }
+                  setBookings(prev => prev.map(x => x.id === b.id ? { ...x, date: newDate, time: newTime } : x));
+                  if (selected?.id === b.id) setSelected(s => s ? { ...s, date: newDate, time: newTime } : s);
                 }}
                 buttonText={{
                   today: "Aujourd'hui",
@@ -1041,6 +1075,53 @@ export default function AgendaPage() {
                   />
                 </div>
 
+                {/* Récurrence */}
+                <div style={{ border: "1px solid #1E2430", borderRadius: "8px", padding: "16px" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={newRDV.is_recurring}
+                      onChange={e => setNewRDV(p => ({ ...p, is_recurring: e.target.checked }))}
+                      style={{ width: "16px", height: "16px", accentColor: "#D4AF37", cursor: "pointer" }}
+                    />
+                    <span style={{ color: "#D4AF37", fontSize: "12px", letterSpacing: "2px", textTransform: "uppercase", fontWeight: 600 }}>
+                      RDV récurrent
+                    </span>
+                  </label>
+                  {newRDV.is_recurring && (
+                    <div style={{ marginTop: "14px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                      <div>
+                        <label style={{ color: "#555", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Fréquence</label>
+                        <select
+                          value={newRDV.recurrence_pattern}
+                          onChange={e => setNewRDV(p => ({ ...p, recurrence_pattern: e.target.value }))}
+                          style={{ background: "#1C2129", border: "1px solid #2A3140", color: "#F0F0F0", padding: "10px 14px", borderRadius: "8px", fontSize: "14px", width: "100%" }}
+                        >
+                          <option value="weekly">Chaque semaine</option>
+                          <option value="biweekly">Chaque 2 semaines</option>
+                          <option value="monthly">Chaque mois</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ color: "#555", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Nombre de RDV à créer</label>
+                        <select
+                          value={newRDV.recurrence_count}
+                          onChange={e => setNewRDV(p => ({ ...p, recurrence_count: Number(e.target.value) }))}
+                          style={{ background: "#1C2129", border: "1px solid #2A3140", color: "#F0F0F0", padding: "10px 14px", borderRadius: "8px", fontSize: "14px", width: "100%" }}
+                        >
+                          <option value={4}>4 RDV (~1 mois)</option>
+                          <option value={8}>8 RDV (~2 mois)</option>
+                          <option value={12}>12 RDV (~3 mois)</option>
+                          <option value={24}>24 RDV (~6 mois)</option>
+                        </select>
+                      </div>
+                      <div style={{ background: "rgba(212,175,55,0.06)", borderRadius: "6px", padding: "10px 12px", color: "#888", fontSize: "12px" }}>
+                        {newRDV.recurrence_count} RDV seront créés automatiquement à partir du {newRDV.date}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Price display */}
                 <div style={{
                   background: "rgba(212,175,55,0.06)",
@@ -1076,7 +1157,7 @@ export default function AgendaPage() {
                     marginTop: "8px",
                   }}
                 >
-                  {submitting ? "Enregistrement..." : "Creer le rendez-vous"}
+                  {submitting ? "Enregistrement..." : newRDV.is_recurring ? `Créer ${newRDV.recurrence_count} RDV récurrents` : "Créer le rendez-vous"}
                 </button>
               </div>
             </div>
