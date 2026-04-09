@@ -113,6 +113,20 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase.from("bookings").insert([body]).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Ajouter/mettre à jour le client dans les contacts
+  if (body.client_phone || body.client_email) {
+    const matchField = body.client_phone ? "phone" : "email";
+    const matchValue = body.client_phone || body.client_email;
+    const { data: existing } = await supabase.from("clients").select("id").eq(matchField, matchValue).single();
+    if (!existing) {
+      await supabase.from("clients").insert([{
+        name: body.client_name,
+        phone: body.client_phone || null,
+        email: body.client_email || null,
+      }]).then(() => {}, () => {});
+    }
+  }
+
   try {
     await Promise.all([
       data.client_phone && process.env.TWILIO_ACCOUNT_SID ? sendBookingConfirmationSMS({
