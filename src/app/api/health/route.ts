@@ -25,13 +25,13 @@ async function checkSupabase(): Promise<Check> {
 async function checkResend(): Promise<Check> {
   const start = Date.now();
   try {
-    const res = await fetch("https://api.resend.com/emails", {
+    const res = await fetch("https://api.resend.com/domains", {
       method: "GET",
       headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
       signal: AbortSignal.timeout(TIMEOUT),
     });
     const latency = Date.now() - start;
-    return { status: res.status === 200 || res.status === 405 ? "ok" : "error", latency, message: res.status !== 200 && res.status !== 405 ? `HTTP ${res.status}` : undefined };
+    return { status: res.ok ? "ok" : "error", latency, message: !res.ok ? `HTTP ${res.status}` : undefined };
   } catch (e) {
     return { status: "error", latency: Date.now() - start, message: String(e) };
   }
@@ -104,7 +104,9 @@ export async function GET() {
   ]);
 
   const checks = { supabase, resend, twilio, claude, security };
-  const hasError = Object.values(checks).some(c => c.status === "error");
+  // Resend non-bloquant — email down ne déclenche pas d'alerte SMS
+  const criticalChecks = { supabase, twilio };
+  const hasError = Object.values(criticalChecks).some(c => c.status === "error");
   const hasSlow = Object.values(checks).some(c => c.status === "slow");
   const overall = hasError ? "error" : hasSlow ? "degraded" : "ok";
 
