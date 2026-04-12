@@ -22,40 +22,45 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://ciseaunoir.ca"),
   title: {
-    default: "Ciseau Noir — Barbershop Québec",
-    template: "%s — Ciseau Noir Barbershop",
+    default: "Ciseau Noir | Barbershop Beauport Québec",
+    template: "%s — Ciseau Noir Barbershop Beauport",
   },
   description:
-    "Salon de barbier premium à Québec. Coupes, rasages et soins professionnels au 375 Boul. des Chutes. Réservez en ligne.",
+    "Barbier à Beauport, Québec. Coupes homme, rasage et taille de barbe au 375 Boul. des Chutes. Melynda & Diodis. Réservez en ligne.",
   keywords: [
-    "barbier",
-    "barber",
-    "coiffeur",
-    "Québec",
-    "coupe homme",
-    "rasage",
-    "barbe",
+    "barbier Beauport",
+    "barbershop Beauport",
+    "barbier Québec",
+    "coupe homme Beauport",
+    "rasage Beauport",
+    "barbe Québec",
     "Ciseau Noir",
+    "375 boulevard des Chutes",
   ],
   authors: [{ name: "Ciseau Noir Barbershop" }],
   creator: "Ciseau Noir Barbershop",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/icon.png", type: "image/png" },
+      { url: "/favicon.ico" },
+    ],
+    apple: "/icon-192.png",
+    shortcut: "/icon.png",
   },
   openGraph: {
     type: "website",
     locale: "fr_CA",
     siteName: "Ciseau Noir Barbershop",
-    title: "Ciseau Noir — Barbershop Québec",
+    title: "Ciseau Noir | Barbershop Beauport Québec",
     description:
-      "Salon de barbier premium à Québec. Coupes, rasages et soins professionnels. Réservez en ligne.",
+      "Barbier à Beauport, Québec. Coupes homme, rasage et taille de barbe. Réservez en ligne.",
     url: "https://ciseaunoir.ca",
   },
   twitter: {
     card: "summary",
-    title: "Ciseau Noir — Barbershop Québec",
+    title: "Ciseau Noir | Barbershop Beauport Québec",
     description:
-      "Salon de barbier premium à Québec. Réservez en ligne.",
+      "Barbier à Beauport, Québec. Réservez en ligne.",
   },
   alternates: {
     canonical: "https://ciseaunoir.ca",

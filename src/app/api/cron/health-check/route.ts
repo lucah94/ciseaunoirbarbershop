@@ -5,113 +5,197 @@ import { supabaseAdmin } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// Restart Supabase via Management API
+const CHECK_TIMEOUT = 10000;
+const COOLDOWN_HOURS = 6;
+
+// ── Checks directs (plus de self-fetch qui timeout) ─────────────
+
+async function checkSupabase(): Promise<{ ok: boolean; msg: string }> {
+  try {
+    const { error } = await supabaseAdmin
+      .from("bookings")
+      .select("id", { count: "exact", head: true });
+    return error
+      ? { ok: false, msg: `supabase: ${error.message}` }
+      : { ok: true, msg: "" };
+  } catch (e) {
+    return { ok: false, msg: `supabase: ${String(e)}` };
+  }
+}
+
+async function checkTwilio(): Promise<{ ok: boolean; msg: string }> {
+  try {
+    const sid = process.env.TWILIO_ACCOUNT_SID;
+    const token = process.env.TWILIO_AUTH_TOKEN;
+    if (!sid || !token) return { ok: false, msg: "twilio: credentials manquants" };
+    const res = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${sid}/Balance.json`,
+      {
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
+        },
+        signal: AbortSignal.timeout(CHECK_TIMEOUT),
+      }
+    );
+    return res.ok
+      ? { ok: true, msg: "" }
+      : { ok: false, msg: `twilio: HTTP ${res.status}` };
+  } catch (e) {
+    return { ok: false, msg: `twilio: ${String(e)}` };
+  }
+}
+
+async function runChecks(): Promise<string[]> {
+  const [sb, tw] = await Promise.all([checkSupabase(), checkTwilio()]);
+  return [sb, tw].filter(c => !c.ok).map(c => c.msg);
+}
+
+// ── Cooldown: pas de SMS si alerte envoyée récemment ─────────────
+
+async function recentAlertExists(): Promise<boolean> {
+  try {
+    const cutoff = new Date(
+      Date.now() - COOLDOWN_HOURS * 60 * 60 * 1000
+    ).toISOString();
+    const { data } = await supabaseAdmin
+      .from("system_logs")
+      .select("id")
+      .eq("type", "health_alert")
+      .gte("created_at", cutoff)
+      .limit(1);
+    return (data?.length ?? 0) > 0;
+  } catch {
+    // Si on ne peut pas vérifier, on laisse passer l'alerte
+    return false;
+  }
+}
+
+// ── Restart Supabase (seulement si Supabase est down) ────────────
+
 async function restartSupabase(): Promise<boolean> {
   const token = process.env.SUPABASE_MANAGEMENT_TOKEN;
   const ref = process.env.SUPABASE_PROJECT_REF;
   if (!token || !ref) return false;
-
   try {
-    const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/restart`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(15000),
-    });
+    const res = await fetch(
+      `https://api.supabase.com/v1/projects/${ref}/restart`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(15000),
+      }
+    );
     return res.ok;
   } catch {
     return false;
   }
 }
 
-// Attendre que Supabase revienne en ligne (max ~90s)
 async function waitForSupabase(): Promise<boolean> {
-  for (let i = 0; i < 10; i++) {
-    await new Promise(r => setTimeout(r, 10000)); // attendre 10s
-    try {
-      const { error } = await supabaseAdmin.from("bookings").select("id").limit(1);
-      if (!error) return true;
-    } catch {}
+  for (let i = 0; i < 5; i++) {
+    await new Promise(r => setTimeout(r, 8000));
+    const { ok } = await checkSupabase();
+    if (ok) return true;
   }
   return false;
 }
 
-async function checkHealth(): Promise<{ ok: boolean; broken: string[] }> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";
-    const res = await fetch(`${baseUrl}/api/health`, { signal: AbortSignal.timeout(15000) });
-    const data = await res.json();
-    const broken = Object.entries(data.checks as Record<string, { status: string; message?: string }>)
-      .filter(([, v]) => v.status === "error")
-      .map(([k, v]) => `• ${k}: ${v.message ?? "erreur"}`);
-    return { ok: broken.length === 0, broken };
-  } catch (e) {
-    return { ok: false, broken: [`• site: inaccessible (${String(e)})`] };
-  }
-}
+// ── Envoi d'alerte SMS ───────────────────────────────────────────
 
 async function sendAlert(broken: string[], status: "auto_repaired" | "alert") {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";
+  const baseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";
   const lucaPhone = process.env.LUCA_PHONE;
   const melyndaPhone = process.env.MELYNDA_PHONE;
 
-  const msg = status === "auto_repaired"
-    ? `⚠️ CISEAU NOIR — Panne détectée mais réparée automatiquement ✅\n\nService(s) qui ont eu un problème:\n${broken.join("\n")}\n\nTout est revenu en ligne automatiquement.`
-    : `🚨 CISEAU NOIR — PANNE NON RÉSOLUE\n\nService(s) en erreur:\n${broken.join("\n")}\n\nAction requise: vérifier Supabase (supabase.com/dashboard)\nSite: ${baseUrl}/admin/sante`;
+  const msg =
+    status === "auto_repaired"
+      ? `⚠️ CISEAU NOIR — Panne détectée mais réparée automatiquement ✅\n\nService(s) touchés:\n${broken.map(b => `• ${b}`).join("\n")}\n\nTout est revenu en ligne.`
+      : `🚨 CISEAU NOIR — PANNE\n\nService(s) en erreur:\n${broken.map(b => `• ${b}`).join("\n")}\n\nAction: supabase.com/dashboard\nSanté: ${baseUrl}/admin/sante`;
 
-  const promises = [];
-  if (lucaPhone) promises.push(sendSMS(lucaPhone, msg));
-  if (status === "alert" && melyndaPhone) promises.push(sendSMS(melyndaPhone, msg));
+  const promises: Promise<void>[] = [];
+  if (lucaPhone) promises.push(sendSMS(lucaPhone, msg).catch(() => {}));
+  if (status === "alert" && melyndaPhone)
+    promises.push(sendSMS(melyndaPhone, msg).catch(() => {}));
   await Promise.allSettled(promises);
 }
 
+function log(type: string, message: string, details: Record<string, unknown>) {
+  return supabaseAdmin
+    .from("system_logs")
+    .insert({ type, message, details, created_at: new Date().toISOString() })
+    .then(() => {}, () => {});
+}
+
+// ── Handler principal ────────────────────────────────────────────
+
 export async function GET() {
   try {
-    // 1. Vérification initiale
-    const initial = await checkHealth();
-    if (initial.ok) {
+    // 1. Check direct des services critiques
+    const broken = await runChecks();
+    if (broken.length === 0) {
       return NextResponse.json({ status: "ok" });
     }
 
-    // 2. Panne détectée — restart Supabase automatique
-    const restarted = await restartSupabase();
+    // 2. Retry après 30s — évite les fausses alertes (cold start, glitch)
+    await new Promise(r => setTimeout(r, 30000));
+    const broken2 = await runChecks();
+    if (broken2.length === 0) {
+      return NextResponse.json({ status: "ok_after_retry" });
+    }
 
-    if (restarted) {
-      // Attendre que Supabase revienne en ligne
-      const backOnline = await waitForSupabase();
+    // 3. Cooldown — pas de SMS si alerte déjà envoyée dans les 6 dernières heures
+    if (await recentAlertExists()) {
+      await log("health_check_skipped", "Cooldown actif, SMS supprimé", {
+        broken: broken2,
+      });
+      return NextResponse.json({ status: "cooldown", broken: broken2 });
+    }
 
-      if (backOnline) {
-        // Re-vérification complète
-        const recheck = await checkHealth();
-        if (recheck.ok) {
-          await sendAlert(initial.broken, "auto_repaired");
-          await supabaseAdmin.from("system_logs").insert({
-            type: "auto_repaired",
-            message: "Supabase redémarré et remis en ligne automatiquement",
-            details: { broken: initial.broken },
-            created_at: new Date().toISOString(),
-          }).then(() => {}, () => {});
-          return NextResponse.json({ status: "auto_repaired", broken: initial.broken });
+    // 4. Si Supabase est down → tenter un restart automatique
+    const supabaseDown = broken2.some(b => b.startsWith("supabase"));
+    if (supabaseDown) {
+      const restarted = await restartSupabase();
+      if (restarted) {
+        const backOnline = await waitForSupabase();
+        if (backOnline) {
+          await sendAlert(broken2, "auto_repaired");
+          await log("auto_repaired", "Supabase redémarré automatiquement", {
+            broken: broken2,
+          });
+          return NextResponse.json({
+            status: "auto_repaired",
+            broken: broken2,
+          });
         }
       }
     }
 
-    // 3. Toujours brisé — SMS urgent
-    const recheck = await checkHealth();
-    await sendAlert(recheck.broken.length > 0 ? recheck.broken : initial.broken, "alert");
-    await supabaseAdmin.from("system_logs").insert({
-      type: "health_alert",
-      message: "Panne non résolue malgré tentative de restart",
-      details: { broken: initial.broken, restarted },
-      created_at: new Date().toISOString(),
-    }).then(() => {}, () => {});
+    // 5. Toujours en panne → SMS (une seule fois grâce au cooldown)
+    await sendAlert(broken2, "alert");
+    await log("health_alert", "Panne non résolue", { broken: broken2 });
 
-    return NextResponse.json({ status: "alert_sent", broken: initial.broken }, { status: 503 });
-
+    return NextResponse.json(
+      { status: "alert_sent", broken: broken2 },
+      { status: 503 }
+    );
   } catch (e) {
+    // Erreur catastrophique — respecter le cooldown quand même
+    try {
+      if (await recentAlertExists()) {
+        return NextResponse.json(
+          { error: String(e), cooldown: true },
+          { status: 500 }
+        );
+      }
+    } catch {}
+
     const lucaPhone = process.env.LUCA_PHONE;
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";
     if (lucaPhone) {
-      await sendSMS(lucaPhone, `🚨 CISEAU NOIR — SITE HORS LIGNE\n\nLe site ne répond plus du tout.\nsupabase.com/dashboard → restart le projet\n\nErreur: ${String(e)}`).then(() => {}, () => {});
+      await sendSMS(
+        lucaPhone,
+        `🚨 CISEAU NOIR — Erreur health-check: ${String(e).slice(0, 100)}`
+      ).catch(() => {});
     }
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

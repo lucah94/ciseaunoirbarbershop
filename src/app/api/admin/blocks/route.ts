@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { data, error } = await supabaseAdmin
     .from("barber_blocks")
-    .insert({ barber: body.barber, date: body.date, reason: body.reason || null })
+    .insert({ barber: body.barber, date: body.date, reason: body.reason || null, start_time: body.start_time || null, end_time: body.end_time || null })
     .select()
     .single();
   if (error) return NextResponse.json({ error }, { status: 500 });

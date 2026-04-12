@@ -21,6 +21,13 @@ export async function proxy(req: NextRequest) {
     }
   }
 
+  if (pathname.startsWith("/barber") && !pathname.startsWith("/barber/login")) {
+    const auth = req.cookies.get("barber_auth");
+    if (!auth || auth.value !== "diodis") {
+      return NextResponse.redirect(new URL("/barber/login", req.url));
+    }
+  }
+
   return NextResponse.next();
 }
 

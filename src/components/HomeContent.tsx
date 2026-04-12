@@ -96,14 +96,14 @@ const staggerItem: Variants = {
 };
 
 /* ───── Reviews Data ───── */
-const reviews = [
-  { name: "Marc-Antoine D.", rating: 5, text: "Meilleur barbershop à Québec, sans hésiter. Melynda est une artiste avec les ciseaux. Ambiance chaleureuse et résultat impeccable à chaque visite." },
-  { name: "Jean-François L.", rating: 5, text: "Service exceptionnel! Le rasage à la lame est une vraie expérience de détente. Je recommande à tous les gars qui veulent se sentir comme des rois." },
-  { name: "Sébastien R.", rating: 5, text: "J'ai essayé plusieurs barbiers à Québec et Ciseau Noir est de loin le meilleur. Attention aux détails, propreté et professionnalisme au rendez-vous." },
-  { name: "Alexandre P.", rating: 4, text: "Excellent service, très professionnel. Le dégradé fait par Diodis était parfait. Le seul point, c'est que c'est parfois difficile d'avoir un rendez-vous rapidement." },
-  { name: "Mathieu B.", rating: 5, text: "Ça fait 2 ans que je vais chez Ciseau Noir et je ne changerais pour rien au monde. Chaque coupe est exactement ce que je veux. Bravo à toute l'équipe!" },
-  { name: "Nicolas G.", rating: 5, text: "Ambiance premium, service 5 étoiles. Le traitement complet avec serviette chaude et exfoliant, c'est le luxe. Ma blonde m'a dit que je sentais trop bon!" },
-  { name: "Étienne C.", rating: 4, text: "Très bonne expérience, l'ambiance est top et le résultat toujours soigné. Le prix est un peu plus élevé qu'ailleurs, mais la qualité est vraiment là. Je recommande!" },
+type GoogleReview = { name: string; rating: number; text: string; photo?: string };
+
+const fallbackReviews: GoogleReview[] = [
+  { name: "Sebastien", rating: 5, text: "Sérieusement les gens qui travaillent là son génial!! Je me cherchais un barbier pour mes ados!! Et je vous garantis que l'essayer ses l'adopter!! Woww à toute l'équipe!!" },
+  { name: "Alexandre Laroche", rating: 5, text: "Superbe coupe pour mon ado. Très satisfait du résultat et excellent service! Merci beaucoup!" },
+  { name: "Melany Garon", rating: 5, text: "Très belle expérience avec Melynda. Elle a coupé les cheveux de mon petit garçon à la perfection! Aucune larme, aucun cris! Elle a été très patiente et gentille. D'une maman très impressionnée!" },
+  { name: "Marie Gab Auger", rating: 5, text: "Cet endroit est très agréable et confortable avec deux chats — Méo et Aurélia. Mon fils a eu une très belle coupe!" },
+  { name: "Sylvain Lortie", rating: 5, text: "Magnifique! Très belle place et très bel accueil!" },
 ];
 
 function Stars({ count }: { count: number }) {
@@ -118,6 +118,24 @@ function Stars({ count }: { count: number }) {
 
 /* ───── Reviews Grid ───── */
 function ReviewsGrid() {
+  const [reviews, setReviews] = useState<GoogleReview[]>(fallbackReviews);
+
+  useEffect(() => {
+    fetch("/api/reviews")
+      .then(r => r.json())
+      .then(data => {
+        if (data.reviews?.length) {
+          setReviews(data.reviews.map((r: { author_name: string; rating: number; text: string; profile_photo_url?: string }) => ({
+            name: r.author_name,
+            rating: r.rating,
+            text: r.text,
+            photo: r.profile_photo_url,
+          })));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <div>
       <motion.div
@@ -134,7 +152,7 @@ function ReviewsGrid() {
       >
         {reviews.map((review, i) => (
           <motion.div
-            key={review.name}
+            key={i}
             variants={staggerItem}
             style={{
               background: "linear-gradient(145deg, #111111, #0D0D0D)",
@@ -160,26 +178,35 @@ function ReviewsGrid() {
             }}>
               &ldquo;
             </span>
-            <Stars count={review.rating} />
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+              {review.photo && (
+                <img src={review.photo} alt={review.name} style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "cover" }} />
+              )}
+              <Stars count={review.rating} />
+            </div>
             <p style={{
               color: "#AAA",
               fontSize: "14px",
               lineHeight: 1.8,
               fontWeight: 300,
-              margin: "16px 0 20px",
+              margin: "0 0 20px",
               fontStyle: "italic",
             }}>
               &ldquo;{review.text}&rdquo;
             </p>
-            <p style={{
-              color: "#D4AF37",
-              fontSize: "12px",
-              letterSpacing: "2px",
-              textTransform: "uppercase",
-              fontWeight: 500,
-            }}>
-              {review.name}
-            </p>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <p style={{
+                color: "#D4AF37",
+                fontSize: "12px",
+                letterSpacing: "2px",
+                textTransform: "uppercase",
+                fontWeight: 500,
+                margin: 0,
+              }}>
+                {review.name}
+              </p>
+              <img src="https://www.google.com/favicon.ico" alt="Google" style={{ width: "14px", height: "14px", opacity: 0.4 }} />
+            </div>
           </motion.div>
         ))}
       </motion.div>
@@ -314,11 +341,45 @@ export default function HomeContent() {
           <div style={{
             animation: "float 4s ease-in-out infinite",
             marginBottom: "32px",
-            fontSize: "40px",
-            color: "#D4AF37",
-            filter: "drop-shadow(0 0 20px rgba(212,175,55,0.3))",
+            filter: "drop-shadow(0 0 28px rgba(212,175,55,0.5))",
+            display: "inline-block",
           }}>
-            ✂
+            <svg width="88" height="88" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="gld" x1="20" y1="8" x2="80" y2="90" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#F4E070"/>
+                  <stop offset="45%" stopColor="#D4AF37"/>
+                  <stop offset="100%" stopColor="#9A6F10"/>
+                </linearGradient>
+              </defs>
+
+              {/* Blade 2 — left blade (behind) */}
+              <path
+                d="M 20,8 C 32,24 42,44 44.5,49 C 52,59 62,73 78,89 L 76,87 C 62,73 56,57 51.2,43.5 C 46,38 33,17 20,8 Z"
+                fill="url(#gld)"
+              />
+
+              {/* Blade 1 — right blade (in front) */}
+              <path
+                d="M 80,8 C 68,24 58,44 55.5,49 C 48,59 38,73 22,89 L 24,87 C 38,73 44,57 48.8,43.5 C 54,38 67,17 80,8 Z"
+                fill="url(#gld)"
+              />
+
+              {/* Rings */}
+              <circle cx="20" cy="87" r="8" stroke="url(#gld)" strokeWidth="3.2" fill="none"/>
+              <circle cx="20" cy="87" r="3.5" fill="url(#gld)" fillOpacity="0.22"/>
+              <circle cx="80" cy="87" r="8" stroke="url(#gld)" strokeWidth="3.2" fill="none"/>
+              <circle cx="80" cy="87" r="3.5" fill="url(#gld)" fillOpacity="0.22"/>
+
+              {/* Pivot screw */}
+              <circle cx="50" cy="49" r="5.5" fill="url(#gld)"/>
+              <circle cx="50" cy="49" r="2.6" fill="#0A0A0A"/>
+              <circle cx="51" cy="48" r="0.9" fill="#F4E070" fillOpacity="0.65"/>
+
+              {/* Cutting edge highlights */}
+              <path d="M 79,9 C 67,24 55,39 50.5,44.2" stroke="#FFFACC" strokeWidth="1" strokeOpacity="0.5" strokeLinecap="round" fill="none"/>
+              <path d="M 21,9 C 33,24 45,39 49.5,44.2" stroke="#FFFACC" strokeWidth="1" strokeOpacity="0.5" strokeLinecap="round" fill="none"/>
+            </svg>
           </div>
 
           <motion.p

@@ -23,6 +23,7 @@ const SERVICE_LABELS: Record<string, { name: string; desc: string; icon: string 
   resend:   { name: "Emails",           desc: "Resend — confirmations & campagnes email",    icon: "✉️" },
   twilio:   { name: "SMS",              desc: "Twilio — confirmations & campagnes SMS",      icon: "📱" },
   claude:   { name: "Intelligence IA",  desc: "Anthropic Claude — Figaro & analyses",       icon: "✂️" },
+  security: { name: "Sécurité RLS",     desc: "Supabase — protection des tables (RLS)",     icon: "🔒" },
 };
 
 export default function SantePage() {

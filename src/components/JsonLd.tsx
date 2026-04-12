@@ -6,7 +6,7 @@ export default function JsonLd() {
     description:
       "Salon de barbier premium a Quebec. Coupes, rasages et soins professionnels.",
     url: "https://ciseaunoir.ca",
-    telephone: "+1-418-000-0000",
+    telephone: "+1-418-665-5703",
     address: {
       "@type": "PostalAddress",
       streetAddress: "375 Boul. des Chutes",

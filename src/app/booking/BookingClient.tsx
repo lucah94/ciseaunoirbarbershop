@@ -1148,7 +1148,7 @@ function BookingContent() {
                           }}
                         >Réessayer maintenant</button>
                         <p style={{ color: "#555", fontSize: "11px", marginTop: "16px" }}>
-                          Vous pouvez aussi nous appeler : <a href="tel:+14185555555" style={{ color: "#D4AF37" }}>418-555-5555</a>
+                          Vous pouvez aussi nous appeler : <a href="tel:+14186655703" style={{ color: "#D4AF37" }}>418-665-5703</a>
                         </p>
                       </div>
                     )}
