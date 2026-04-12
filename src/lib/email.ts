@@ -60,7 +60,7 @@ export async function sendBookingConfirmation(booking: {
               <td style="color: #C9A84C; font-size: 18px; font-weight: 300; padding: 12px 0; text-align: right;">${booking.price}$</td>
             </tr>
           </table>
-          ${booking.note ? `<p style="color: #666; font-size: 13px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #1A1A1A;">Note : ${booking.note}</p>` : ""}
+          ${booking.note ? `<p style="color: #666; font-size: 13px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #1A1A1A;">Note : ${escapeHtml(booking.note)}</p>` : ""}
         </div>
 
         <div style="background: #111; border-left: 2px solid #C9A84C; padding: 16px 20px; margin-bottom: 32px;">
@@ -113,18 +113,18 @@ export async function sendBookingNotificationAdmin(booking: {
   await resend.emails.send({
     from: FROM_EMAIL,
     to: ADMIN_EMAIL,
-    subject: `📅 Nouvelle réservation — ${booking.client_name} — ${dateFormatted} à ${booking.time}`,
+    subject: `📅 Nouvelle réservation — ${escapeHtml(booking.client_name)} — ${dateFormatted} à ${booking.time}`,
     html: `
       <div style="font-family: Georgia, serif; background: #0A0A0A; color: #F5F5F5; padding: 32px; max-width: 560px; margin: 0 auto;">
         <p style="color: #C9A84C; letter-spacing: 4px; font-size: 11px; text-transform: uppercase; margin-bottom: 16px;">Nouvelle réservation</p>
         <table style="width: 100%; border-collapse: collapse;">
           <tr style="border-bottom: 1px solid #1A1A1A;">
             <td style="color: #555; font-size: 12px; padding: 10px 0; text-transform: uppercase; letter-spacing: 1px;">Client</td>
-            <td style="color: #F5F5F5; font-size: 14px; padding: 10px 0; text-align: right;">${booking.client_name}</td>
+            <td style="color: #F5F5F5; font-size: 14px; padding: 10px 0; text-align: right;">${escapeHtml(booking.client_name)}</td>
           </tr>
           <tr style="border-bottom: 1px solid #1A1A1A;">
             <td style="color: #555; font-size: 12px; padding: 10px 0; text-transform: uppercase; letter-spacing: 1px;">Téléphone</td>
-            <td style="color: #F5F5F5; font-size: 14px; padding: 10px 0; text-align: right;">${booking.client_phone}</td>
+            <td style="color: #F5F5F5; font-size: 14px; padding: 10px 0; text-align: right;">${escapeHtml(booking.client_phone)}</td>
           </tr>
           <tr style="border-bottom: 1px solid #1A1A1A;">
             <td style="color: #555; font-size: 12px; padding: 10px 0; text-transform: uppercase; letter-spacing: 1px;">Service</td>
@@ -143,7 +143,7 @@ export async function sendBookingNotificationAdmin(booking: {
             <td style="color: #C9A84C; font-size: 18px; padding: 10px 0; text-align: right;">${booking.price}$</td>
           </tr>
         </table>
-        ${booking.note ? `<p style="color: #666; font-size: 13px; margin-top: 16px; padding: 12px; background: #111; border-left: 2px solid #333;">Note : ${booking.note}</p>` : ""}
+        ${booking.note ? `<p style="color: #666; font-size: 13px; margin-top: 16px; padding: 12px; background: #111; border-left: 2px solid #333;">Note : ${escapeHtml(booking.note)}</p>` : ""}
       </div>
     `,
   });
@@ -176,7 +176,7 @@ export async function sendConfirmationReminderEmail(booking: {
         <h1 style="font-weight: 300; font-size: 24px; letter-spacing: 3px; margin-bottom: 8px; color: #F5F5F5;">Confirmez votre rendez-vous</h1>
         <div style="width: 40px; height: 2px; background: #C9A84C; margin-bottom: 32px;"></div>
 
-        <p style="color: #999; font-size: 15px; margin-bottom: 32px;">Bonjour ${booking.client_name},<br>Votre rendez-vous est dans <strong style="color: #C9A84C;">2 jours</strong>. Merci de confirmer votre présence.</p>
+        <p style="color: #999; font-size: 15px; margin-bottom: 32px;">Bonjour ${escapeHtml(booking.client_name)},<br>Votre rendez-vous est dans <strong style="color: #C9A84C;">2 jours</strong>. Merci de confirmer votre présence.</p>
 
         <div style="background: #111; border: 1px solid #1A1A1A; padding: 24px; margin-bottom: 32px;">
           <table style="width: 100%; border-collapse: collapse;">
@@ -251,7 +251,7 @@ export async function sendReminderEmail(booking: {
         <h1 style="font-weight: 300; font-size: 24px; letter-spacing: 3px; margin-bottom: 8px; color: #F5F5F5;">Rappel de rendez-vous</h1>
         <div style="width: 40px; height: 2px; background: #C9A84C; margin-bottom: 32px;"></div>
 
-        <p style="color: #999; font-size: 15px; margin-bottom: 32px;">Bonjour ${booking.client_name},<br>Votre rendez-vous est <strong style="color: #C9A84C;">demain</strong> !</p>
+        <p style="color: #999; font-size: 15px; margin-bottom: 32px;">Bonjour ${escapeHtml(booking.client_name)},<br>Votre rendez-vous est <strong style="color: #C9A84C;">demain</strong> !</p>
 
         <div style="background: #111; border: 1px solid #1A1A1A; padding: 24px; margin-bottom: 32px;">
           <table style="width: 100%; border-collapse: collapse;">
@@ -312,7 +312,7 @@ export async function sendReviewRequestEmail(booking: {
         <div style="width: 40px; height: 2px; background: #C9A84C; margin-bottom: 32px;"></div>
 
         <p style="color: #999; font-size: 15px; line-height: 1.8; margin-bottom: 32px;">
-          Bonjour ${booking.client_name},<br><br>
+          Bonjour ${escapeHtml(booking.client_name)},<br><br>
           Nous espérons que votre expérience avec <strong style="color: #F5F5F5;">${booking.barber}</strong> vous a plu.<br>
           Si vous avez quelques secondes, un avis Google nous aide énormément à faire connaître le salon.
         </p>
@@ -355,7 +355,7 @@ export async function sendRebookingEmail(booking: {
         <div style="width: 40px; height: 2px; background: #C9A84C; margin-bottom: 32px;"></div>
 
         <p style="color: #999; font-size: 15px; line-height: 1.8; margin-bottom: 32px;">
-          Bonjour ${booking.client_name},<br><br>
+          Bonjour ${escapeHtml(booking.client_name)},<br><br>
           Ça fait 3 semaines depuis votre dernière coupe avec <strong style="color: #F5F5F5;">${booking.barber}</strong>.<br>
           Le moment idéal pour un rafraîchissement !
         </p>
@@ -448,7 +448,7 @@ export async function sendNoShowAdminNotification(booking: {
   await resend.emails.send({
     from: FROM_EMAIL,
     to: ADMIN_EMAIL,
-    subject: `No-show — ${booking.client_name} — ${dateFormatted} à ${booking.time}`,
+    subject: `No-show — ${escapeHtml(booking.client_name)} — ${dateFormatted} à ${booking.time}`,
     html: `
       <div style="font-family: Georgia, serif; background: #0A0A0A; color: #F5F5F5; padding: 32px; max-width: 560px; margin: 0 auto;">
         <p style="color: #e55; letter-spacing: 4px; font-size: 11px; text-transform: uppercase; margin-bottom: 16px;">No-Show</p>
@@ -457,11 +457,11 @@ export async function sendNoShowAdminNotification(booking: {
         <table style="width: 100%; border-collapse: collapse;">
           <tr style="border-bottom: 1px solid #1A1A1A;">
             <td style="color: #555; font-size: 12px; padding: 10px 0; text-transform: uppercase; letter-spacing: 1px;">Client</td>
-            <td style="color: #F5F5F5; font-size: 14px; padding: 10px 0; text-align: right;">${booking.client_name}</td>
+            <td style="color: #F5F5F5; font-size: 14px; padding: 10px 0; text-align: right;">${escapeHtml(booking.client_name)}</td>
           </tr>
           <tr style="border-bottom: 1px solid #1A1A1A;">
             <td style="color: #555; font-size: 12px; padding: 10px 0; text-transform: uppercase; letter-spacing: 1px;">Téléphone</td>
-            <td style="color: #F5F5F5; font-size: 14px; padding: 10px 0; text-align: right;">${booking.client_phone}</td>
+            <td style="color: #F5F5F5; font-size: 14px; padding: 10px 0; text-align: right;">${escapeHtml(booking.client_phone)}</td>
           </tr>
           <tr style="border-bottom: 1px solid #1A1A1A;">
             <td style="color: #555; font-size: 12px; padding: 10px 0; text-transform: uppercase; letter-spacing: 1px;">Service</td>
@@ -663,12 +663,12 @@ export async function sendContactNotification(contact: {
     html: `
       <div style="font-family: Georgia, serif; background: #0A0A0A; color: #F5F5F5; padding: 32px; max-width: 560px; margin: 0 auto;">
         <p style="color: #C9A84C; letter-spacing: 4px; font-size: 11px; text-transform: uppercase; margin-bottom: 16px;">Nouveau message — Ciseau Noir</p>
-        <p style="color: #999; margin-bottom: 8px;"><strong style="color: #F5F5F5;">Nom :</strong> ${contact.name}</p>
-        <p style="color: #999; margin-bottom: 16px;"><strong style="color: #F5F5F5;">Courriel :</strong> ${contact.email}</p>
+        <p style="color: #999; margin-bottom: 8px;"><strong style="color: #F5F5F5;">Nom :</strong> ${escapeHtml(contact.name)}</p>
+        <p style="color: #999; margin-bottom: 16px;"><strong style="color: #F5F5F5;">Courriel :</strong> ${escapeHtml(contact.email)}</p>
         <div style="background: #111; border: 1px solid #1A1A1A; padding: 20px; margin-top: 16px;">
-          <p style="color: #F5F5F5; font-size: 14px; line-height: 1.7; margin: 0;">${contact.message.replace(/\n/g, "<br>")}</p>
+          <p style="color: #F5F5F5; font-size: 14px; line-height: 1.7; margin: 0;">${escapeHtml(contact.message).replace(/\n/g, "<br>")}</p>
         </div>
-        <p style="color: #444; font-size: 12px; margin-top: 24px;">Répondre directement à cet email pour contacter ${contact.name}.</p>
+        <p style="color: #444; font-size: 12px; margin-top: 24px;">Répondre directement à cet email pour contacter ${escapeHtml(contact.name)}.</p>
       </div>
     `,
   });

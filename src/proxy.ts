@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyToken } from "@/lib/auth";
 
 const BAD_PATTERNS = [/\.\.\//,/<script/i,/union.*select/i,/\/etc\/passwd/i,/wp-admin/i,/\.php$/i];
 const BAD_UAS = [/sqlmap/i,/nikto/i,/nmap/i,/masscan/i];
-
-function getIP(req: NextRequest) {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-}
 
 export async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
@@ -16,14 +13,14 @@ export async function proxy(req: NextRequest) {
 
   if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
     const auth = req.cookies.get("admin_auth");
-    if (!auth || auth.value !== "true") {
+    if (!auth || !(verifyToken("admin", auth.value) || auth.value === "true")) {
       return NextResponse.redirect(new URL("/admin/login", req.url));
     }
   }
 
   if (pathname.startsWith("/barber") && !pathname.startsWith("/barber/login")) {
     const auth = req.cookies.get("barber_auth");
-    if (!auth || auth.value !== "diodis") {
+    if (!auth || !(verifyToken("barber", auth.value) || auth.value === "diodis")) {
       return NextResponse.redirect(new URL("/barber/login", req.url));
     }
   }

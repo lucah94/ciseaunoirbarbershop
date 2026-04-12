@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { generateToken } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { limit: 5, windowMs: 60_000 });
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
   }
 
   const res = NextResponse.json({ ok: true });
-  res.cookies.set("admin_auth", "true", {
+  res.cookies.set("admin_auth", generateToken("admin"), {
     httpOnly: true,
     secure: true,
     sameSite: "lax",

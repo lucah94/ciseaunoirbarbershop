@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { requireAdmin } from "@/lib/auth";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -26,14 +27,6 @@ Le corps du message doit être naturel, chaleureux, en français québécois pro
 Pour les SMS : max 160 caractères, toujours terminer par "Répondez STOP pour ne plus recevoir de msgs."
 Pour les emails : 3-5 phrases, signe toujours "— Melynda & l'équipe Ciseau Noir 🖤"
 Ne mets jamais de balises HTML dans le body.`;
-
-function requireAdmin(req: NextRequest) {
-  const auth = req.cookies.get("admin_auth");
-  if (!auth || auth.value !== "true") {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
-  return null;
-}
 
 export async function POST(req: NextRequest) {
   const denied = requireAdmin(req);

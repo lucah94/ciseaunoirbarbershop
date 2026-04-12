@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Generate Figaro auto-reply
     const autoReplyText = await generateAutoReply(name, message);
-    const autoReplyHtml = autoReplyText.replace(/\n/g, "<br>");
+    const autoReplyHtml = escapeHtml(autoReplyText).replace(/\n/g, "<br>");
 
     // 3. Check if escalation needed
     const msgLower = message.toLowerCase();

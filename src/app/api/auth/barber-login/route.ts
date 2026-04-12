@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { generateToken } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { limit: 5, windowMs: 60_000 });
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Mot de passe incorrect" }, { status: 401 });
   }
   const res = NextResponse.json({ ok: true });
-  res.cookies.set("barber_auth", "diodis", {
+  res.cookies.set("barber_auth", generateToken("barber"), {
     httpOnly: true, secure: true, sameSite: "lax",
     maxAge: 60 * 60 * 24 * 7, path: "/",
   });

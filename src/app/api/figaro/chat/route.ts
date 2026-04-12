@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { requireAdmin } from "@/lib/auth";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -35,14 +36,6 @@ RÈGLES IMPORTANTES :
 - Si on te demande une idée ou suggestion sans demander explicitement de générer, donne d'abord l'idée puis propose de générer
 
 Tu es proactif, créatif, et tu connais bien l'industrie de la coiffure/barbershop.`;
-
-function requireAdmin(req: NextRequest) {
-  const auth = req.cookies.get("admin_auth");
-  if (!auth || auth.value !== "true") {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
-  return null;
-}
 
 export async function POST(req: NextRequest) {
   const denied = requireAdmin(req);

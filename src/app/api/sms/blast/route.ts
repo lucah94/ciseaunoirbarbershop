@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { sendSMS, formatPhone } from "@/lib/sms";
+import { requireAdmin } from "@/lib/auth";
 
 export const maxDuration = 300;
 
@@ -25,14 +26,6 @@ async function getUniquePhones() {
     seen.add(formatted);
     return true;
   });
-}
-
-function requireAdmin(req: NextRequest) {
-  const auth = req.cookies.get("admin_auth");
-  if (!auth || auth.value !== "true") {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
-  return null;
 }
 
 export async function POST(req: NextRequest) {

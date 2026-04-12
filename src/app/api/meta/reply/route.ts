@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
 
 const TOKEN = process.env.FACEBOOK_ACCESS_TOKEN!;
-
-function requireAdmin(req: NextRequest) {
-  const auth = req.cookies.get("admin_auth");
-  if (!auth || auth.value !== "true") {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
-  return null;
-}
 
 export async function POST(req: NextRequest) {
   const denied = requireAdmin(req);

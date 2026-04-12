@@ -190,7 +190,7 @@ async function handleToolCall(toolName: string, toolInput: Record<string, unknow
       );
       await client.messages.create({
         from: process.env.TWILIO_PHONE_NUMBER!,
-        to: "+18147403894",
+        to: process.env.LUCA_PHONE || process.env.MELYNDA_PHONE || "+18147403894",
         body: `⚠️ Messenger: ${message}`,
       });
       return "Alerte SMS envoyée à l'équipe.";

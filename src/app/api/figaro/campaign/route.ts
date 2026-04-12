@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { supabaseAdmin } from "@/lib/supabase";
+import { requireAdmin } from "@/lib/auth";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.FROM_EMAIL || "Ciseau Noir <noreply@ciseaunoirbarbershop.com>";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";
 
 function buildHtml(body: string) {
   return `
@@ -14,17 +17,13 @@ function buildHtml(body: string) {
         <p style="color: #444; font-size: 11px; margin: 0; line-height: 1.7;">
           📍 375 Bd des Chutes, Québec · 📞 (418) 665-5703 · ciseaunoirbarbershop.com
         </p>
+        <p style="color: #333; font-size: 10px; margin-top: 12px;">
+          Vous recevez cet email car vous avez visité Ciseau Noir Barbershop.
+          <a href="mailto:ciseaunoirbarbershop@gmail.com?subject=Désabonnement" style="color: #555; text-decoration: underline;">Se désabonner</a>
+        </p>
       </div>
     </div>
   `;
-}
-
-function requireAdmin(req: NextRequest) {
-  const auth = req.cookies.get("admin_auth");
-  if (!auth || auth.value !== "true") {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
-  return null;
 }
 
 export async function GET(req: NextRequest) {
