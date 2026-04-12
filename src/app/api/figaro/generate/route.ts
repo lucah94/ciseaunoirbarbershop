@@ -27,7 +27,18 @@ Pour les SMS : max 160 caractères, toujours terminer par "Répondez STOP pour n
 Pour les emails : 3-5 phrases, signe toujours "— Melynda & l'équipe Ciseau Noir 🖤"
 Ne mets jamais de balises HTML dans le body.`;
 
+function requireAdmin(req: NextRequest) {
+  const auth = req.cookies.get("admin_auth");
+  if (!auth || auth.value !== "true") {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+  return null;
+}
+
 export async function POST(req: NextRequest) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   const { prompt, type } = await req.json();
   if (!prompt) return NextResponse.json({ error: "Prompt requis" }, { status: 400 });
 

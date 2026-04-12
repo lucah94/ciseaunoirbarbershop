@@ -19,7 +19,18 @@ function buildHtml(body: string) {
   `;
 }
 
-export async function GET() {
+function requireAdmin(req: NextRequest) {
+  const auth = req.cookies.get("admin_auth");
+  if (!auth || auth.value !== "true") {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+  return null;
+}
+
+export async function GET(req: NextRequest) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   const { data, error } = await supabaseAdmin
     .from("email_campaigns")
     .select("*")
@@ -29,6 +40,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   try {
     const { subject, body_html, recipient_type } = await req.json();
     if (!subject || !body_html) {

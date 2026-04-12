@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, { limit: 5, windowMs: 60_000 });
+  if (limited) return limited;
+
   const { password } = await req.json();
   const BARBER_PASSWORD = process.env.DIODIS_PASSWORD;
   if (!BARBER_PASSWORD || password !== BARBER_PASSWORD) {

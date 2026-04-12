@@ -36,7 +36,18 @@ RÈGLES IMPORTANTES :
 
 Tu es proactif, créatif, et tu connais bien l'industrie de la coiffure/barbershop.`;
 
+function requireAdmin(req: NextRequest) {
+  const auth = req.cookies.get("admin_auth");
+  if (!auth || auth.value !== "true") {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+  return null;
+}
+
 export async function POST(req: NextRequest) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   const { messages } = await req.json();
   if (!messages?.length) return NextResponse.json({ error: "Messages requis" }, { status: 400 });
 

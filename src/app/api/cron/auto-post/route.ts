@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { postToGoogleMyBusiness } from "@/lib/google";
 
+export const maxDuration = 120;
+
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID!;
 const TOKEN = process.env.FACEBOOK_ACCESS_TOKEN!;
 

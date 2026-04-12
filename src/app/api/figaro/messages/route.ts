@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-export async function GET() {
+function requireAdmin(req: NextRequest) {
+  const auth = req.cookies.get("admin_auth");
+  if (!auth || auth.value !== "true") {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+  return null;
+}
+
+export async function GET(req: NextRequest) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   try {
     const { data, error } = await supabaseAdmin
       .from("figaro_messages")
@@ -19,6 +30,9 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   try {
     const body = await req.json();
     const { id, resolved } = body;

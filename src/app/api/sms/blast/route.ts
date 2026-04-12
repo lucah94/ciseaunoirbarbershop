@@ -27,7 +27,18 @@ async function getUniquePhones() {
   });
 }
 
+function requireAdmin(req: NextRequest) {
+  const auth = req.cookies.get("admin_auth");
+  if (!auth || auth.value !== "true") {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+  return null;
+}
+
 export async function POST(req: NextRequest) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   const { message } = await req.json();
   if (!message?.trim()) {
     return NextResponse.json({ error: "Message requis" }, { status: 400 });
@@ -54,7 +65,10 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ sent: sent.length, failed: failed.length, total: unique.length });
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   try {
     const unique = await getUniquePhones();
     return NextResponse.json({ count: unique.length });

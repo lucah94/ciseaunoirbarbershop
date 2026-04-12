@@ -1,13 +1,17 @@
 import twilio from "twilio";
 
 function getClient() {
-  return twilio(
-    process.env.TWILIO_ACCOUNT_SID!,
-    process.env.TWILIO_AUTH_TOKEN!
-  );
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  const token = process.env.TWILIO_AUTH_TOKEN;
+  if (!sid || !token) throw new Error("Twilio credentials manquants");
+  return twilio(sid, token);
 }
 
-const FROM_NUMBER = () => process.env.TWILIO_PHONE_NUMBER || "";
+function getFromNumber() {
+  const num = process.env.TWILIO_PHONE_NUMBER;
+  if (!num) throw new Error("TWILIO_PHONE_NUMBER manquant");
+  return num;
+}
 
 export function formatPhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
@@ -35,7 +39,7 @@ export async function sendBookingConfirmationSMS(booking: {
     : "";
 
   await getClient().messages.create({
-    from: FROM_NUMBER(),
+    from: getFromNumber(),
     to: formatPhone(booking.client_phone),
     body: `Ciseau Noir ✂️ Réservation confirmée !\n\n${booking.service} avec ${booking.barber}\n📅 ${dateFormatted} à ${booking.time}\n📍 375 Bd des Chutes, Québec${calendarLine}\n\nAnnulation : 1h avant — (418) 665-5703`,
   });
@@ -60,7 +64,7 @@ export async function sendBarberNotificationSMS(booking: {
   });
 
   await getClient().messages.create({
-    from: FROM_NUMBER(),
+    from: getFromNumber(),
     to: formatPhone(barberPhoneEnv),
     body: `✂️ Nouveau RDV !\n\n${booking.client_name} — ${booking.service}\n📅 ${dateFormatted} à ${booking.time}\n📞 ${booking.client_phone}`,
   });
@@ -72,7 +76,7 @@ export async function sendNoShowSMS(booking: {
 }) {
   const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com"}/booking`;
   await getClient().messages.create({
-    from: FROM_NUMBER(),
+    from: getFromNumber(),
     to: formatPhone(booking.client_phone),
     body: `Ciseau Noir — Bonjour ${booking.client_name}, vous n'êtes pas venu(e) à votre rendez-vous chez Ciseau Noir. Pour reprendre un RDV : ${bookingUrl}`,
   });
@@ -92,7 +96,7 @@ export async function sendConfirmationReminderSMS(booking: {
   });
 
   await getClient().messages.create({
-    from: FROM_NUMBER(),
+    from: getFromNumber(),
     to: formatPhone(booking.client_phone),
     body: `Rappel: Vous avez un RDV chez Ciseau Noir dans 2 jours (${dateFormatted} à ${booking.time}). Répondez CONFIRMER pour confirmer ou ANNULER pour annuler.`,
   });
@@ -110,7 +114,7 @@ export async function sendReminderSMS(booking: {
 }) {
   const rdvLine = booking.rdv_url ? `\n\nVoir / Modifier : ${booking.rdv_url}` : "";
   await getClient().messages.create({
-    from: FROM_NUMBER(),
+    from: getFromNumber(),
     to: formatPhone(booking.client_phone),
     body: `Ciseau Noir ✂️ Rappel — demain à ${booking.time} !\n\n${booking.service} avec ${booking.barber}\n📍 375 Bd des Chutes, Québec${rdvLine}`,
   });
@@ -122,7 +126,7 @@ export async function sendReminderSMS(booking: {
  */
 export async function sendSMS(to: string, message: string): Promise<void> {
   await getClient().messages.create({
-    from: FROM_NUMBER(),
+    from: getFromNumber(),
     to: formatPhone(to),
     body: message,
   });

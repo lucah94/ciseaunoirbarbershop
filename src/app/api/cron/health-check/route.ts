@@ -129,7 +129,13 @@ function log(type: string, message: string, details: Record<string, unknown>) {
 
 // ── Handler principal ────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Auth — empêche déclenchement non autorisé
+  const authHeader = req.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+
   try {
     // 1. Check direct des services critiques
     const broken = await runChecks();
