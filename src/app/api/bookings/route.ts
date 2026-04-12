@@ -18,6 +18,7 @@ const bookingSchema = z.object({
   price: z.number().optional(),
   note: z.string().max(500).optional().or(z.literal("")),
   status: z.enum(["confirmed", "completed", "cancelled", "no_show"]).optional().default("confirmed"),
+  source: z.enum(["direct", "google", "facebook", "instagram", "referral", "messenger"]).optional().default("direct"),
 });
 
 export async function GET(req: NextRequest) {

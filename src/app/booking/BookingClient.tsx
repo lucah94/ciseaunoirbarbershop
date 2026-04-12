@@ -560,6 +560,7 @@ function BookingContent() {
         time: selected.time,
         note: selected.note,
         status: "confirmed",
+        source: new URLSearchParams(window.location.search).get("utm_source") || "direct",
       }),
     });
     const resData = await res.json().catch(() => ({}));
