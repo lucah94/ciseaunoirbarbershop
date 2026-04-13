@@ -58,6 +58,14 @@ const SERVICES = [
     includes: ["Shampoing", "Coupe classique", "Preuve d'inscription requise"],
     icon: "🎓",
   },
+  {
+    name: "Étudiant / Enfant",
+    price: "25$",
+    duration: "30 min",
+    desc: "Coupe pour enfant ou jeune étudiant (12 ans et moins).",
+    includes: ["Coupe adaptée", "Finition soignée"],
+    icon: "👦",
+  },
 ];
 
 export default function ServicesPage() {

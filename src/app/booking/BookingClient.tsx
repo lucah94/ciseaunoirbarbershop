@@ -13,6 +13,7 @@ const SERVICES = [
   { id: "premium", name: "Service Premium", price: "75$", duration: "75 min", desc: "Coupe, rasage, serviette chaude & exfoliant", icon: "👑" },
   { id: "shave", name: "Rasage / Barbe", price: "25$", duration: "30 min", desc: "Rasage lame, barbe & tondeuse", icon: "🧔" },
   { id: "student", name: "Tarif Étudiant", price: "30$", duration: "45 min", desc: "Coupe + lavage (preuve requise)", icon: "🎓" },
+  { id: "child", name: "Étudiant / Enfant", price: "25$", duration: "30 min", desc: "Coupe enfant ou étudiant (12 ans et moins)", icon: "👦" },
 ];
 
 const BARBERS = [
