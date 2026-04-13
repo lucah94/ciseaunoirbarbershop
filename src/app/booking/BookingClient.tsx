@@ -1170,7 +1170,6 @@ function BookingContent() {
                             <Image src="/images/melynda.jpg" alt="Melynda" width={80} height={80} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                           </div>
                           <p style={{ color: "#D4AF37", fontSize: "13px", letterSpacing: "3px", textTransform: "uppercase", fontWeight: 600 }}>Melynda</p>
-                          <p style={{ color: "#666", fontSize: "10px", letterSpacing: "1px" }}>Mar → Sam</p>
                         </div>
                         {isDateAvailableForBarber("melynda", selected.date, blockedDates, dayOverrides.map(o => o.date), barberSchedules["melynda"]) ? (() => {
                           const serviceDur = getServiceDuration(SERVICES.find(s => s.id === selected.service)?.name || "");
@@ -1223,7 +1222,6 @@ function BookingContent() {
                             <Image src="/images/diodis.jpg" alt="Diodis" width={80} height={80} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                           </div>
                           <p style={{ color: "#9B59B6", fontSize: "13px", letterSpacing: "3px", textTransform: "uppercase", fontWeight: 600 }}>Diodis</p>
-                          <p style={{ color: "#666", fontSize: "10px", letterSpacing: "1px" }}>Ven · Sam</p>
                         </div>
                         {isDateAvailableForBarber("diodis", selected.date, blockedDatesDiodis, dayOverridesOther.map(o => o.date), barberSchedules["diodis"]) ? (() => {
                           const serviceDur = getServiceDuration(SERVICES.find(s => s.id === selected.service)?.name || "");
