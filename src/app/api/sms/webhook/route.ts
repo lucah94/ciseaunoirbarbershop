@@ -29,6 +29,16 @@ async function handleSmsBody(from: string, body: string): Promise<NextResponse> 
     return bDigits === digits || bDigits === digits.slice(-10) || digits.slice(-10) === bDigits.slice(-10);
   });
 
+  // STOP — blacklister le numéro
+  if (body === "STOP" || body === "ARRET" || body === "ARRETER" || body === "UNSUBSCRIBE" || body === "DESABONNER") {
+    const last10 = digits.slice(-10);
+    await supabase.from("sms_blacklist").upsert(
+      { phone: last10, created_at: new Date().toISOString() },
+      { onConflict: "phone" }
+    ).then(() => {}, () => {});
+    return twimlResponse("Vous avez été désinscrit. Vous ne recevrez plus de SMS de Ciseau Noir. Pour vous réinscrire, appelez le (418) 665-5703.");
+  }
+
   // CONFIRMER
   if (body === "CONFIRMER" || body === "CONFIRM" || body === "OUI") {
     if (matching.length === 0) {

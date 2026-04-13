@@ -1,4 +1,5 @@
 import twilio from "twilio";
+import { supabaseAdmin } from "@/lib/supabase";
 
 function getClient() {
   const sid = process.env.TWILIO_ACCOUNT_SID;
@@ -11,6 +12,21 @@ function getFromNumber() {
   const num = process.env.TWILIO_PHONE_NUMBER;
   if (!num) throw new Error("TWILIO_PHONE_NUMBER manquant");
   return num;
+}
+
+/** Vérifie si un numéro est dans la blacklist SMS (STOP). */
+async function isBlacklisted(phone: string): Promise<boolean> {
+  try {
+    const digits = phone.replace(/\D/g, "").slice(-10);
+    const { data } = await supabaseAdmin
+      .from("sms_blacklist")
+      .select("phone")
+      .eq("phone", digits)
+      .limit(1);
+    return (data?.length ?? 0) > 0;
+  } catch {
+    return false; // en cas d'erreur, on envoie quand même
+  }
 }
 
 export function formatPhone(phone: string): string {
@@ -38,6 +54,7 @@ export async function sendBookingConfirmationSMS(booking: {
     ? `\n📆 Agenda : ${siteUrl}/api/calendar/booking/${booking.booking_id}`
     : "";
 
+  if (await isBlacklisted(booking.client_phone)) return;
   await getClient().messages.create({
     from: getFromNumber(),
     to: formatPhone(booking.client_phone),
@@ -74,6 +91,7 @@ export async function sendNoShowSMS(booking: {
   client_name: string;
   client_phone: string;
 }) {
+  if (await isBlacklisted(booking.client_phone)) return;
   const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com"}/booking`;
   await getClient().messages.create({
     from: getFromNumber(),
@@ -95,6 +113,7 @@ export async function sendConfirmationReminderSMS(booking: {
     weekday: "long", month: "long", day: "numeric",
   });
 
+  if (await isBlacklisted(booking.client_phone)) return;
   await getClient().messages.create({
     from: getFromNumber(),
     to: formatPhone(booking.client_phone),
@@ -112,6 +131,7 @@ export async function sendReminderSMS(booking: {
   booking_id: string;
   rdv_url?: string;
 }) {
+  if (await isBlacklisted(booking.client_phone)) return;
   const rdvLine = booking.rdv_url ? `\n\nVoir / Modifier : ${booking.rdv_url}` : "";
   await getClient().messages.create({
     from: getFromNumber(),
@@ -125,6 +145,7 @@ export async function sendReminderSMS(booking: {
  * The `to` value is auto-formatted via formatPhone.
  */
 export async function sendSMS(to: string, message: string): Promise<void> {
+  if (await isBlacklisted(to)) return; // STOP respecté
   await getClient().messages.create({
     from: getFromNumber(),
     to: formatPhone(to),
