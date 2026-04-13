@@ -111,7 +111,12 @@ export async function POST(req: NextRequest) {
   }
   // ────────────────────────────────────────────────────────────────
 
-  const { data, error } = await supabase.from("bookings").insert([body]).select().single();
+  // Essayer avec source, fallback sans si la colonne n'existe pas encore
+  const { source: _source, ...bodyWithoutSource } = body;
+  let { data, error } = await supabase.from("bookings").insert([body]).select().single();
+  if (error?.message?.includes("source")) {
+    ({ data, error } = await supabase.from("bookings").insert([bodyWithoutSource]).select().single());
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Ajouter/mettre à jour le client dans les contacts
