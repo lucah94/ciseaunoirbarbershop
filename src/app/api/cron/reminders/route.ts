@@ -77,6 +77,22 @@ export async function GET(req: NextRequest) {
     if (process.env.TWILIO_ACCOUNT_SID && completedBookings?.length) {
       const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
       for (const booking of completedBookings) {
+        // Vérifier si le client est revenu depuis (par téléphone OU email)
+        const lookupField = booking.client_email ? "client_email" : "client_phone";
+        const lookupValue = booking.client_email || booking.client_phone;
+        if (!lookupValue) continue;
+
+        const { data: newerBookings } = await supabase
+          .from("bookings")
+          .select("id")
+          .eq(lookupField, lookupValue)
+          .gt("date", threeWeeksAgoStr)
+          .in("status", ["confirmed", "completed"])
+          .limit(1);
+
+        // Client est déjà revenu → ne pas envoyer
+        if (newerBookings && newerBookings.length > 0) continue;
+
         // Envoyer SMS de rebooking
         if (booking.client_phone) {
           const barberParam = booking.barber?.toLowerCase().includes("melynda") ? "melynda" : "diodis";
