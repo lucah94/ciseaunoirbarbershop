@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
+import { requireAdmin } from "@/lib/auth";
 
 function addWeeks(dateStr: string, weeks: number): string {
   const d = new Date(dateStr + "T12:00:00");
@@ -22,10 +23,8 @@ function getNextDate(baseDate: string, pattern: string, index: number): string {
 
 // POST /api/bookings/recurring — créer une série de RDV récurrents
 export async function POST(req: NextRequest) {
-  const adminAuth = req.cookies.get("admin_auth");
-  if (!adminAuth || adminAuth.value !== "true") {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+  const denied = requireAdmin(req);
+  if (denied) return denied;
 
   const body = await req.json();
   const {
@@ -67,10 +66,8 @@ export async function POST(req: NextRequest) {
 
 // DELETE /api/bookings/recurring?group_id=xxx — annuler tous les futurs RDV d'un groupe
 export async function DELETE(req: NextRequest) {
-  const adminAuth = req.cookies.get("admin_auth");
-  if (!adminAuth || adminAuth.value !== "true") {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+  const denied = requireAdmin(req);
+  if (denied) return denied;
 
   const { searchParams } = new URL(req.url);
   const group_id = searchParams.get("group_id");

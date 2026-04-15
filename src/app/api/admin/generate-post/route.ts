@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { requireAdmin } from "@/lib/auth";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
@@ -12,10 +13,8 @@ const CONTENT_PROMPTS: Record<string, string> = {
 };
 
 export async function POST(req: NextRequest) {
-  const adminAuth = req.cookies.get("admin_auth");
-  if (!adminAuth || adminAuth.value !== "true") {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+  const denied = requireAdmin(req);
+  if (denied) return denied;
 
   const { type = "promotion" } = await req.json().catch(() => ({}));
   const prompt = CONTENT_PROMPTS[type] || CONTENT_PROMPTS.promotion;

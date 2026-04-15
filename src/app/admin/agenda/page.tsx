@@ -83,6 +83,7 @@ export default function AgendaPage() {
   const [clientResults, setClientResults] = useState<ClientResult[]>([]);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Block tranche horaire
   const [showBlock, setShowBlock] = useState(false);
@@ -255,17 +256,25 @@ export default function AgendaPage() {
       });
       if (res.ok) {
         setShowNewRDV(false);
+        setSubmitError(null);
         resetNewRDVForm();
         fetchBookings();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setSubmitError(res.status === 409
+          ? `⚠️ ${errData.error || "Ce créneau est déjà occupé."}`
+          : `Erreur: ${errData.error || "Impossible de créer le RDV."}`);
       }
     } catch (e) {
       console.error("New RDV error:", e);
+      setSubmitError("Erreur de connexion. Réessayez.");
     } finally {
       setSubmitting(false);
     }
   }
 
   function resetNewRDVForm() {
+    setSubmitError(null);
     setNewRDV({
       client_name: "", client_phone: "", client_email: "",
       barber: "Melynda", service: "Coupe + Lavage", price: 35,
@@ -825,7 +834,14 @@ export default function AgendaPage() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ id: b.id, date: newDate, time: newTime }),
                   });
-                  if (!res.ok) { info.revert(); return; }
+                  if (!res.ok) {
+                    info.revert();
+                    const errData = await res.json().catch(() => ({}));
+                    alert(res.status === 409
+                      ? `⚠️ Créneau déjà occupé — ${errData.error || "chevauchement détecté"}`
+                      : `Erreur: ${errData.error || "impossible de déplacer ce RDV"}`);
+                    return;
+                  }
                   setBookings(prev => prev.map(x => x.id === b.id ? { ...x, date: newDate, time: newTime } : x));
                   if (selected?.id === b.id) setSelected(s => s ? { ...s, date: newDate, time: newTime } : s);
                 }}
@@ -1164,6 +1180,11 @@ export default function AgendaPage() {
                 >
                   {submitting ? "Enregistrement..." : newRDV.is_recurring ? `Créer ${newRDV.recurrence_count} RDV récurrents` : "Créer le rendez-vous"}
                 </button>
+                {submitError && (
+                  <div style={{ background: "rgba(238,85,85,0.1)", border: "1px solid rgba(238,85,85,0.3)", borderRadius: "8px", padding: "12px 16px", color: "#e55", fontSize: "13px", marginTop: "8px" }}>
+                    {submitError}
+                  </div>
+                )}
               </div>
             </div>
           </>

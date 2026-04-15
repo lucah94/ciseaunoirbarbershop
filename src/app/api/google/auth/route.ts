@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
@@ -6,10 +7,8 @@ const REDIRECT_URI = "https://ciseau-noir.vercel.app/api/google/callback";
 
 // GET — redirige vers Google OAuth
 export async function GET(req: NextRequest) {
-  const adminAuth = req.cookies.get("admin_auth");
-  if (!adminAuth || adminAuth.value !== "true") {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+  const denied = requireAdmin(req);
+  if (denied) return denied;
 
   const params = new URLSearchParams({
     client_id: CLIENT_ID,

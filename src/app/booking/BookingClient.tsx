@@ -561,7 +561,18 @@ function BookingContent() {
         time: selected.time,
         note: selected.note,
         status: "confirmed",
-        source: new URLSearchParams(window.location.search).get("utm_source") || "direct",
+        source: (() => {
+          const utm = new URLSearchParams(window.location.search).get("utm_source");
+          if (utm) return utm;
+          const ref = document.referrer.toLowerCase();
+          if (ref.includes("google")) return "google";
+          if (ref.includes("facebook") || ref.includes("fb.com") || ref.includes("fbclid")) return "facebook";
+          if (ref.includes("instagram")) return "instagram";
+          if (ref.includes("messenger")) return "messenger";
+          if (window.location.search.includes("fbclid")) return "facebook";
+          if (window.location.search.includes("gclid")) return "google";
+          return "direct";
+        })(),
       }),
     });
     const resData = await res.json().catch(() => ({}));

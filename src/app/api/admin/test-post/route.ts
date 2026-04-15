@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
 
 // Server-side proxy so the browser never sees CRON_SECRET
 // Protected by admin_auth cookie (same mechanism as middleware)
 export async function POST(req: NextRequest) {
-  const adminAuth = req.cookies.get("admin_auth");
-  if (!adminAuth || adminAuth.value !== "true") {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+  const denied = requireAdmin(req);
+  if (denied) return denied;
 
   let times = 1;
   try {

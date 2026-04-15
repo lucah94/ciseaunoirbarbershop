@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
 
 function html(body: string) {
   return new NextResponse(`
@@ -25,10 +26,8 @@ async function getAccessToken(): Promise<{ token?: string; error?: unknown }> {
 }
 
 export async function GET(req: NextRequest) {
-  const adminAuth = req.cookies.get("admin_auth");
-  if (!adminAuth || adminAuth.value !== "true") {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+  const denied = requireAdmin(req);
+  if (denied) return denied;
 
   const { token: accessToken, error: tokenError } = await getAccessToken();
 

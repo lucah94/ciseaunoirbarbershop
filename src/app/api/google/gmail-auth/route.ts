@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
 
 // OAuth pour Gmail — séparé du GMB OAuth
 // Callback: /api/google/gmail-callback
 export async function GET(req: NextRequest) {
-  const adminAuth = req.cookies.get("admin_auth");
-  if (!adminAuth || adminAuth.value !== "true") {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+  const denied = requireAdmin(req);
+  if (denied) return denied;
 
   const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL}/api/google/gmail-callback`;
 

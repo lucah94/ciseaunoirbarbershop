@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { postToGoogleMyBusiness } from "@/lib/google";
+import { requireAdmin } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
-  const adminAuth = req.cookies.get("admin_auth");
-  if (!adminAuth || adminAuth.value !== "true") {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+  const denied = requireAdmin(req);
+  if (denied) return denied;
 
   const { message } = await req.json();
   if (!message?.trim()) return NextResponse.json({ error: "Message requis" }, { status: 400 });

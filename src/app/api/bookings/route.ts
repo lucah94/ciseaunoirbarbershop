@@ -72,9 +72,9 @@ export async function POST(req: NextRequest) {
   // ── Vérification chevauchement ──────────────────────────────────
   function svcDuration(service: string): number {
     const s = service.toLowerCase();
-    if (s.includes("premium")) return 75;
-    if ((s.includes("barbe") || s.includes("rasage")) && s.includes("coupe")) return 60;
-    if (s.includes("coupe") || s.includes("lavage")) return 45;
+    if (s.includes("premium") || s.includes("forfait")) return 75;
+    if ((s.includes("barbe") || s.includes("rasage") || s.includes("lame")) && s.includes("coupe")) return 60;
+    if (s.includes("coupe") || s.includes("lavage") || s.includes("étudiant") || s.includes("etudiant") || s.includes("enfant")) return 45;
     return 30;
   }
   const [nh, nm] = body.time.split(":").map(Number);
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
   }
   // ────────────────────────────────────────────────────────────────
 
-  // Essayer avec source, fallback sans si la colonne n'existe pas encore
+  // ────────────────────────────────────────────────────────────────
   const { source: _source, ...bodyWithoutSource } = body;
   let { data, error } = await supabase.from("bookings").insert([body]).select().single();
   if (error?.message?.includes("source")) {
@@ -194,6 +194,43 @@ export async function PATCH(req: NextRequest) {
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: "Aucun champ à mettre à jour" }, { status: 400 });
     }
+
+    // ── Overlap check when time/date/barber changes ──────────────────
+    if (updates.time || updates.date || updates.barber) {
+      const { data: current } = await supabase.from("bookings").select("*").eq("id", id).single();
+      if (current) {
+        function patchSvcDuration(service: string): number {
+          const s = service.toLowerCase();
+          if (s.includes("premium") || s.includes("forfait")) return 75;
+          if ((s.includes("barbe") || s.includes("rasage") || s.includes("lame")) && s.includes("coupe")) return 60;
+          if (s.includes("coupe") || s.includes("lavage") || s.includes("étudiant") || s.includes("etudiant") || s.includes("enfant")) return 45;
+          return 30;
+        }
+        const checkBarber = (updates.barber || current.barber) as string;
+        const checkDate = (updates.date || current.date) as string;
+        const checkTime = (updates.time || current.time) as string;
+        const checkService = (updates.service || current.service) as string;
+        const [nh, nm] = checkTime.split(":").map(Number);
+        const newStart = nh * 60 + nm;
+        const newEnd = newStart + patchSvcDuration(checkService);
+
+        const { data: existing } = await supabase.from("bookings")
+          .select("id, time, service, end_time")
+          .eq("barber", checkBarber).eq("date", checkDate).neq("status", "cancelled").neq("id", id);
+
+        for (const b of existing || []) {
+          const [bh, bm] = (b.time || "0:0").split(":").map(Number);
+          const bStart = bh * 60 + bm;
+          const bEnd = b.end_time
+            ? (() => { const [eh, em] = (b.end_time as string).split(":").map(Number); return eh * 60 + em; })()
+            : bStart + patchSvcDuration(b.service);
+          if (newStart < bEnd && newEnd > bStart) {
+            return NextResponse.json({ error: "Ce créneau est déjà occupé — chevauchement détecté." }, { status: 409 });
+          }
+        }
+      }
+    }
+    // ────────────────────────────────────────────────────────────────
 
     const { data, error } = await supabase.from("bookings").update(updates).eq("id", id).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
