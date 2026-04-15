@@ -9,7 +9,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 type Booking = {
   id: string; client_name: string; client_phone: string; client_email: string;
   barber: string; service: string; price: number; date: string; time: string;
-  status: string; note: string;
+  status: string; note: string; source?: string;
 };
 
 type ClientResult = {
@@ -405,7 +405,7 @@ export default function AgendaPage() {
 
     return {
       id: b.id,
-      title: `${b.client_name}${visitCounts[b.client_email] ? ` (${visitCounts[b.client_email]}e)` : ""} — ${b.service}`,
+      title: `${b.source && b.source !== "direct" ? (b.source === "google" ? "🔍 " : b.source === "facebook" ? "📘 " : b.source === "instagram" ? "📸 " : "") : ""}${b.client_name}${visitCounts[b.client_email] ? ` (${visitCounts[b.client_email]}e)` : ""} — ${b.service}`,
       start: startStr,
       end: endStr,
       backgroundColor: b.status === "cancelled" ? "#333" : (BARBER_COLORS[b.barber] || "#D4AF37"),
@@ -1292,6 +1292,19 @@ export default function AgendaPage() {
             <div>
               <p style={labelStyle}>Email</p>
               <p style={{ color: "#F0F0F0", fontSize: "14px" }}>{selected.client_email}</p>
+            </div>
+          )}
+          {selected.source && selected.source !== "direct" && (
+            <div>
+              <p style={labelStyle}>Source</p>
+              <span style={{
+                fontSize: "12px", padding: "4px 12px", borderRadius: "12px", fontWeight: 600,
+                background: selected.source === "google" ? "rgba(66,133,244,0.15)" : selected.source === "facebook" ? "rgba(24,119,242,0.15)" : selected.source === "instagram" ? "rgba(225,48,108,0.15)" : "rgba(212,175,55,0.1)",
+                color: selected.source === "google" ? "#4285F4" : selected.source === "facebook" ? "#1877F2" : selected.source === "instagram" ? "#E1306C" : "#D4AF37",
+                border: `1px solid ${selected.source === "google" ? "rgba(66,133,244,0.3)" : selected.source === "facebook" ? "rgba(24,119,242,0.3)" : selected.source === "instagram" ? "rgba(225,48,108,0.3)" : "rgba(212,175,55,0.2)"}`,
+              }}>
+                {selected.source === "google" ? "🔍 Google" : selected.source === "facebook" ? "📘 Facebook" : selected.source === "instagram" ? "📸 Instagram" : selected.source === "messenger" ? "💬 Messenger" : selected.source}
+              </span>
             </div>
           )}
 
