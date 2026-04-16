@@ -452,6 +452,21 @@ function BookingContent() {
   const [slotsError, setSlotsError] = useState(false);
   const retryCountRef = useRef(0);
 
+  // Capture source on page load so it's not lost during navigation
+  const [detectedSource] = useState(() => {
+    if (typeof window === "undefined") return "direct";
+    const utm = new URLSearchParams(window.location.search).get("utm_source");
+    if (utm) return utm;
+    const ref = document.referrer.toLowerCase();
+    if (ref.includes("google")) return "google";
+    if (ref.includes("facebook") || ref.includes("fb.com")) return "facebook";
+    if (ref.includes("instagram")) return "instagram";
+    if (ref.includes("messenger")) return "messenger";
+    if (window.location.search.includes("fbclid")) return "facebook";
+    if (window.location.search.includes("gclid")) return "google";
+    return "direct";
+  });
+
   const service = SERVICES.find((s) => s.id === selected.service);
   const barber = BARBERS.find((b) => b.id === selected.barber);
 
@@ -561,18 +576,7 @@ function BookingContent() {
         time: selected.time,
         note: selected.note,
         status: "confirmed",
-        source: (() => {
-          const utm = new URLSearchParams(window.location.search).get("utm_source");
-          if (utm) return utm;
-          const ref = document.referrer.toLowerCase();
-          if (ref.includes("google")) return "google";
-          if (ref.includes("facebook") || ref.includes("fb.com") || ref.includes("fbclid")) return "facebook";
-          if (ref.includes("instagram")) return "instagram";
-          if (ref.includes("messenger")) return "messenger";
-          if (window.location.search.includes("fbclid")) return "facebook";
-          if (window.location.search.includes("gclid")) return "google";
-          return "direct";
-        })(),
+        source: detectedSource,
       }),
     });
     const resData = await res.json().catch(() => ({}));
