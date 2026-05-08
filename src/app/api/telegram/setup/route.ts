@@ -3,9 +3,23 @@ import { requireAdmin } from "@/lib/auth";
 
 const TELEGRAM_API = "https://api.telegram.org/bot";
 
+function checkSetupAuth(req: NextRequest): boolean {
+  // Accept admin cookie OR CRON_SECRET as Bearer/query param
+  const adminCheck = requireAdmin(req);
+  if (!adminCheck) return true;
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret) {
+    const bearer = req.headers.get("authorization")?.replace("Bearer ", "");
+    const queryKey = req.nextUrl.searchParams.get("key");
+    if (bearer === cronSecret || queryKey === cronSecret) return true;
+  }
+  return false;
+}
+
 export async function POST(req: NextRequest) {
-  const denied = requireAdmin(req);
-  if (denied) return denied;
+  if (!checkSetupAuth(req)) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
 
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) return NextResponse.json({ error: "TELEGRAM_BOT_TOKEN non configuré" }, { status: 500 });
@@ -44,8 +58,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const denied = requireAdmin(req);
-  if (denied) return denied;
+  if (!checkSetupAuth(req)) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
 
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) return NextResponse.json({ error: "TELEGRAM_BOT_TOKEN non configuré" }, { status: 500 });
