@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import AdminSidebar from "@/components/AdminSidebar";
 
@@ -18,6 +18,10 @@ export default function PortfolioPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ url: "", caption: "", tags: "", barber: "Melynda" });
   const [saving, setSaving] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/portfolio")
@@ -25,19 +29,57 @@ export default function PortfolioPage() {
       .then(data => { setPhotos(Array.isArray(data) ? data : []); setLoading(false); });
   }, []);
 
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    if (file) {
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewUrl(objectUrl);
+      setForm(f => ({ ...f, url: "" }));
+    } else {
+      setPreviewUrl("");
+    }
+  }
+
   async function handleAdd() {
-    if (!form.url.trim()) return;
+    const hasFile = Boolean(selectedFile);
+    const hasUrl = Boolean(form.url.trim());
+    if (!hasFile && !hasUrl) return;
+
     setSaving(true);
+    let photoUrl = form.url.trim();
+
+    if (hasFile && selectedFile) {
+      setUploading(true);
+      const fd = new FormData();
+      fd.append("file", selectedFile);
+      const res = await fetch("/api/admin/portfolio/upload", {
+        method: "POST",
+        body: fd,
+      });
+      setUploading(false);
+      if (!res.ok) {
+        alert("Erreur lors du téléversement de la photo.");
+        setSaving(false);
+        return;
+      }
+      const result = await res.json();
+      photoUrl = result.url;
+    }
+
     const tags = form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : [];
     const res = await fetch("/api/portfolio", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: form.url, caption: form.caption, tags, barber: form.barber }),
+      body: JSON.stringify({ url: photoUrl, caption: form.caption, tags, barber: form.barber }),
     });
     const data = await res.json();
     if (data.id) {
       setPhotos(p => [data, ...p]);
       setForm({ url: "", caption: "", tags: "", barber: "Melynda" });
+      setSelectedFile(null);
+      setPreviewUrl("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
       setShowForm(false);
     }
     setSaving(false);
@@ -52,6 +94,9 @@ export default function PortfolioPage() {
     });
     setPhotos(p => p.filter(ph => ph.id !== id));
   }
+
+  const displayPreview = previewUrl || form.url;
+  const canSubmit = !saving && (Boolean(selectedFile) || Boolean(form.url.trim()));
 
   return (
     <div style={{ background: "#0A0A0A", minHeight: "100vh", display: "flex" }}>
@@ -74,22 +119,101 @@ export default function PortfolioPage() {
           <div style={{ background: "#111", border: "1px solid #1A1A1A", padding: "28px", marginBottom: "32px", maxWidth: "600px" }}>
             <p style={{ color: "#C9A84C", fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase", marginBottom: "20px" }}>Nouvelle photo</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {[
-                { label: "URL de la photo *", key: "url", placeholder: "https://..." },
-                { label: "Légende (optionnel)", key: "caption", placeholder: "Ex: Dégradé classique" },
-                { label: "Tags (séparés par virgule)", key: "tags", placeholder: "dégradé, barbe, classique" },
-              ].map(({ label, key, placeholder }) => (
-                <div key={key}>
-                  <label style={{ display: "block", color: "#888", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>{label}</label>
-                  <input
-                    type="text"
-                    placeholder={placeholder}
-                    value={form[key as keyof typeof form]}
-                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                    style={{ background: "#0A0A0A", border: "1px solid #333", color: "#F5F5F5", padding: "12px 14px", fontSize: "14px", width: "100%", outline: "none" }}
-                  />
-                </div>
-              ))}
+
+              {/* File upload */}
+              <div>
+                <label style={{ display: "block", color: "#888", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>
+                  Photo ou vidéo depuis la galerie
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleFileChange}
+                  style={{ display: "none" }}
+                  id="photo-file-input"
+                />
+                <label
+                  htmlFor="photo-file-input"
+                  style={{
+                    display: "inline-block",
+                    background: selectedFile ? "#1A2A0A" : "#0A0A0A",
+                    border: selectedFile ? "1px solid #4A6A10" : "1px solid #333",
+                    color: selectedFile ? "#C9A84C" : "#888",
+                    padding: "12px 20px",
+                    fontSize: "13px",
+                    letterSpacing: "1px",
+                    cursor: "pointer",
+                    userSelect: "none",
+                  }}
+                >
+                  {selectedFile ? `Fichier : ${selectedFile.name}` : "📷 Photo ou vidéo"}
+                </label>
+                {selectedFile && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setPreviewUrl("");
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    style={{ marginLeft: "10px", background: "none", border: "none", color: "#e55", cursor: "pointer", fontSize: "13px" }}
+                  >
+                    Retirer
+                  </button>
+                )}
+              </div>
+
+              {/* URL fallback */}
+              <div>
+                <label style={{ display: "block", color: "#888", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>
+                  Ou URL de la photo
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://..."
+                  value={form.url}
+                  onChange={e => {
+                    setForm(f => ({ ...f, url: e.target.value }));
+                    if (e.target.value) {
+                      setSelectedFile(null);
+                      setPreviewUrl("");
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }
+                  }}
+                  style={{ background: "#0A0A0A", border: "1px solid #333", color: "#F5F5F5", padding: "12px 14px", fontSize: "14px", width: "100%", outline: "none" }}
+                />
+              </div>
+
+              {/* Caption */}
+              <div>
+                <label style={{ display: "block", color: "#888", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>
+                  Legende (optionnel)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Degrade classique"
+                  value={form.caption}
+                  onChange={e => setForm(f => ({ ...f, caption: e.target.value }))}
+                  style={{ background: "#0A0A0A", border: "1px solid #333", color: "#F5F5F5", padding: "12px 14px", fontSize: "14px", width: "100%", outline: "none" }}
+                />
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label style={{ display: "block", color: "#888", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>
+                  Tags (separes par virgule)
+                </label>
+                <input
+                  type="text"
+                  placeholder="degrade, barbe, classique"
+                  value={form.tags}
+                  onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
+                  style={{ background: "#0A0A0A", border: "1px solid #333", color: "#F5F5F5", padding: "12px 14px", fontSize: "14px", width: "100%", outline: "none" }}
+                />
+              </div>
+
+              {/* Barber select */}
               <div>
                 <label style={{ display: "block", color: "#888", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>Barbier</label>
                 <select
@@ -101,15 +225,43 @@ export default function PortfolioPage() {
                   <option>Diodis</option>
                 </select>
               </div>
-              {form.url && (
-                <Image src={form.url} alt="preview" width={200} height={200} unoptimized style={{ maxWidth: "200px", maxHeight: "200px", objectFit: "cover", border: "1px solid #222" }} />
+
+              {/* Preview */}
+              {displayPreview && (
+                <div>
+                  <p style={{ color: "#555", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>Apercu</p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={displayPreview}
+                    alt="Apercu"
+                    style={{ maxWidth: "200px", maxHeight: "200px", objectFit: "cover", border: "1px solid #222" }}
+                  />
+                </div>
+              )}
+
+              {!canSubmit && !saving && (
+                <p style={{ color: "#888", fontSize: "12px", marginBottom: "8px" }}>
+                  ↑ Choisissez d&apos;abord une photo ou vidéo
+                </p>
               )}
               <button
                 onClick={handleAdd}
-                disabled={saving || !form.url.trim()}
-                style={{ background: "#C9A84C", border: "none", color: "#0A0A0A", padding: "12px 32px", fontSize: "12px", letterSpacing: "2px", textTransform: "uppercase", cursor: "pointer", fontWeight: 700, opacity: (saving || !form.url) ? 0.5 : 1, alignSelf: "flex-start" }}
+                disabled={!canSubmit}
+                style={{
+                  background: "#C9A84C",
+                  border: "none",
+                  color: "#0A0A0A",
+                  padding: "12px 32px",
+                  fontSize: "12px",
+                  letterSpacing: "2px",
+                  textTransform: "uppercase",
+                  cursor: canSubmit ? "pointer" : "not-allowed",
+                  fontWeight: 700,
+                  opacity: canSubmit ? 1 : 0.5,
+                  alignSelf: "flex-start",
+                }}
               >
-                {saving ? "Ajout..." : "Ajouter →"}
+                {uploading ? "Telechargement..." : saving ? "Ajout..." : "Ajouter →"}
               </button>
             </div>
           </div>
@@ -120,7 +272,7 @@ export default function PortfolioPage() {
         ) : photos.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px 20px" }}>
             <p style={{ color: "#333", fontSize: "16px", marginBottom: "8px" }}>Aucune photo</p>
-            <p style={{ color: "#222", fontSize: "13px" }}>Ajoutez vos premières photos de coupes</p>
+            <p style={{ color: "#222", fontSize: "13px" }}>Ajoutez vos premieres photos de coupes</p>
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "16px" }}>

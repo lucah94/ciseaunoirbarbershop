@@ -5,12 +5,6 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 10;
 
 export async function GET(req: NextRequest) {
-  // Verify Vercel cron secret (optional but recommended)
-  const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const start = Date.now();
   try {
     // Simple ping query to keep Supabase alive

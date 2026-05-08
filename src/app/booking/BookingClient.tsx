@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
@@ -13,7 +14,7 @@ const SERVICES = [
   { id: "premium", name: "Service Premium", price: "75$", duration: "75 min", desc: "Coupe, rasage, serviette chaude & exfoliant", icon: "👑" },
   { id: "shave", name: "Rasage / Barbe", price: "25$", duration: "30 min", desc: "Rasage lame, barbe & tondeuse", icon: "🧔" },
   { id: "student", name: "Tarif Étudiant", price: "30$", duration: "45 min", desc: "Coupe + lavage (preuve requise)", icon: "🎓" },
-  { id: "child", name: "Étudiant / Enfant", price: "25$", duration: "30 min", desc: "Coupe enfant ou étudiant (12 ans et moins)", icon: "👦" },
+  { id: "child", name: "Étudiant / Enfant", price: "30$", duration: "30 min", desc: "Coupe enfant ou étudiant (12 ans et moins)", icon: "👦" },
 ];
 
 const BARBERS = [
@@ -442,6 +443,7 @@ function BookingContent() {
   const [blockedDatesDiodis, setBlockedDatesDiodis] = useState<string[]>([]);
   const [blockedRangesOther, setBlockedRangesOther] = useState<{ date: string; start_time: string; end_time: string }[]>([]);
   const [dayOverridesOther, setDayOverridesOther] = useState<{ date: string; open: string; close: string }[]>([]);
+  const [availabilityReady, setAvailabilityReady] = useState(false);
   const [barberSchedules, setBarberSchedules] = useState<Record<string, DaySchedule>>({});
   const [waitlistModal, setWaitlistModal] = useState<{time: string} | null>(null);
   const [waitlistForm, setWaitlistForm] = useState({ name: "", phone: "", email: "" });
@@ -470,44 +472,39 @@ function BookingContent() {
   const service = SERVICES.find((s) => s.id === selected.service);
   const barber = BARBERS.find((b) => b.id === selected.barber);
 
-  const today = new Date().toISOString().split("T")[0];
+  const _now = new Date();
+  const today = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,"0")}-${String(_now.getDate()).padStart(2,"0")}`;
 
   const refreshAvailability = useCallback(() => {
-    // Barber schedules
-    fetch("/api/barbers")
+    // Un seul appel pour tout charger en parallèle côté serveur
+    fetch("/api/booking/init")
       .then(r => r.json())
-      .then((data: { name: string; schedule: DaySchedule }[]) => {
-        if (Array.isArray(data)) {
+      .then((data: {
+        barbers: { name: string; schedule: DaySchedule }[];
+        melynda: { blocks: { date: string; start_time: string | null; end_time: string | null }[]; overrides: { date: string; open: string; close: string }[] };
+        diodis: { blocks: { date: string; start_time: string | null; end_time: string | null }[]; overrides: { date: string; open: string; close: string }[] };
+      }) => {
+        // Barber schedules
+        if (Array.isArray(data.barbers)) {
           const map: Record<string, DaySchedule> = {};
-          data.forEach(b => { map[b.name.toLowerCase()] = b.schedule; });
+          data.barbers.forEach(b => { map[b.name.toLowerCase()] = b.schedule; });
           setBarberSchedules(map);
         }
+        // Melynda
+        const melBlocks = data.melynda?.blocks ?? [];
+        setBlockedDates(melBlocks.filter(b => !b.start_time).map(b => b.date));
+        setBlockedRanges(melBlocks.filter(b => b.start_time && b.end_time)
+          .map(b => ({ date: b.date, start_time: b.start_time!, end_time: b.end_time! })));
+        setDayOverrides(data.melynda?.overrides ?? []);
+        // Diodis
+        const dioBlocks = data.diodis?.blocks ?? [];
+        setBlockedDatesDiodis(dioBlocks.filter(b => !b.start_time).map(b => b.date));
+        setBlockedRangesOther(dioBlocks.filter(b => b.start_time && b.end_time)
+          .map(b => ({ date: b.date, start_time: b.start_time!, end_time: b.end_time! })));
+        setDayOverridesOther(data.diodis?.overrides ?? []);
+        setAvailabilityReady(true);
       })
       .catch(() => {});
-    // Blocks/overrides Melynda
-    Promise.all([
-      fetch(`/api/admin/blocks?barber=melynda`).then(r => r.json()).catch(() => []),
-      fetch(`/api/admin/day-overrides?barber=melynda`).then(r => r.json()).catch(() => []),
-    ]).then(([blocks, overrides]) => {
-      if (Array.isArray(blocks)) {
-        setBlockedDates(blocks.filter((b: { start_time: string | null }) => !b.start_time).map((b: { date: string }) => b.date));
-        setBlockedRanges(blocks.filter((b: { start_time: string | null; end_time: string | null }) => b.start_time && b.end_time)
-          .map((b: { date: string; start_time: string; end_time: string }) => ({ date: b.date, start_time: b.start_time, end_time: b.end_time })));
-      }
-      setDayOverrides(Array.isArray(overrides) ? overrides : []);
-    });
-    // Blocks/overrides Diodis
-    Promise.all([
-      fetch(`/api/admin/blocks?barber=diodis`).then(r => r.json()).catch(() => []),
-      fetch(`/api/admin/day-overrides?barber=diodis`).then(r => r.json()).catch(() => []),
-    ]).then(([blocks, overrides]) => {
-      if (Array.isArray(blocks)) {
-        setBlockedDatesDiodis(blocks.filter((b: { start_time: string | null }) => !b.start_time).map((b: { date: string }) => b.date));
-        setBlockedRangesOther(blocks.filter((b: { start_time: string | null; end_time: string | null }) => b.start_time && b.end_time)
-          .map((b: { date: string; start_time: string; end_time: string }) => ({ date: b.date, start_time: b.start_time, end_time: b.end_time })));
-      }
-      setDayOverridesOther(Array.isArray(overrides) ? overrides : []);
-    });
   }, []);
 
   // Load on mount + auto-refresh every 30s
@@ -834,7 +831,7 @@ function BookingContent() {
             )}
 
             <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
-              <a href="/" style={{
+              <Link href="/" style={{
                 display: "inline-block",
                 background: "linear-gradient(135deg, #D4AF37, #B8860B)",
                 color: "#080808",
@@ -846,7 +843,7 @@ function BookingContent() {
                 borderRadius: "4px",
                 textDecoration: "none",
                 transition: "all 0.4s",
-              }}>Retour à l'accueil</a>
+              }}>Retour à l'accueil</Link>
             </div>
           </motion.div>
         </main>
@@ -1079,8 +1076,8 @@ function BookingContent() {
                   }
                   @media (max-width: 520px) {
                     .barbers-grid {
-                      grid-template-columns: 1fr;
-                      gap: 32px;
+                      grid-template-columns: 1fr 1fr;
+                      gap: 12px;
                     }
                   }
                 `}</style>
@@ -1182,7 +1179,7 @@ function BookingContent() {
                             margin: "0 auto 10px", overflow: "hidden",
                             boxShadow: "0 0 16px rgba(212,175,55,0.2)",
                           }}>
-                            <Image src="/images/melynda.jpg" alt="Melynda" width={80} height={80} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            <Image src="/images/melynda.jpg" alt="Melynda" width={80} height={80} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 10%" }} />
                           </div>
                           <p style={{ color: "#D4AF37", fontSize: "13px", letterSpacing: "3px", textTransform: "uppercase", fontWeight: 600 }}>Melynda</p>
                         </div>
@@ -1221,7 +1218,9 @@ function BookingContent() {
                             <p style={{ color: "#444", fontSize: "12px", textAlign: "center", padding: "20px 0", lineHeight: 1.6 }}>Complet ce jour</p>
                           );
                         })() : (
-                          <p style={{ color: "#333", fontSize: "12px", textAlign: "center", padding: "20px 0", lineHeight: 1.6 }}>Pas disponible<br/>ce jour</p>
+                          <p style={{ color: "#444", fontSize: "12px", textAlign: "center", padding: "20px 0", lineHeight: 1.6 }}>
+                            {availabilityReady ? <>Pas disponible<br/>ce jour</> : "..."}
+                          </p>
                         )}
                       </div>
 
@@ -1234,7 +1233,7 @@ function BookingContent() {
                             margin: "0 auto 10px", overflow: "hidden",
                             boxShadow: "0 0 16px rgba(155,89,182,0.2)",
                           }}>
-                            <Image src="/images/diodis.jpg" alt="Diodis" width={80} height={80} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            <Image src="/images/diodis.jpg" alt="Diodis" width={80} height={80} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
                           </div>
                           <p style={{ color: "#9B59B6", fontSize: "13px", letterSpacing: "3px", textTransform: "uppercase", fontWeight: 600 }}>Diodis</p>
                         </div>

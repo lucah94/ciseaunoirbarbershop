@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import AdminSidebar from "@/components/AdminSidebar";
+import { localDateStr } from "@/lib/utils";
 
 type Expense = { id: string; description: string; amount: number; category: string; date: string; receipt_url?: string };
 type PendingExpense = { description: string; amount: string; category: string; date: string; receipt_url: string; preview: string; analyzing: boolean };
@@ -10,8 +11,8 @@ const CATEGORIES = ["Loyer", "Produits", "Équipement", "Marketing", "Téléphon
 function getMonthRange(offset = 0) {
   const now = new Date();
   now.setMonth(now.getMonth() + offset);
-  const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+  const start = localDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
+  const end = localDateStr(new Date(now.getFullYear(), now.getMonth() + 1, 0));
   const label = now.toLocaleDateString("fr-CA", { month: "long", year: "numeric" });
   return { start, end, label };
 }
@@ -68,7 +69,7 @@ export default function ComptabilitePage() {
     // Ajouter en attente avec preview
     const newPending: PendingExpense[] = files.map(f => ({
       description: "", amount: "", category: "Autre",
-      date: new Date().toISOString().split("T")[0],
+      date: localDateStr(),
       receipt_url: "", preview: URL.createObjectURL(f), analyzing: true,
     }));
     setPending(prev => [...prev, ...newPending]);
@@ -88,7 +89,7 @@ export default function ComptabilitePage() {
           description: r.description || "",
           amount: r.amount ? String(r.amount) : "",
           category: r.category || "Autre",
-          date: r.date || new Date().toISOString().split("T")[0],
+          date: r.date || localDateStr(),
           receipt_url: r.receipt_url || "",
           analyzing: false,
         };
@@ -112,7 +113,7 @@ export default function ComptabilitePage() {
       description: x.description || r.description || "",
       amount: x.amount || (r.amount ? String(r.amount) : ""),
       category: r.category || x.category,
-      date: x.date || r.date || new Date().toISOString().split("T")[0],
+      date: x.date || r.date || localDateStr(),
       receipt_url: r.receipt_url || "",
     } : x));
   }
@@ -187,7 +188,7 @@ export default function ComptabilitePage() {
               <p style={{ color: "#444", fontSize: "12px" }}>Jusqu&apos;à 15 photos — l&apos;IA remplit tout automatiquement</p>
             </label>
           </div>
-          <button onClick={() => setPending(prev => [...prev, { description: "", amount: "", category: "Employés", date: new Date().toISOString().split("T")[0], receipt_url: "", preview: "", analyzing: false }])}
+          <button onClick={() => setPending(prev => [...prev, { description: "", amount: "", category: "Employés", date: localDateStr(), receipt_url: "", preview: "", analyzing: false }])}
             style={{ background: "#111", border: "2px dashed #2A2A2A", borderRadius: "12px", padding: "28px 32px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", minWidth: "160px" }}>
             <span style={{ fontSize: "28px" }}>✏️</span>
             <span style={{ color: "#C9A84C", fontSize: "13px", letterSpacing: "1px" }}>Saisie manuelle</span>

@@ -60,7 +60,7 @@ const SERVICES = [
   },
   {
     name: "Étudiant / Enfant",
-    price: "25$",
+    price: "30$",
     duration: "30 min",
     desc: "Coupe pour enfant ou jeune étudiant (12 ans et moins).",
     includes: ["Coupe adaptée", "Finition soignée"],

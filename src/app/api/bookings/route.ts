@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { sendBookingConfirmation, sendBookingNotificationAdmin } from "@/lib/email";
 import { sendBookingConfirmationSMS, sendBarberNotificationSMS, formatPhone } from "@/lib/sms";
+import { notifyBookingCancelled, notifyNewBooking } from "@/lib/telegram";
 import twilio from "twilio";
 import { Resend } from "resend";
 import { z } from "zod";
@@ -61,6 +62,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Corps de requête invalide" }, { status: 400 });
   }
 
+  const forceOverlapPost = !!(rawBody as Record<string, unknown>).force;
+
   const result = bookingSchema.safeParse(rawBody);
   if (!result.success) {
     const errors = result.error.issues.map((i) => i.message);
@@ -69,7 +72,7 @@ export async function POST(req: NextRequest) {
 
   const body = result.data;
 
-  // ── Vérification chevauchement ──────────────────────────────────
+  // ── Vérification chevauchement (ignoré si force=true) ───────────
   function svcDuration(service: string): number {
     const s = service.toLowerCase();
     if (s.includes("premium") || s.includes("forfait")) return 75;
@@ -88,25 +91,27 @@ export async function POST(req: NextRequest) {
       .eq("barber", body.barber.toLowerCase()).eq("date", body.date).not("start_time", "is", null),
   ]);
 
-  for (const b of existing || []) {
-    const [bh, bm] = (b.time || "0:0").split(":").map(Number);
-    const bStart = bh * 60 + bm;
-    const bEnd = b.end_time
-      ? (() => { const [eh, em] = b.end_time.split(":").map(Number); return eh * 60 + em; })()
-      : bStart + svcDuration(b.service);
-    if (newStart < bEnd && newEnd > bStart) {
-      return NextResponse.json({ error: "Ce créneau est déjà occupé — chevauchement détecté." }, { status: 409 });
+  if (!forceOverlapPost) {
+    for (const b of existing || []) {
+      const [bh, bm] = (b.time || "0:0").split(":").map(Number);
+      const bStart = bh * 60 + bm;
+      const bEnd = b.end_time
+        ? (() => { const [eh, em] = b.end_time.split(":").map(Number); return eh * 60 + em; })()
+        : bStart + svcDuration(b.service);
+      if (newStart < bEnd && newEnd > bStart) {
+        return NextResponse.json({ error: "Ce créneau est déjà occupé — chevauchement détecté." }, { status: 409 });
+      }
     }
-  }
 
-  for (const bl of blocks || []) {
-    if (!bl.start_time || !bl.end_time) continue;
-    const [bh, bm] = bl.start_time.split(":").map(Number);
-    const [eh, em] = bl.end_time.split(":").map(Number);
-    const blStart = bh * 60 + bm;
-    const blEnd = eh * 60 + em;
-    if (newStart < blEnd && newEnd > blStart) {
-      return NextResponse.json({ error: "Ce créneau est bloqué par la barbière." }, { status: 409 });
+    for (const bl of blocks || []) {
+      if (!bl.start_time || !bl.end_time) continue;
+      const [bh, bm] = bl.start_time.split(":").map(Number);
+      const [eh, em] = bl.end_time.split(":").map(Number);
+      const blStart = bh * 60 + bm;
+      const blEnd = eh * 60 + em;
+      if (newStart < blEnd && newEnd > blStart) {
+        return NextResponse.json({ error: "Ce créneau est bloqué par la barbière." }, { status: 409 });
+      }
     }
   }
   // ────────────────────────────────────────────────────────────────
@@ -174,6 +179,7 @@ export async function POST(req: NextRequest) {
         date: data.date,
         time: data.time,
       }).catch(e => console.error("Barber SMS error:", e)),
+      Promise.resolve(), // Telegram new booking notifications disabled
     ]);
   } catch (emailErr) {
     console.error("Email error:", emailErr);
@@ -196,7 +202,9 @@ export async function PATCH(req: NextRequest) {
     }
 
     // ── Overlap check when time/date/barber changes ──────────────────
-    if (updates.time || updates.date || updates.barber) {
+    const forceOverlap = !!updates.force;
+    if (forceOverlap) delete updates.force;
+    if (!forceOverlap && (updates.time || updates.date || updates.barber)) {
       const { data: current } = await supabase.from("bookings").select("*").eq("id", id).single();
       if (current) {
         function patchSvcDuration(service: string): number {
@@ -232,10 +240,17 @@ export async function PATCH(req: NextRequest) {
     }
     // ────────────────────────────────────────────────────────────────
 
-    const { data, error } = await supabase.from("bookings").update(updates).eq("id", id).select().single();
+    const { data, error } = await supabase.from("bookings").update(updates as Record<string, unknown>).eq("id", id).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     if (updates.status === "cancelled") {
+      notifyBookingCancelled({
+        client_name: data.client_name,
+        service: data.service,
+        barber: data.barber,
+        date: data.date,
+        time: data.time,
+      }).catch(() => {});
       try {
         const { data: waitlistEntry } = await supabase
           .from("waitlist")

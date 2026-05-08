@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import AdminSidebar from "@/components/AdminSidebar";
+import { localDateStr } from "@/lib/utils";
 
 const DAYS = [
   { key: "mon", label: "Lundi" },
@@ -25,7 +26,7 @@ type Barber = {
 };
 
 function todayStr() {
-  return new Date().toISOString().split("T")[0];
+  return localDateStr();
 }
 
 function formatDate(dateStr: string) {

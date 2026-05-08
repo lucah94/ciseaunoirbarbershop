@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
@@ -58,7 +59,7 @@ function CancelContent() {
         {!loading && error && (
           <div style={{ background: "#111", border: "1px solid #3a1a1a", padding: "32px" }}>
             <p style={{ color: "#e55", fontSize: "15px", marginBottom: "16px" }}>{error}</p>
-            <a href="/" style={{ color: "#C9A84C", fontSize: "13px" }}>Retour à l'accueil</a>
+            <Link href="/" style={{ color: "#C9A84C", fontSize: "13px" }}>Retour à l'accueil</Link>
           </div>
         )}
 
@@ -67,7 +68,7 @@ function CancelContent() {
             <p style={{ color: "#C9A84C", fontSize: "40px", marginBottom: "16px" }}>✓</p>
             <p style={{ color: "#F5F5F5", fontSize: "16px", letterSpacing: "2px", marginBottom: "8px" }}>Rendez-vous annulé</p>
             <p style={{ color: "#666", fontSize: "13px", marginBottom: "24px" }}>Votre réservation a été annulée avec succès.</p>
-            <a href="/booking" className="btn-gold" style={{ fontSize: "11px", padding: "12px 28px" }}>Réserver à nouveau</a>
+            <Link href="/booking" className="btn-gold" style={{ fontSize: "11px", padding: "12px 28px" }}>Réserver à nouveau</Link>
           </div>
         )}
 

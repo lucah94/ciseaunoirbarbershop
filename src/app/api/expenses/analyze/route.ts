@@ -47,7 +47,7 @@ Si tu ne peux pas lire une valeur, utilise null. Retourne seulement le JSON, rie
       }]
     });
 
-    let extracted = { description: "", amount: 0, category: "Autre", date: new Date().toISOString().split("T")[0] };
+    const extracted = { description: "", amount: 0, category: "Autre", date: new Date().toISOString().split("T")[0] };
     try {
       const text = response.content[0].type === "text" ? response.content[0].text : "";
       const json = JSON.parse(text.replace(/```json|```/g, "").trim());

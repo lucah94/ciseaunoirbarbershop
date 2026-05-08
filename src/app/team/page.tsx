@@ -221,7 +221,7 @@ export default function TeamPage() {
                       alt={member.name}
                       width={154}
                       height={154}
-                      style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: member.id === "melynda" ? "center 10%" : "center top", borderRadius: "50%" }}
                     />
                   </div>
                 </div>

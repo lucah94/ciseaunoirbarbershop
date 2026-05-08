@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -119,7 +120,7 @@ export default function CartesCadeauxPage() {
                 <a href="tel:4186655703" style={{ color: "#D4AF37", textDecoration: "none", fontSize: "18px", letterSpacing: "1px", fontWeight: 500 }}>(418) 665-5703</a>
               </p>
             </div>
-            <a href="/" style={{
+            <Link href="/" style={{
               display: "inline-block",
               background: "linear-gradient(135deg, #D4AF37, #B8860B)",
               color: "#080808",
@@ -131,7 +132,7 @@ export default function CartesCadeauxPage() {
               borderRadius: "4px",
               textDecoration: "none",
               transition: "all 0.4s",
-            }}>Retour à l'accueil</a>
+            }}>Retour à l'accueil</Link>
           </motion.div>
         </main>
         <Footer />

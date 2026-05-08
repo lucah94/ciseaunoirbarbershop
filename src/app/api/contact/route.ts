@@ -6,6 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { escapeHtml } from "@/lib/sanitize";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendSMS } from "@/lib/sms";
+import { notifyEscalation, notifyNewContactMessage } from "@/lib/telegram";
 
 const contactSchema = z.object({
   name: z.string().min(1, "Le nom est requis").max(100),
@@ -100,12 +101,22 @@ export async function POST(req: NextRequest) {
       escalated,
     });
 
-    // 5. If escalated, send SMS to Melynda
-    if (escalated && process.env.MELYNDA_PHONE) {
-      await sendSMS(
-        process.env.MELYNDA_PHONE,
-        `Figaro ✂️ — Message de ${name} (${email}): "${message.slice(0, 120)}..." → Suivi requis !`
-      ).catch(() => {});
+    // 5. Telegram — tous les messages
+    notifyNewContactMessage({ name, email, message, escalated }).catch(() => {});
+    if (escalated) {
+      notifyEscalation({
+        from_name: name,
+        from_email: email,
+        message,
+        ai_response: autoReplyText,
+        source: "contact_form",
+      }).catch(() => {});
+      if (process.env.MELYNDA_PHONE) {
+        sendSMS(
+          process.env.MELYNDA_PHONE,
+          `Figaro ✂️ — Message de ${name} (${email}): "${message.slice(0, 120)}..." → Suivi requis !`
+        ).catch(() => {});
+      }
     }
 
     // 6. Send auto-reply to client

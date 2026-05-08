@@ -1,5 +1,10 @@
 import { Resend } from "resend";
 import { escapeHtml } from "@/lib/sanitize";
+import {
+  notifyNewBooking,
+  notifyNoShow,
+  sendWeeklyReport,
+} from "@/lib/telegram";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -105,10 +110,14 @@ export async function sendBookingNotificationAdmin(booking: {
   time: string;
   price: number;
   note?: string;
+  source?: string;
 }) {
   const dateFormatted = new Date(booking.date + "T12:00:00").toLocaleDateString("fr-CA", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
+
+  // Telegram (en parallèle, silencieux si non configuré)
+  notifyNewBooking(booking).catch(() => {});
 
   await resend.emails.send({
     from: FROM_EMAIL,
@@ -445,6 +454,8 @@ export async function sendNoShowAdminNotification(booking: {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
 
+  notifyNoShow(booking).catch(() => {});
+
   await resend.emails.send({
     from: FROM_EMAIL,
     to: ADMIN_EMAIL,
@@ -504,6 +515,17 @@ export async function sendWeeklyReportEmail(report: {
       <td style="color: #555; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; padding: 14px 0;">${label}</td>
       <td style="color: ${color}; font-size: 16px; padding: 14px 0; text-align: right; font-weight: 300;">${value}</td>
     </tr>`;
+
+  sendWeeklyReport({
+    week_label: `${startFormatted} – ${endFormatted}`,
+    total_bookings: report.totalBookings,
+    total_revenue: report.totalRevenue,
+    top_service: `Melynda (${report.bookingsMelynda}) / Diodis (${report.bookingsDiodis})`,
+    new_clients: report.newWaitlist,
+    completed: report.totalBookings - report.cancellations - report.noShows,
+    cancelled: report.cancellations,
+    no_shows: report.noShows,
+  }).catch(() => {});
 
   await resend.emails.send({
     from: FROM_EMAIL,

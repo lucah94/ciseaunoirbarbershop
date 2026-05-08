@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 import { translations } from "./translations";
 
 type Language = "fr" | "en";
@@ -14,14 +14,11 @@ interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("fr");
-
-  useEffect(() => {
-    const saved = localStorage.getItem("ciseau-noir-lang") as Language | null;
-    if (saved === "fr" || saved === "en") {
-      setLanguageState(saved);
-    }
-  }, []);
+  const [language, setLanguageState] = useState<Language>(() => {
+    if (typeof window === "undefined") return "fr";
+    const saved = localStorage.getItem("ciseau-noir-lang");
+    return saved === "fr" || saved === "en" ? saved : "fr";
+  });
 
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);

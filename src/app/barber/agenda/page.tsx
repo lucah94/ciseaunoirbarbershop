@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import BarberSidebar from "@/components/BarberSidebar";
+import { localDateStr } from "@/lib/utils";
 
 type Booking = {
   id: string; client_name: string; client_phone: string; client_email: string;
@@ -40,11 +41,11 @@ export default function BarberAgendaPage() {
   const [newRDV, setNewRDV] = useState({
     client_name: "", client_phone: "", client_email: "",
     service: "Coupe + Lavage", price: 35,
-    date: new Date().toISOString().split("T")[0], time: "09:00", note: "",
+    date: localDateStr(), time: "09:00", note: "",
   });
   const [submitting, setSubmitting] = useState(false);
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = localDateStr();
 
   const fetchBookings = useCallback(() => {
     setLoading(true);

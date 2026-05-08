@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import AdminSidebar from "@/components/AdminSidebar";
+import { localDateStr } from "@/lib/utils";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -76,7 +77,7 @@ export default function AgendaPage() {
   const [newRDV, setNewRDV] = useState({
     client_name: "", client_phone: "", client_email: "",
     barber: "Melynda", service: "Coupe + Lavage", price: 35,
-    date: new Date().toISOString().split("T")[0], time: "09:00", note: "",
+    date: localDateStr(), time: "09:00", note: "",
     is_recurring: false, recurrence_pattern: "biweekly", recurrence_count: 8,
   });
   const [clientSearch, setClientSearch] = useState("");
@@ -87,13 +88,13 @@ export default function AgendaPage() {
 
   // Block tranche horaire
   const [showBlock, setShowBlock] = useState(false);
-  const [blockForm, setBlockForm] = useState({ barber: "Melynda", date: new Date().toISOString().split("T")[0], start_time: "09:00", end_time: "11:00", reason: "" });
+  const [blockForm, setBlockForm] = useState({ barber: "Melynda", date: localDateStr(), start_time: "09:00", end_time: "11:00", reason: "" });
   const [blockSaving, setBlockSaving] = useState(false);
   const [blocks, setBlocks] = useState<Block[]>([]);
 
   // Edit mode state
   const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ service: "", price: 0, barber: "", date: "", time: "", end_time: "", note: "" });
+  const [editForm, setEditForm] = useState({ service: "", price: 0, barber: "", date: "", time: "", end_time: "", note: "", client_name: "", client_phone: "", client_email: "" });
   const [editSaving, setEditSaving] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clientDropdownRef = useRef<HTMLDivElement>(null);
@@ -248,6 +249,7 @@ export default function AgendaPage() {
             time: newRDV.time,
             note: newRDV.note.trim(),
             status: "confirmed",
+            force: true,
           };
       const res = await fetch(endpoint, {
         method: "POST",
@@ -278,7 +280,7 @@ export default function AgendaPage() {
     setNewRDV({
       client_name: "", client_phone: "", client_email: "",
       barber: "Melynda", service: "Coupe + Lavage", price: 35,
-      date: new Date().toISOString().split("T")[0], time: "09:00", note: "",
+      date: localDateStr(), time: "09:00", note: "",
       is_recurring: false, recurrence_pattern: "biweekly", recurrence_count: 8,
     });
     setClientSearch("");
@@ -310,11 +312,14 @@ export default function AgendaPage() {
     if (editForm.time !== selected.time) updates.time = editForm.time;
     if (editForm.end_time && editForm.end_time !== (selected as Booking & { end_time?: string }).end_time) updates.end_time = editForm.end_time;
     if (editForm.note !== (selected.note || "")) updates.note = editForm.note;
+    if (editForm.client_name !== selected.client_name) updates.client_name = editForm.client_name;
+    if (editForm.client_phone !== (selected.client_phone || "")) updates.client_phone = editForm.client_phone;
+    if (editForm.client_email !== (selected.client_email || "")) updates.client_email = editForm.client_email;
     if (Object.keys(updates).length > 0) {
       const res = await fetch("/api/bookings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: selected.id, ...updates }),
+        body: JSON.stringify({ id: selected.id, ...updates, force: true }),
       });
       const data = await res.json();
       if (!data.error) {
@@ -367,7 +372,7 @@ export default function AgendaPage() {
     }
   }
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = localDateStr();
 
   function isPastBooking(b: Booking): boolean {
     return b.date < today || (b.date === today && b.time < new Date().toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit", hour12: false }));
@@ -824,26 +829,74 @@ export default function AgendaPage() {
                   const b = info.event.extendedProps.booking as Booking;
                   setSelected(b);
                 }}
+                eventOverlap={true}
                 eventDrop={async (info) => {
-                  if (info.event.extendedProps.isBlock) { info.revert(); return; }
+                  if (info.event.extendedProps.isBlock) {
+                    const bl = info.event.extendedProps.block as Block;
+                    const newDate = info.event.startStr.split("T")[0];
+                    const newStartTime = info.event.startStr.split("T")[1]?.slice(0, 5);
+                    const newEndStr = info.event.endStr;
+                    const newEndTime = newEndStr ? newEndStr.split("T")[1]?.slice(0, 5) : bl.end_time;
+                    if (!newStartTime) { info.revert(); return; }
+                    const res = await fetch("/api/admin/blocks", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ id: bl.id, date: newDate, start_time: newStartTime, end_time: newEndTime }),
+                    });
+                    if (!res.ok) { info.revert(); return; }
+                    setBlocks(prev => prev.map(x => x.id === bl.id ? { ...x, date: newDate, start_time: newStartTime, end_time: newEndTime || x.end_time } : x));
+                    return;
+                  }
                   const b = info.event.extendedProps.booking as Booking;
                   const newDate = info.event.startStr.split("T")[0];
                   const newTime = info.event.startStr.split("T")[1]?.slice(0, 5) || b.time;
                   const res = await fetch("/api/bookings", {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: b.id, date: newDate, time: newTime }),
+                    body: JSON.stringify({ id: b.id, date: newDate, time: newTime, force: true }),
                   });
                   if (!res.ok) {
                     info.revert();
                     const errData = await res.json().catch(() => ({}));
-                    alert(res.status === 409
-                      ? `⚠️ Créneau déjà occupé — ${errData.error || "chevauchement détecté"}`
-                      : `Erreur: ${errData.error || "impossible de déplacer ce RDV"}`);
+                    alert(`Erreur: ${errData.error || "impossible de déplacer ce RDV"}`);
                     return;
                   }
                   setBookings(prev => prev.map(x => x.id === b.id ? { ...x, date: newDate, time: newTime } : x));
                   if (selected?.id === b.id) setSelected(s => s ? { ...s, date: newDate, time: newTime } : s);
+                }}
+                eventResize={async (info) => {
+                  if (info.event.extendedProps.isBlock) {
+                    const bl = info.event.extendedProps.block as Block;
+                    const newEndStr = info.event.endStr;
+                    if (!newEndStr) { info.revert(); return; }
+                    const newEndTime = newEndStr.split("T")[1]?.slice(0, 5);
+                    const newStartTime = info.event.startStr.split("T")[1]?.slice(0, 5);
+                    if (!newEndTime) { info.revert(); return; }
+                    const res = await fetch("/api/admin/blocks", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ id: bl.id, start_time: newStartTime || bl.start_time, end_time: newEndTime }),
+                    });
+                    if (!res.ok) { info.revert(); return; }
+                    setBlocks(prev => prev.map(x => x.id === bl.id ? { ...x, start_time: newStartTime || x.start_time, end_time: newEndTime } : x));
+                    return;
+                  }
+                  const b = info.event.extendedProps.booking as Booking;
+                  const endStr = info.event.endStr;
+                  if (!endStr) { info.revert(); return; }
+                  const newEndTime = endStr.split("T")[1]?.slice(0, 5);
+                  if (!newEndTime) { info.revert(); return; }
+                  const res = await fetch("/api/bookings", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: b.id, end_time: newEndTime }),
+                  });
+                  if (!res.ok) {
+                    info.revert();
+                    return;
+                  }
+                  setBookings(prev => prev.map(x => x.id === b.id ? { ...x, end_time: newEndTime } : x));
+                  if (selected?.id === b.id) setSelected(s => s ? { ...s, end_time: newEndTime } : s);
                 }}
                 buttonText={{
                   today: "Aujourd'hui",
@@ -1057,13 +1110,13 @@ export default function AgendaPage() {
                       {TIME_SLOTS.map(t => {
                         const isOccupied = occupiedSlots.has(t);
                         const now = new Date();
-                        const isToday = newRDV.date === now.toISOString().split("T")[0];
+                        const isToday = newRDV.date === localDateStr(now);
                         const [tH, tM] = t.split(":").map(Number);
                         const isPast = isToday && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()));
-                        const disabled = isOccupied || isPast;
+                        const disabled = isPast; // admin peut choisir créneaux occupés (force=true)
                         return (
-                          <option key={t} value={t} disabled={disabled} style={disabled ? { color: "#666" } : undefined}>
-                            {t}{isOccupied ? " (occupe)" : isPast ? " (passe)" : ""}
+                          <option key={t} value={t} disabled={disabled} style={isOccupied ? { color: "#E67E22", fontWeight: "bold" } : disabled ? { color: "#666" } : undefined}>
+                            {t}{isOccupied ? " ⚠ occupe" : isPast ? " (passe)" : ""}
                           </option>
                         );
                       })}
@@ -1310,6 +1363,23 @@ export default function AgendaPage() {
 
           {editing ? (
             <>
+              <div>
+                <p style={labelStyle}>Nom du client</p>
+                <input value={editForm.client_name} onChange={e => setEditForm(f => ({ ...f, client_name: e.target.value }))}
+                  placeholder="Nom du client" style={editInputStyle} />
+              </div>
+              <div style={{ display: "flex", gap: "12px" }}>
+                <div style={{ flex: 1 }}>
+                  <p style={labelStyle}>Téléphone</p>
+                  <input value={editForm.client_phone} onChange={e => setEditForm(f => ({ ...f, client_phone: e.target.value }))}
+                    placeholder="ex: 4185551234" style={editInputStyle} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={labelStyle}>Email</p>
+                  <input type="email" value={editForm.client_email} onChange={e => setEditForm(f => ({ ...f, client_email: e.target.value }))}
+                    placeholder="email@exemple.com" style={editInputStyle} />
+                </div>
+              </div>
               <div style={{ display: "flex", gap: "12px" }}>
                 <div style={{ flex: 1 }}>
                   <p style={labelStyle}>Service</p>
@@ -1348,7 +1418,7 @@ export default function AgendaPage() {
                     style={editInputStyle}>
                     {TIME_SLOTS.map(t => {
                       const now = new Date();
-                      const isToday = editForm.date === now.toISOString().split("T")[0];
+                      const isToday = editForm.date === localDateStr(now);
                       const [tH, tM] = t.split(":").map(Number);
                       const isPast = isToday && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()));
                       return (
@@ -1436,6 +1506,7 @@ export default function AgendaPage() {
                     setEditForm({
                       service: selected.service, price: selected.price, barber: selected.barber,
                       date: selected.date, time: selected.time, end_time: (selected as Booking & { end_time?: string }).end_time || "", note: selected.note || "",
+                      client_name: selected.client_name, client_phone: selected.client_phone || "", client_email: selected.client_email || "",
                     });
                     setEditing(true);
                   }}

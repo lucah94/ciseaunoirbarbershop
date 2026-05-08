@@ -3,7 +3,8 @@ import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { sendConfirmationReminderEmail, sendReminderEmail, sendRebookingEmail, sendReengagementEmail } from "@/lib/email";
 import { sendConfirmationReminderSMS, sendReminderSMS } from "@/lib/sms";
 import twilio from "twilio";
-import { formatPhone } from "@/lib/sms";
+import { formatPhone, sendSMS } from "@/lib/sms";
+import { notifySystemAlert } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -189,11 +190,67 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // ── 4. No-show detection ──────────────────────────────────────────
+    const now = new Date();
+    const todayStr = now.toISOString().split("T")[0];
+    const noShowCutoff = new Date(now.getTime() - 45 * 60 * 1000);
+    const noShowCutoffTime = noShowCutoff.toTimeString().slice(0, 5); // "HH:MM"
+
+    const { data: possibleNoShows } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("date", todayStr)
+      .eq("status", "confirmed")
+      .lt("time", noShowCutoffTime);
+
+    let noShowAlerts = 0;
+    for (const booking of possibleNoShows || []) {
+      try {
+        await notifySystemAlert(
+          `⚠️ No-show possible\n${booking.client_name} — ${booking.time} avec ${booking.barber}\nService: ${booking.service}\nMarquer comme no-show dans l'admin`
+        );
+        noShowAlerts++;
+      } catch (e) {
+        console.error(`No-show alert error for ${booking.id}:`, e);
+      }
+    }
+
+    // ── 5. Google Review SMS ──────────────────────────────────────────
+    const reviewCutoff = new Date(now.getTime() - 90 * 60 * 1000);
+    const reviewCutoffTime = reviewCutoff.toTimeString().slice(0, 5); // "HH:MM"
+
+    const { data: reviewCandidates } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("date", todayStr)
+      .eq("status", "completed")
+      .lt("time", reviewCutoffTime)
+      .not("client_phone", "is", null);
+
+    let reviewsSent = 0;
+    if (process.env.TWILIO_ACCOUNT_SID && reviewCandidates?.length) {
+      for (const booking of reviewCandidates) {
+        if (!booking.client_phone) continue;
+        try {
+          const firstName = booking.client_name?.split(" ")[0] || booking.client_name;
+          await sendSMS(
+            booking.client_phone,
+            `Ciseau Noir ✂️ Merci ${firstName} ! Content de ta coupe avec ${booking.barber} ? Laisse-nous un avis Google en 30 secondes → https://g.page/r/GOOGLE_REVIEW_LINK/review Ça nous aide vraiment ! 🙏`
+          );
+          reviewsSent++;
+        } catch (e) {
+          console.error(`Review SMS error for ${booking.id}:`, e);
+        }
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       reminders_sent: remindersSent,
       rebooking_sent: rebookingSent,
       reengagement_sent: reengagementSent,
+      no_show_alerts: noShowAlerts,
+      reviews_sent: reviewsSent,
       total_reminders: bookings?.length || 0,
       total_rebooking: completedBookings?.length || 0,
     });

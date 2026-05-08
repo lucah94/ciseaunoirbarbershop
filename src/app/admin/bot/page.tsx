@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import AdminSidebar from "@/components/AdminSidebar";
 import { supabase } from "@/lib/supabase";
+import { localDateStr } from "@/lib/utils";
 
 type Conversation = {
   id: string;
@@ -78,7 +79,7 @@ export default function BotPage() {
         setConversations(data);
 
         // Compute stats
-        const today = new Date().toISOString().split("T")[0];
+        const today = localDateStr();
         const todayConvs = data.filter(c => c.updated_at?.startsWith(today));
         const todayMsgs = todayConvs.reduce((sum, c) => sum + (c.messages?.length || 0), 0);
         setStats({ total: data.length, today: todayMsgs });

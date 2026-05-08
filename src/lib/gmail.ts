@@ -1,13 +1,30 @@
 // Gmail API helper — reads/replies to emails in Melynda's inbox
+import { supabaseAdmin } from "@/lib/supabase";
+
+async function getRefreshToken(): Promise<string> {
+  // Try Supabase first (set via /api/admin/gmail-reauth)
+  try {
+    const { data } = await supabaseAdmin
+      .from("settings")
+      .select("value")
+      .eq("key", "google_refresh_token")
+      .single();
+    if (data?.value) return data.value;
+  } catch {
+    // fall through to env var
+  }
+  return (process.env.GOOGLE_REFRESH_TOKEN || process.env.GMAIL_REFRESH_TOKEN)!;
+}
 
 export async function getGmailToken(): Promise<string> {
+  const refreshToken = await getRefreshToken();
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID!,
       client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-      refresh_token: process.env.GMAIL_REFRESH_TOKEN!,
+      refresh_token: refreshToken,
       grant_type: "refresh_token",
     }),
   });
@@ -55,11 +72,40 @@ function getHeader(headers: { name: string; value: string }[], name: string): st
   return headers.find(h => h.name.toLowerCase() === name.toLowerCase())?.value || "";
 }
 
+export async function fetchAllInboxEmails(maxResults = 30): Promise<GmailMessage[]> {
+  const token = await getGmailToken();
+  const listRes = await fetch(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=in:inbox&maxResults=${maxResults}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const listData = await listRes.json();
+  if (!listData.messages?.length) return [];
+  const messages: GmailMessage[] = [];
+  for (const { id } of listData.messages as { id: string }[]) {
+    const msgRes = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const msg = await msgRes.json();
+    const headers = msg.payload?.headers || [];
+    messages.push({
+      id,
+      threadId: msg.threadId,
+      from: getHeader(headers, "from"),
+      fromEmail: extractEmail(getHeader(headers, "from")),
+      subject: getHeader(headers, "subject") || "(sans sujet)",
+      body: extractBody(msg.payload || {}),
+      date: getHeader(headers, "date"),
+    });
+  }
+  return messages;
+}
+
 export async function fetchUnreadEmails(): Promise<GmailMessage[]> {
   const token = await getGmailToken();
 
   const listRes = await fetch(
-    "https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread+in:inbox&maxResults=10",
+    "https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread+in:inbox&maxResults=20",
     { headers: { Authorization: `Bearer ${token}` } }
   );
   const listData = await listRes.json();
@@ -96,6 +142,23 @@ export async function markAsRead(messageId: string): Promise<void> {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ removeLabelIds: ["UNREAD"] }),
+  });
+}
+
+export async function archiveEmail(messageId: string): Promise<void> {
+  const token = await getGmailToken();
+  await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}/modify`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ removeLabelIds: ["INBOX", "UNREAD"] }),
+  });
+}
+
+export async function deleteEmail(messageId: string): Promise<void> {
+  const token = await getGmailToken();
+  await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}/trash`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
   });
 }
 

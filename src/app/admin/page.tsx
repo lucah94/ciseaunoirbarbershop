@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { localDateStr } from "@/lib/utils";
 import { motion } from "framer-motion";
 import AdminSidebar from "@/components/AdminSidebar";
 
@@ -148,7 +149,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const week = getWeekRange();
   const now = new Date();
-  const today = now.toISOString().split("T")[0];
+  const today = localDateStr(now);
 
   useEffect(() => {
     Promise.all([

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendWeeklyReportEmail } from "@/lib/email";
+import { notifySystemAlert } from "@/lib/telegram";
 
 export const maxDuration = 60;
 
@@ -77,6 +78,26 @@ export async function GET(req: NextRequest) {
 
     const newWaitlist = waitlistCount || 0;
 
+    // New vs returning clients
+    let newClients = 0;
+    let returningClients = 0;
+    for (const booking of activeBookings) {
+      const lookupField = booking.client_email ? "client_email" : "client_phone";
+      const lookupValue = booking.client_email || booking.client_phone;
+      if (!lookupValue) continue;
+      const { data: priorBookings } = await supabaseAdmin
+        .from("bookings")
+        .select("id")
+        .eq(lookupField, lookupValue)
+        .lt("date", startDate)
+        .limit(1);
+      if (priorBookings && priorBookings.length > 0) {
+        returningClients++;
+      } else {
+        newClients++;
+      }
+    }
+
     // Send the email — wrapped to not crash the cron
     await sendWeeklyReportEmail({
       startDate,
@@ -90,6 +111,15 @@ export async function GET(req: NextRequest) {
       bookingsDiodis,
     });
 
+    const weekLabel = `${new Date(startDate + "T12:00:00").toLocaleDateString("fr-CA", { day: "numeric", month: "short" })} – ${new Date(endDate + "T12:00:00").toLocaleDateString("fr-CA", { day: "numeric", month: "short" })}`;
+    await notifySystemAlert(
+      `📈 <b>Rapport semaine — ${weekLabel}</b>\n\n` +
+      `✅ ${totalBookings} RDV — <b>${totalRevenue.toFixed(0)}$</b>\n` +
+      `Melynda: ${bookingsMelynda} | Diodis: ${bookingsDiodis}\n` +
+      `❌ Annulés: ${cancellations} | 👻 No-shows: ${noShows}\n\n` +
+      `👤 Nouveaux clients: ${newClients} | 🔄 Réguliers: ${returningClients}`
+    );
+
     return NextResponse.json({
       ok: true,
       period: { startDate, endDate },
@@ -101,6 +131,8 @@ export async function GET(req: NextRequest) {
         newWaitlist,
         bookingsMelynda,
         bookingsDiodis,
+        newClients,
+        returningClients,
       },
     });
   } catch (e) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sendSMS } from "@/lib/sms";
 import { supabaseAdmin } from "@/lib/supabase";
+import { notifySystemAlert } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -117,6 +118,7 @@ async function sendAlert(broken: string[], status: "auto_repaired" | "alert") {
   if (lucaPhone) promises.push(sendSMS(lucaPhone, msg).catch(() => {}));
   if (status === "alert" && melyndaPhone)
     promises.push(sendSMS(melyndaPhone, msg).catch(() => {}));
+  promises.push(notifySystemAlert(msg).catch(() => {}));
   await Promise.allSettled(promises);
 }
 
@@ -139,6 +141,35 @@ export async function GET(req: Request) {
   try {
     // 1. Check direct des services critiques
     const broken = await runChecks();
+
+    // Low Twilio balance check (runs regardless of broken status)
+    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+      try {
+        const sid = process.env.TWILIO_ACCOUNT_SID;
+        const token = process.env.TWILIO_AUTH_TOKEN;
+        const balanceRes = await fetch(
+          `https://api.twilio.com/2010-04-01/Accounts/${sid}/Balance.json`,
+          {
+            headers: {
+              Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
+            },
+            signal: AbortSignal.timeout(CHECK_TIMEOUT),
+          }
+        );
+        if (balanceRes.ok) {
+          const balanceData = await balanceRes.json();
+          const balance = parseFloat(balanceData.balance);
+          if (!isNaN(balance) && balance < 10.0) {
+            await notifySystemAlert(
+              `⚠️ Twilio solde bas: $${balance.toFixed(2)}\nLes SMS vont arrêter de fonctionner. Recharger sur twilio.com`
+            );
+          }
+        }
+      } catch {
+        // Non-critical — ne pas bloquer le reste du health-check
+      }
+    }
+
     if (broken.length === 0) {
       return NextResponse.json({ status: "ok" });
     }

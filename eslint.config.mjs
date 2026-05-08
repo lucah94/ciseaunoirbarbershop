@@ -12,7 +12,18 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local tooling — not project code
+    ".claude/**",
+    "public/sw.js",
+    // Archived files
+    "src/_backup/**",
   ]),
+  {
+    rules: {
+      // French text has many apostrophes — escaping every one adds noise without benefit
+      "react/no-unescaped-entities": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;
