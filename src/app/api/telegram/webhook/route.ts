@@ -627,14 +627,7 @@ RÈGLES:
       const response = await anthropic.messages.create({
         model,
         max_tokens: 1024,
-        system: [
-          {
-            type: "text",
-            text: systemPrompt,
-            // Prompt caching — économise ~70% sur les tokens répétés (TTL 5 min)
-            cache_control: { type: "ephemeral" },
-          } as Anthropic.TextBlockParam & { cache_control: { type: string } },
-        ],
+        system: systemPrompt,
         tools,
         messages,
       });
