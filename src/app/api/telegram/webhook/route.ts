@@ -5,7 +5,31 @@ import { getUpcomingHolidays, isHoliday } from "@/lib/holidays-qc";
 import Anthropic from "@anthropic-ai/sdk";
 
 const TELEGRAM_API = "https://api.telegram.org/bot";
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+
+// Supporte Anthropic direct OU OpenRouter (plus économique)
+// Pour OpenRouter: ajouter OPENROUTER_API_KEY dans Vercel env vars
+const useOpenRouter = !!process.env.OPENROUTER_API_KEY;
+const anthropic = useOpenRouter
+  ? new Anthropic({
+      apiKey: process.env.OPENROUTER_API_KEY!,
+      baseURL: "https://openrouter.ai/api/v1",
+      defaultHeaders: { "HTTP-Referer": "https://ciseaunoirbarbershop.com", "X-Title": "Ciseau Noir Figaro" },
+    })
+  : new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+
+// Modèles selon le provider
+const MODEL_FAST = useOpenRouter
+  ? "anthropic/claude-haiku-4-5"       // Haiku via OpenRouter (~0.25$/MTok → ~0.08$/MTok)
+  : "claude-haiku-4-5-20251001";        // Haiku direct Anthropic
+const MODEL_SMART = useOpenRouter
+  ? "anthropic/claude-sonnet-4-5"       // Sonnet via OpenRouter
+  : "claude-sonnet-4-6";                // Sonnet direct Anthropic
+
+// Détecte si la requête nécessite Sonnet ou si Haiku suffit
+function needsSonnet(msg: string): boolean {
+  const complexPatterns = /crée|réserve|book|nouveau rdv|annule|modifi|pourquoi|analys|expliq|conseil|idée|suggère|note|souviens|retiens|compare|tendance/i;
+  return complexPatterns.test(msg) || msg.length > 200;
+}
 
 function getToken() { return process.env.TELEGRAM_BOT_TOKEN || ""; }
 
@@ -593,14 +617,24 @@ RÈGLES:
     { role: "user", content: userMessage },
   ];
 
+  // Choix du modèle selon complexité
+  const model = needsSonnet(userMessage) ? MODEL_SMART : MODEL_FAST;
+
   try {
     let reply = "";
 
     for (let turn = 0; turn < 6; turn++) {
       const response = await anthropic.messages.create({
-        model: "claude-sonnet-4-6", // Sonnet pour meilleure compréhension
+        model,
         max_tokens: 1024,
-        system: systemPrompt,
+        system: [
+          {
+            type: "text",
+            text: systemPrompt,
+            // Prompt caching — économise ~70% sur les tokens répétés (TTL 5 min)
+            cache_control: { type: "ephemeral" },
+          } as Anthropic.TextBlockParam & { cache_control: { type: string } },
+        ],
         tools,
         messages,
       });
