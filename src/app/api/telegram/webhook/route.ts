@@ -52,8 +52,9 @@ async function loadHistory(chatId: number): Promise<Anthropic.MessageParam[]> {
       .from("telegram_conversations")
       .select("role, content")
       .eq("chat_id", chatId)
+      .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // max 24h
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(16);
     if (!data?.length) return [];
     return data.reverse().map(r => ({ role: r.role as "user" | "assistant", content: r.content }));
   } catch { return []; }
