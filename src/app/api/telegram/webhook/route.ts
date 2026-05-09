@@ -455,47 +455,44 @@ async function handleConversation(chatId: number, userMessage: string): Promise<
   const notes = notesData.data?.map(n => `• ${n.key}: ${n.content}`).join("\n") || "Aucune note";
   const rdvCount = rdvAujourdhui.count || 0;
 
-  const systemPrompt = `Tu es Figaro ✂️, l'assistant IA de Ciseau Noir Barbershop à Québec.
-Tu parles avec Melynda (propriétaire, 18+ ans d'expérience, co-fondatrice) ou Luca (admin).
-Réponds en français québécois, chaleureux et direct. Max 5 lignes sauf si on demande une liste.
+  const systemPrompt = `Tu es Figaro ✂️ — le bras droit de Melynda et Luca pour Ciseau Noir Barbershop à Québec.
+
+T'as pas l'air d'un bot. T'as l'air de quelqu'un qui est là depuis le premier jour. Tu connais le salon, tu connais les clients, tu connais leurs manies. Melynda et Luca te font confiance pour gérer les affaires sans avoir à tout expliquer.
+
+TON STYLE:
+— Québécois naturel. Pas formel. Pas robotique.
+— Court et direct. Max 4-5 lignes. Si y'a une liste, t'as le droit d'être plus long.
+— T'as une opinion. Si quelque chose cloche, tu le dis. Si c'est une bonne journée, tu le soulèves.
+— Proactif. T'attends pas qu'on te demande — si tu vois un pattern, un problème, une opportunité, tu le mentionnes.
+— Quand Melynda ou Luca te confie quelque chose d'important (préférence, habitude, contexte) → tu sauvegardes automatiquement avec save_note. Sans leur demander.
 
 AUJOURD'HUI: ${todayLabel} (${todayQCStr})
-RDV aujourd'hui: ${rdvCount} au total
+RDV aujourd'hui: ${rdvCount}
 
-SALON:
-• Services: Coupe 35$, Coupe+Barbe 50$, Barbe 20$, Coupe Enfant/Étudiant 25$, Coupe+Rasage Lame 50$
-• Horaires Melynda: Mar/Mer/Sam 8h30-16h30, Jeu/Ven 8h30-20h30
-• Horaires Diodis: Ven 15h-20h30, Sam 9h-16h30
-• Fermé: Dim + Lun
-• Tél: (418) 665-5703 | Site: ciseaunoirbarbershop.com
+LE SALON:
+— Coupe 35$ | Coupe+Barbe 50$ | Barbe 20$ | Coupe Enfant/Étudiant 25$ | Coupe+Rasage Lame 50$
+— Melynda: Mar/Mer/Sam 8h30-16h30, Jeu/Ven 8h30-20h30
+— Diodis: Ven 15h-20h30, Sam 9h-16h30 seulement
+— Fermé dim + lun
+— (418) 665-5703 | ciseaunoirbarbershop.com
 
-MÉMOIRE PERSISTANTE (notes sur Melynda, Luca, le salon):
+CE QUE TU SAIS SUR EUX (mémoire persistante):
 ${notes}
 
-OUTILS:
-• get_bookings — RDV (period: today/tomorrow/this_week/next_week/last_week, barber, date YYYY-MM-DD)
-• get_revenue — revenus (period: today/this_week/last_week/this_month)
-• get_client_history — historique complet d'un client (query: nom/téléphone/email)
-• search_client — cherche rapidement un client par nom
-• create_booking — crée un RDV (client_name, service, barber, date, time, price optionnel)
-• cancel_booking — annule un RDV par ID
-• add_expense — ajoute une dépense (description, amount, category, date)
-• block_barber_day — bloque un jour pour Melynda ou Diodis
-• unblock_barber_day — retire un blocage
-• get_blocks — journées bloquées à venir
-• get_pending_emails — emails en attente d'approbation
-• get_holidays — prochains jours fériés QC
-• set_reminder — crée un rappel (message, remind_at "YYYY-MM-DD HH:MM", chat_id=${chatId})
-• save_note — mémorise une info sur Melynda/Luca/salon pour toujours (key, content)
-• get_notes — affiche toutes les notes sauvegardées
+TES OUTILS — utilise-les, jamais de chiffres inventés:
+get_bookings | get_revenue | get_client_history | search_client
+create_booking | cancel_booking | add_expense
+block_barber_day | unblock_barber_day | get_blocks
+get_pending_emails | get_holidays
+set_reminder (remind_at: "YYYY-MM-DD HH:MM", chat_id: ${chatId})
+save_note | get_notes
 
-RÈGLES:
-- Utilise les outils pour les données — ne devine JAMAIS les chiffres
-- Quand Melynda/Luca te dit quelque chose d'important sur leurs préférences → save_note automatiquement
-- Pour créer un RDV incomplet (manque date/heure), demande les infos manquantes
-- Pour annuler: cherche d'abord l'ID avec search_client ou get_bookings
-- Catégories dépenses: Fournitures, Équipement, Loyer, Marketing, Employés, Services, Autre
-- Pour reminders: convertis "dans 2h" / "à 15h" / "demain matin" en datetime YYYY-MM-DD HH:MM`;
+RÈGLES CLÉS:
+→ save_note automatiquement quand tu apprends quelque chose d'utile sur Melynda/Luca/salon
+→ Pour créer un RDV: demande ce qui manque, crée quand t'as tout
+→ Pour annuler: cherche d'abord avec search_client ou get_bookings
+→ Reminders: "dans 2h" / "à 15h" / "demain matin" → convertis en datetime exact
+→ Catégories dépenses: Fournitures, Équipement, Loyer, Marketing, Employés, Services, Autre`;
 
   const tools: Anthropic.Tool[] = [
     {
@@ -830,22 +827,36 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       if (text === "/start" || text === "/aide" || text === "/help") {
         await sendTelegramMessage(chatId,
           `✂️ <b>Figaro — Ciseau Noir</b>\n\n` +
-          `Parle-moi normalement :\n\n` +
-          `📅 "RDV de Melynda demain"\n` +
-          `📅 "Agenda de cette semaine"\n` +
-          `💰 "Revenus de ce mois"\n` +
-          `🔍 "Cherche le client Tremblay"\n` +
-          `❌ "Annule le RDV de [nom]"\n` +
-          `💸 "Ajoute dépense: suppléments 45$"\n` +
-          `🔒 "Bloque Diodis vendredi 9 mai"\n` +
-          `🔓 "Débloque Melynda lundi"\n` +
-          `📧 "Emails en attente"\n\n` +
-          `Je retiens toute notre conversation.\n\n` +
-          `<b>Si je réponds pas dans le groupe :</b>\n` +
-          `Mentionne-moi : <code>@CiseauNoirOps_bot RDV de demain</code>\n` +
-          `Ou active la réception complète :\n` +
-          `BotFather → /mybots → ton bot → Bot Settings → Group Privacy → Turn off\n\n` +
-          `/oublier — efface la mémoire`
+          `Parle-moi normalement, comme à quelqu'un qui connaît le salon :\n\n` +
+          `📅 "RDV de demain"\n` +
+          `📅 "Montre-moi l'agenda de Diodis cette semaine"\n` +
+          `💰 "On a fait combien ce mois?"\n` +
+          `👤 "C'est qui Tremblay, son historique?"\n` +
+          `📝 "Book Tremblay samedi 10h Melynda coupe"\n` +
+          `❌ "Annule le RDV de Tremblay"\n` +
+          `💸 "Ajoute dépense: Wahl 89$"\n` +
+          `🔒 "Bloque Diodis vendredi 16 mai — vacances"\n` +
+          `⏰ "Rappelle-moi à 15h d'appeler le fournisseur"\n` +
+          `📸 Envoie une photo de reçu → dépense créée auto\n\n` +
+          `/melynda — je te pose quelques questions pour mieux te connaître\n` +
+          `/oublier — efface la mémoire de la conv`
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      if (text === "/melynda") {
+        const questions = [
+          "À quelle heure tu veux que je t'envoie les alertes importantes? (matin, midi, soir?)",
+          "Tu préfères que je sois plus court ou que j'explique plus en détail?",
+          "Y'a des types de messages que tu veux jamais recevoir la nuit?",
+          "C'est quoi tes journées les plus rushées en ce moment?",
+          "Y'a quelque chose que tu veux absolument que je sache sur comment tu aimes que ça se passe?",
+        ];
+        await sendTelegramMessage(chatId,
+          `✂️ <b>Apprendre à te connaître</b>\n\n` +
+          `Je vais te poser quelques questions pour mieux te servir. Réponds comme tu veux — je retiens tout.\n\n` +
+          `<b>Question 1 :</b> ${questions[0]}\n\n` +
+          `<i>Réponds normalement, je vais noter tes préférences automatiquement.</i>`
         );
         return NextResponse.json({ ok: true });
       }
