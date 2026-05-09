@@ -371,9 +371,14 @@ Signe avec : Figaro ✂️ — Ciseau Noir`;
 // ── Route GET (cron) ──────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get("secret");
-  if (secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  // Vercel envoie Authorization: Bearer CRON_SECRET (header) OU on passe ?secret= manuellement
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret) {
+    const bearer = req.headers.get("authorization")?.replace("Bearer ", "");
+    const querySecret = req.nextUrl.searchParams.get("secret") || req.nextUrl.searchParams.get("key");
+    if (bearer !== cronSecret && querySecret !== cronSecret) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+    }
   }
 
   if (!process.env.GOOGLE_REFRESH_TOKEN && !process.env.GMAIL_REFRESH_TOKEN) {

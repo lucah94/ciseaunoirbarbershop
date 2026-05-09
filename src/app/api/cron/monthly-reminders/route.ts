@@ -6,9 +6,13 @@ export const maxDuration = 30;
 
 // Runs on the 1st of every month at 9am
 export async function GET(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get("secret");
-  if (secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret) {
+    const bearer = req.headers.get("authorization")?.replace("Bearer ", "");
+    const querySecret = req.nextUrl.searchParams.get("secret") || req.nextUrl.searchParams.get("key");
+    if (bearer !== cronSecret && querySecret !== cronSecret) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+    }
   }
 
   const now = new Date();
