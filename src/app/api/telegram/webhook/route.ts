@@ -302,6 +302,76 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
     return data.map(b => `${b.barber} — ${b.date}${b.reason ? ` (${b.reason})` : ""}`).join("\n");
   }
 
+  // ── get_client_history ───────────────────────────────────────────────────────
+  if (name === "get_client_history") {
+    const query = input.query as string; // nom, email, ou téléphone
+    const { data } = await supabaseAdmin
+      .from("bookings")
+      .select("id, client_name, client_phone, client_email, service, barber, date, time, status, price")
+      .or(`client_name.ilike.%${query}%,client_phone.ilike.%${query}%,client_email.ilike.%${query}%`)
+      .order("date", { ascending: false })
+      .limit(15);
+
+    if (!data?.length) return `Aucun client trouvé pour "${query}".`;
+
+    const client = data[0];
+    const completed = data.filter(b => b.status === "completed" || b.status === "confirmed").length;
+    const total = data.reduce((s, b) => s + (b.price || 0), 0);
+    const lastVisit = data.find(b => b.date <= todayQC())?.date || "—";
+    const nextVisit = data.find(b => b.date > todayQC());
+
+    let result = `👤 <b>${client.client_name}</b>\n`;
+    result += `📞 ${client.client_phone || "—"} | 📧 ${client.client_email || "—"}\n`;
+    result += `📊 ${completed} visites — ${total}$ total\n`;
+    result += `⬅️ Dernière visite : ${lastVisit}\n`;
+    if (nextVisit) result += `➡️ Prochain RDV : ${nextVisit.date} à ${nextVisit.time} (${nextVisit.barber})\n`;
+    result += `\n<b>Historique :</b>\n`;
+    result += data.slice(0, 8).map(b =>
+      `${b.date} ${b.time} — ${b.service} avec ${b.barber} — ${b.price}$ [${b.status}]`
+    ).join("\n");
+    return result;
+  }
+
+  // ── create_booking ───────────────────────────────────────────────────────────
+  if (name === "create_booking") {
+    const { client_name, client_phone, client_email, service, barber, date, time, price, note } =
+      input as Record<string, string>;
+
+    const SERVICES: Record<string, number> = {
+      "Coupe": 35, "Coupe + Barbe": 50, "Barbe": 20,
+      "Coupe Enfant": 25, "Étudiant": 25, "Coupe + Rasage": 50,
+    };
+    const finalPrice = Number(price) || SERVICES[service] || 35;
+
+    const { data, error } = await supabaseAdmin.from("bookings").insert({
+      client_name, client_phone: client_phone || "", client_email: client_email || "",
+      service, barber, date, time, price: finalPrice,
+      status: "confirmed", note: note || "",
+    }).select("id").single();
+
+    if (error) return `Erreur : ${error.message}`;
+    return `✅ RDV créé !\n${client_name} — ${service} avec ${barber}\n${date} à ${time} — ${finalPrice}$\nID: [${(data.id as string).slice(0,8)}]`;
+  }
+
+  // ── save_note ─────────────────────────────────────────────────────────────────
+  if (name === "save_note") {
+    const key = input.key as string;
+    const content = input.content as string;
+    await supabaseAdmin.from("figaro_notes").upsert(
+      { key, content, updated_at: new Date().toISOString() },
+      { onConflict: "key" }
+    );
+    return `✅ Note sauvegardée : "${key}"`;
+  }
+
+  // ── get_notes ─────────────────────────────────────────────────────────────────
+  if (name === "get_notes") {
+    const { data } = await supabaseAdmin
+      .from("figaro_notes").select("key, content, updated_at").order("updated_at", { ascending: false });
+    if (!data?.length) return "Aucune note sauvegardée.";
+    return data.map(n => `📝 <b>${n.key}</b>\n${n.content}`).join("\n\n");
+  }
+
   // ── get_holidays ─────────────────────────────────────────────────────────────
   if (name === "get_holidays") {
     const days = (input.days as number) || 30;
@@ -344,158 +414,177 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
 
 // ── Conversation handler ──────────────────────────────────────────────────────
 async function handleConversation(chatId: number, userMessage: string): Promise<void> {
-  const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
-  const todayLabel = today.toLocaleDateString("fr-CA", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const todayQCStr = todayQC();
+  const todayLabel = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }))
+    .toLocaleDateString("fr-CA", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
-  const history = await loadHistory(chatId);
+  // Charge historique + notes persistantes en parallèle
+  const [history, notesData, rdvAujourdhui] = await Promise.all([
+    loadHistory(chatId),
+    supabaseAdmin.from("figaro_notes").select("key, content").order("updated_at", { ascending: false }).limit(20),
+    supabaseAdmin.from("bookings").select("id", { count: "exact" })
+      .eq("date", todayQCStr).neq("status", "cancelled"),
+  ]);
+
   await saveHistory(chatId, "user", userMessage);
 
+  const notes = notesData.data?.map(n => `• ${n.key}: ${n.content}`).join("\n") || "Aucune note";
+  const rdvCount = rdvAujourdhui.count || 0;
+
   const systemPrompt = `Tu es Figaro ✂️, l'assistant IA de Ciseau Noir Barbershop à Québec.
-Tu parles avec Melynda (propriétaire) ou Luca (admin) via Telegram.
-Réponds en français québécois, court et direct. Max 5 lignes sauf si on demande une liste.
-Tu retiens toute la conversation (mémoire persistante).
+Tu parles avec Melynda (propriétaire, 18+ ans d'expérience, co-fondatrice) ou Luca (admin).
+Réponds en français québécois, chaleureux et direct. Max 5 lignes sauf si on demande une liste.
 
-AUJOURD'HUI: ${todayLabel} (${todayStr})
+AUJOURD'HUI: ${todayLabel} (${todayQCStr})
+RDV aujourd'hui: ${rdvCount} au total
 
-OUTILS DISPONIBLES:
+SALON:
+• Services: Coupe 35$, Coupe+Barbe 50$, Barbe 20$, Coupe Enfant/Étudiant 25$, Coupe+Rasage Lame 50$
+• Horaires Melynda: Mar/Mer/Sam 8h30-16h30, Jeu/Ven 8h30-20h30
+• Horaires Diodis: Ven 15h-20h30, Sam 9h-16h30
+• Fermé: Dim + Lun
+• Tél: (418) 665-5703 | Site: ciseaunoirbarbershop.com
+
+MÉMOIRE PERSISTANTE (notes sur Melynda, Luca, le salon):
+${notes}
+
+OUTILS:
 • get_bookings — RDV (period: today/tomorrow/this_week/next_week/last_week, barber, date YYYY-MM-DD)
 • get_revenue — revenus (period: today/this_week/last_week/this_month)
-• search_client — cherche un client par nom
-• cancel_booking — annule un RDV (besoin de l'ID sur 8 chars ex: [abc12345])
+• get_client_history — historique complet d'un client (query: nom/téléphone/email)
+• search_client — cherche rapidement un client par nom
+• create_booking — crée un RDV (client_name, service, barber, date, time, price optionnel)
+• cancel_booking — annule un RDV par ID
 • add_expense — ajoute une dépense (description, amount, category, date)
-• block_barber_day — bloque une journée pour un barbier (barber, date, reason optionnel)
-• unblock_barber_day — retire un blocage (barber, date)
-• get_blocks — journées bloquées à venir (barber optionnel)
+• block_barber_day — bloque un jour pour Melynda ou Diodis
+• unblock_barber_day — retire un blocage
+• get_blocks — journées bloquées à venir
 • get_pending_emails — emails en attente d'approbation
-• get_holidays — prochains jours fériés QC (days optionnel, défaut 30)
+• get_holidays — prochains jours fériés QC
 • set_reminder — crée un rappel (message, remind_at "YYYY-MM-DD HH:MM", chat_id=${chatId})
+• save_note — mémorise une info sur Melynda/Luca/salon pour toujours (key, content)
+• get_notes — affiche toutes les notes sauvegardées
 
 RÈGLES:
-- Utilise TOUJOURS les outils pour les données — ne devine jamais les chiffres
-- Pour annuler un RDV, utilise d'abord search_client ou get_bookings pour trouver l'ID
-- Pour bloquer un jour, confirme toujours avec le nom exact du barbier (Melynda ou Diodis)
-- Les catégories de dépenses valides: Fournitures, Équipement, Loyer, Marketing, Employés, Services, Autre
-- Pour set_reminder: convertis "dans 2h" / "à 15h" / "demain matin" en datetime exact YYYY-MM-DD HH:MM
-- Si l'heure d'un reminder est ambiguë, demande avant de créer`;
+- Utilise les outils pour les données — ne devine JAMAIS les chiffres
+- Quand Melynda/Luca te dit quelque chose d'important sur leurs préférences → save_note automatiquement
+- Pour créer un RDV incomplet (manque date/heure), demande les infos manquantes
+- Pour annuler: cherche d'abord l'ID avec search_client ou get_bookings
+- Catégories dépenses: Fournitures, Équipement, Loyer, Marketing, Employés, Services, Autre
+- Pour reminders: convertis "dans 2h" / "à 15h" / "demain matin" en datetime YYYY-MM-DD HH:MM`;
 
   const tools: Anthropic.Tool[] = [
     {
       name: "get_bookings",
       description: "Retourne les RDV pour une période et/ou un barbier",
-      input_schema: {
-        type: "object" as const,
-        properties: {
-          period: { type: "string", enum: ["today", "tomorrow", "this_week", "next_week", "last_week"] },
-          barber: { type: "string", description: "Nom du barbier (Melynda ou Diodis)" },
-          date: { type: "string", description: "Date spécifique YYYY-MM-DD ou 'demain'" },
-        },
-        required: [],
-      },
+      input_schema: { type: "object" as const, properties: {
+        period: { type: "string", enum: ["today", "tomorrow", "this_week", "next_week", "last_week"] },
+        barber: { type: "string" },
+        date: { type: "string", description: "YYYY-MM-DD" },
+      }, required: [] },
     },
     {
       name: "get_revenue",
-      description: "Calcule les revenus pour une période",
-      input_schema: {
-        type: "object" as const,
-        properties: {
-          period: { type: "string", enum: ["today", "this_week", "last_week", "this_month"] },
-        },
-        required: ["period"],
-      },
+      description: "Calcule les revenus",
+      input_schema: { type: "object" as const, properties: {
+        period: { type: "string", enum: ["today", "this_week", "last_week", "this_month"] },
+      }, required: ["period"] },
+    },
+    {
+      name: "get_client_history",
+      description: "Historique complet d'un client — visites, montants, prochain RDV",
+      input_schema: { type: "object" as const, properties: {
+        query: { type: "string", description: "Nom, téléphone ou email du client" },
+      }, required: ["query"] },
     },
     {
       name: "search_client",
-      description: "Cherche un client par nom — retourne ses RDV récents avec les IDs",
-      input_schema: {
-        type: "object" as const,
-        properties: { name: { type: "string" } },
-        required: ["name"],
-      },
+      description: "Recherche rapide par nom",
+      input_schema: { type: "object" as const, properties: { name: { type: "string" } }, required: ["name"] },
+    },
+    {
+      name: "create_booking",
+      description: "Crée un nouveau RDV directement depuis Telegram",
+      input_schema: { type: "object" as const, properties: {
+        client_name: { type: "string" },
+        client_phone: { type: "string" },
+        client_email: { type: "string" },
+        service: { type: "string", description: "Coupe / Coupe+Barbe / Barbe / Coupe Enfant / Coupe+Rasage" },
+        barber: { type: "string", enum: ["Melynda", "Diodis"] },
+        date: { type: "string", description: "YYYY-MM-DD" },
+        time: { type: "string", description: "HH:MM" },
+        price: { type: "number" },
+        note: { type: "string" },
+      }, required: ["client_name", "service", "barber", "date", "time"] },
     },
     {
       name: "cancel_booking",
-      description: "Annule un RDV par son ID (les 8 premiers chars de l'UUID suffisent)",
-      input_schema: {
-        type: "object" as const,
-        properties: { id: { type: "string", description: "ID du RDV (UUID complet ou 8 premiers chars)" } },
-        required: ["id"],
-      },
+      description: "Annule un RDV par ID",
+      input_schema: { type: "object" as const, properties: {
+        id: { type: "string", description: "UUID ou 8 premiers chars" },
+      }, required: ["id"] },
     },
     {
       name: "add_expense",
-      description: "Ajoute une dépense dans la comptabilité",
-      input_schema: {
-        type: "object" as const,
-        properties: {
-          description: { type: "string" },
-          amount: { type: "number" },
-          category: { type: "string", enum: ["Fournitures", "Équipement", "Loyer", "Marketing", "Employés", "Services", "Autre"] },
-          date: { type: "string", description: "YYYY-MM-DD, défaut aujourd'hui" },
-        },
-        required: ["description", "amount"],
-      },
+      description: "Ajoute une dépense",
+      input_schema: { type: "object" as const, properties: {
+        description: { type: "string" }, amount: { type: "number" },
+        category: { type: "string", enum: ["Fournitures", "Équipement", "Loyer", "Marketing", "Employés", "Services", "Autre"] },
+        date: { type: "string" },
+      }, required: ["description", "amount"] },
     },
     {
       name: "block_barber_day",
-      description: "Bloque une journée pour un barbier (empêche les réservations)",
-      input_schema: {
-        type: "object" as const,
-        properties: {
-          barber: { type: "string", description: "Melynda ou Diodis" },
-          date: { type: "string", description: "YYYY-MM-DD ou 'demain'" },
-          reason: { type: "string", description: "Raison optionnelle (vacances, maladie, etc.)" },
-        },
-        required: ["barber", "date"],
-      },
+      description: "Bloque une journée (empêche les réservations)",
+      input_schema: { type: "object" as const, properties: {
+        barber: { type: "string", enum: ["Melynda", "Diodis"] },
+        date: { type: "string", description: "YYYY-MM-DD" },
+        reason: { type: "string" },
+      }, required: ["barber", "date"] },
     },
     {
       name: "unblock_barber_day",
-      description: "Retire un blocage de journée pour un barbier",
-      input_schema: {
-        type: "object" as const,
-        properties: {
-          barber: { type: "string" },
-          date: { type: "string", description: "YYYY-MM-DD ou 'demain'" },
-        },
-        required: ["barber", "date"],
-      },
+      description: "Retire un blocage",
+      input_schema: { type: "object" as const, properties: {
+        barber: { type: "string" }, date: { type: "string" },
+      }, required: ["barber", "date"] },
     },
     {
       name: "get_blocks",
-      description: "Liste les journées bloquées à venir",
-      input_schema: {
-        type: "object" as const,
-        properties: { barber: { type: "string", description: "Filtrer par barbier (optionnel)" } },
-        required: [],
-      },
+      description: "Journées bloquées à venir",
+      input_schema: { type: "object" as const, properties: { barber: { type: "string" } }, required: [] },
     },
     {
       name: "get_pending_emails",
-      description: "Liste les emails en attente d'approbation Telegram",
+      description: "Emails en attente d'approbation",
       input_schema: { type: "object" as const, properties: {}, required: [] },
     },
     {
       name: "get_holidays",
-      description: "Liste les prochains jours fériés du Québec",
-      input_schema: {
-        type: "object" as const,
-        properties: { days: { type: "number", description: "Nombre de jours à regarder en avant (défaut: 30)" } },
-        required: [],
-      },
+      description: "Prochains jours fériés QC",
+      input_schema: { type: "object" as const, properties: { days: { type: "number" } }, required: [] },
     },
     {
       name: "set_reminder",
-      description: "Crée un rappel Telegram à une heure précise. Comprend le langage naturel via Claude (ex: 'à 15h', 'demain matin', 'dans 2h').",
-      input_schema: {
-        type: "object" as const,
-        properties: {
-          message: { type: "string", description: "Texte du rappel" },
-          remind_at: { type: "string", description: "Datetime ISO ou 'YYYY-MM-DD HH:MM'" },
-          chat_id: { type: "number", description: "Chat ID où envoyer le rappel" },
-        },
-        required: ["message", "remind_at", "chat_id"],
-      },
+      description: "Crée un rappel Telegram",
+      input_schema: { type: "object" as const, properties: {
+        message: { type: "string" },
+        remind_at: { type: "string", description: "YYYY-MM-DD HH:MM" },
+        chat_id: { type: "number" },
+      }, required: ["message", "remind_at", "chat_id"] },
+    },
+    {
+      name: "save_note",
+      description: "Sauvegarde une info importante sur Melynda, Luca ou le salon — survit entre sessions",
+      input_schema: { type: "object" as const, properties: {
+        key: { type: "string", description: "Nom court de la note ex: melynda_preference_alertes" },
+        content: { type: "string", description: "Contenu de la note" },
+      }, required: ["key", "content"] },
+    },
+    {
+      name: "get_notes",
+      description: "Affiche toutes les notes mémorisées",
+      input_schema: { type: "object" as const, properties: {}, required: [] },
     },
   ];
 
@@ -507,10 +596,10 @@ RÈGLES:
   try {
     let reply = "";
 
-    for (let turn = 0; turn < 5; turn++) {
+    for (let turn = 0; turn < 6; turn++) {
       const response = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 800,
+        model: "claude-sonnet-4-6", // Sonnet pour meilleure compréhension
+        max_tokens: 1024,
         system: systemPrompt,
         tools,
         messages,
@@ -534,7 +623,7 @@ RÈGLES:
       } else break;
     }
 
-    if (!reply) reply = "J'ai trouvé les infos mais j'arrive pas à formuler. Réessaie avec d'autres mots.";
+    if (!reply) reply = "Je t'entends mais j'arrive pas à formuler. Reformule et réessaie.";
     await saveHistory(chatId, "assistant", reply);
     await sendTelegramMessage(chatId, reply);
   } catch (e) {
