@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendGmailReply, archiveEmail } from "@/lib/gmail";
+import { getUpcomingHolidays, isHoliday } from "@/lib/holidays-qc";
 import Anthropic from "@anthropic-ai/sdk";
 
 const TELEGRAM_API = "https://api.telegram.org/bot";
@@ -74,14 +75,29 @@ async function saveHistory(chatId: number, role: "user" | "assistant", content: 
   } catch { /* silent */ }
 }
 
-// ── Date helpers ──────────────────────────────────────────────────────────────
+// ── Date helpers (toujours en heure de Québec — America/Toronto) ──────────────
+const TZ = "America/Toronto";
+
+function todayQC(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+}
+
+function tomorrowQC(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toLocaleDateString("en-CA", { timeZone: TZ });
+}
+
 function getWeekBounds(offsetWeeks = 0): { start: string; end: string; label: string } {
-  const today = new Date();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - today.getDay() + 1 + offsetWeeks * 7);
+  // Calcule lundi/dimanche en heure QC
+  const nowQC = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
+  const dow = nowQC.getDay(); // 0=dim
+  const daysToMonday = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(nowQC);
+  monday.setDate(nowQC.getDate() + daysToMonday + offsetWeeks * 7);
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  const fmt = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: TZ });
   const label = offsetWeeks === 0 ? "cette semaine"
     : offsetWeeks === 1 ? "la semaine prochaine"
     : offsetWeeks === -1 ? "la semaine passée"
@@ -90,10 +106,8 @@ function getWeekBounds(offsetWeeks = 0): { start: string; end: string; label: st
 }
 
 function parseDate(input: string): string {
-  // Handle "demain", "aujourd'hui", YYYY-MM-DD passthrough
-  const today = new Date();
-  if (input === "demain") { today.setDate(today.getDate() + 1); return today.toISOString().slice(0, 10); }
-  if (input === "aujourd'hui" || input === "today") return today.toISOString().slice(0, 10);
+  if (input === "demain") return tomorrowQC();
+  if (input === "aujourd'hui" || input === "today") return todayQC();
   return input; // assume YYYY-MM-DD
 }
 
@@ -105,17 +119,15 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
     const barber = input.barber as string | undefined;
     const dateInput = input.date as string | undefined;
     const period = (input.period as string | undefined) || "today";
-    const today = new Date().toISOString().slice(0, 10);
 
     let startDate: string, endDate: string, label: string;
 
     if (dateInput) {
       startDate = endDate = parseDate(dateInput); label = startDate;
     } else if (period === "today") {
-      startDate = endDate = today; label = "aujourd'hui";
+      startDate = endDate = todayQC(); label = "aujourd'hui";
     } else if (period === "tomorrow") {
-      const t = new Date(); t.setDate(t.getDate() + 1);
-      startDate = endDate = t.toISOString().slice(0, 10); label = "demain";
+      startDate = endDate = tomorrowQC(); label = "demain";
     } else if (period === "this_week") {
       const w = getWeekBounds(0); startDate = w.start; endDate = w.end; label = w.label;
     } else if (period === "next_week") {
@@ -123,7 +135,7 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
     } else if (period === "last_week") {
       const w = getWeekBounds(-1); startDate = w.start; endDate = w.end; label = w.label;
     } else {
-      startDate = endDate = today; label = "aujourd'hui";
+      startDate = endDate = todayQC(); label = "aujourd'hui";
     }
 
     let query = supabaseAdmin
@@ -163,10 +175,10 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
     else if (period === "this_week") { const w = getWeekBounds(0); startDate = w.start; endDate = w.end; label = w.label; }
     else if (period === "last_week") { const w = getWeekBounds(-1); startDate = w.start; endDate = w.end; label = w.label; }
     else if (period === "this_month") {
-      const d = new Date();
-      startDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`;
-      endDate = today; label = "ce mois";
-    } else { startDate = endDate = today; label = "aujourd'hui"; }
+      const qc = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
+      startDate = `${qc.getFullYear()}-${String(qc.getMonth()+1).padStart(2,"0")}-01`;
+      endDate = todayQC(); label = "ce mois";
+    } else { startDate = endDate = todayQC(); label = "aujourd'hui"; }
 
     const { data } = await supabaseAdmin
       .from("bookings").select("price, barber, status")
@@ -289,6 +301,43 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
     return data.map(b => `${b.barber} — ${b.date}${b.reason ? ` (${b.reason})` : ""}`).join("\n");
   }
 
+  // ── get_holidays ─────────────────────────────────────────────────────────────
+  if (name === "get_holidays") {
+    const days = (input.days as number) || 30;
+    const upcoming = getUpcomingHolidays(days);
+    if (!upcoming.length) return `Aucun jour férié dans les ${days} prochains jours.`;
+    return `Jours fériés QC (${days} prochains jours) :\n\n` +
+      upcoming.map(h => `${h.emoji} ${h.date} — ${h.name}`).join("\n");
+  }
+
+  // ── set_reminder ─────────────────────────────────────────────────────────────
+  if (name === "set_reminder") {
+    const message = input.message as string;
+    const remindAt = input.remind_at as string; // ISO datetime ou "YYYY-MM-DD HH:MM"
+    const chatIdReminder = input.chat_id as number;
+
+    // Normalise en ISO
+    let dt: string;
+    if (remindAt.includes("T")) {
+      dt = remindAt;
+    } else if (remindAt.includes(" ")) {
+      dt = remindAt.replace(" ", "T") + ":00";
+    } else {
+      dt = remindAt + "T00:00:00";
+    }
+
+    const { error } = await supabaseAdmin.from("reminders").insert({
+      chat_id: chatIdReminder,
+      message,
+      remind_at: dt,
+      done: false,
+    });
+    if (error) return `Erreur : ${error.message}`;
+
+    const label = new Date(dt).toLocaleString("fr-CA", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    return `⏰ Reminder créé : "${message}" → ${label}`;
+  }
+
   return "Outil inconnu.";
 }
 
@@ -318,12 +367,16 @@ OUTILS DISPONIBLES:
 • unblock_barber_day — retire un blocage (barber, date)
 • get_blocks — journées bloquées à venir (barber optionnel)
 • get_pending_emails — emails en attente d'approbation
+• get_holidays — prochains jours fériés QC (days optionnel, défaut 30)
+• set_reminder — crée un rappel (message, remind_at "YYYY-MM-DD HH:MM", chat_id=${chatId})
 
 RÈGLES:
 - Utilise TOUJOURS les outils pour les données — ne devine jamais les chiffres
 - Pour annuler un RDV, utilise d'abord search_client ou get_bookings pour trouver l'ID
 - Pour bloquer un jour, confirme toujours avec le nom exact du barbier (Melynda ou Diodis)
-- Les catégories de dépenses valides: Fournitures, Équipement, Loyer, Marketing, Employés, Services, Autre`;
+- Les catégories de dépenses valides: Fournitures, Équipement, Loyer, Marketing, Employés, Services, Autre
+- Pour set_reminder: convertis "dans 2h" / "à 15h" / "demain matin" en datetime exact YYYY-MM-DD HH:MM
+- Si l'heure d'un reminder est ambiguë, demande avant de créer`;
 
   const tools: Anthropic.Tool[] = [
     {
@@ -421,6 +474,28 @@ RÈGLES:
       description: "Liste les emails en attente d'approbation Telegram",
       input_schema: { type: "object" as const, properties: {}, required: [] },
     },
+    {
+      name: "get_holidays",
+      description: "Liste les prochains jours fériés du Québec",
+      input_schema: {
+        type: "object" as const,
+        properties: { days: { type: "number", description: "Nombre de jours à regarder en avant (défaut: 30)" } },
+        required: [],
+      },
+    },
+    {
+      name: "set_reminder",
+      description: "Crée un rappel Telegram à une heure précise. Comprend le langage naturel via Claude (ex: 'à 15h', 'demain matin', 'dans 2h').",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          message: { type: "string", description: "Texte du rappel" },
+          remind_at: { type: "string", description: "Datetime ISO ou 'YYYY-MM-DD HH:MM'" },
+          chat_id: { type: "number", description: "Chat ID où envoyer le rappel" },
+        },
+        required: ["message", "remind_at", "chat_id"],
+      },
+    },
   ];
 
   const messages: Anthropic.MessageParam[] = [
@@ -467,17 +542,135 @@ RÈGLES:
   }
 }
 
+// ── Photo receipt handler ─────────────────────────────────────────────────────
+async function handlePhotoReceipt(chatId: number, fileId: string, caption?: string): Promise<void> {
+  await sendTelegramMessage(chatId, "📸 Photo reçue — j'analyse le reçu...");
+
+  try {
+    // 1. Get file path from Telegram
+    const fileRes = await fetch(`${TELEGRAM_API}${getToken()}/getFile?file_id=${fileId}`);
+    const fileData = await fileRes.json() as { ok: boolean; result: { file_path: string } };
+    if (!fileData.ok) { await sendTelegramMessage(chatId, "❌ Impossible de télécharger la photo."); return; }
+
+    // 2. Download image bytes
+    const imgUrl = `https://api.telegram.org/file/bot${getToken()}/${fileData.result.file_path}`;
+    const imgRes = await fetch(imgUrl);
+    const imgBuffer = await imgRes.arrayBuffer();
+    const base64 = Buffer.from(imgBuffer).toString("base64");
+    const mimeType = fileData.result.file_path.endsWith(".png") ? "image/png" : "image/jpeg";
+
+    // 3. Claude Vision — extract expense data
+    const visionRes = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 400,
+      messages: [{
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: { type: "base64", media_type: mimeType, data: base64 },
+          },
+          {
+            type: "text",
+            text: `Tu es l'assistant comptable de Ciseau Noir Barbershop. Analyse ce reçu et extrais les informations.
+${caption ? `Note de l'utilisateur: "${caption}"` : ""}
+
+Réponds UNIQUEMENT avec ce JSON (rien d'autre):
+{
+  "description": "description courte de l'achat",
+  "amount": 0.00,
+  "category": "Fournitures|Équipement|Loyer|Marketing|Employés|Services|Autre",
+  "date": "YYYY-MM-DD",
+  "store": "nom du magasin",
+  "confidence": "high|medium|low"
+}
+
+Si tu ne vois pas de montant clairement, mets confidence: "low".
+Date d'aujourd'hui si pas visible sur le reçu: ${new Date().toISOString().slice(0,10)}`,
+          },
+        ],
+      }],
+    });
+
+    const rawText = visionRes.content[0].type === "text" ? visionRes.content[0].text.trim() : "";
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) { await sendTelegramMessage(chatId, "❌ Pas de reçu reconnu dans cette photo."); return; }
+
+    const expense = JSON.parse(jsonMatch[0]) as {
+      description: string; amount: number; category: string;
+      date: string; store?: string; confidence: string;
+    };
+
+    if (expense.confidence === "low" || !expense.amount) {
+      await sendTelegramMessage(chatId,
+        `⚠️ Je vois un reçu mais le montant est flou.\n\nDis-moi : "Ajoute dépense: [description] [montant]$"`
+      );
+      return;
+    }
+
+    // 4. Save expense
+    const validCategories = ["Fournitures", "Équipement", "Loyer", "Marketing", "Employés", "Services", "Autre"];
+    const finalCategory = validCategories.includes(expense.category) ? expense.category : "Autre";
+
+    await supabaseAdmin.from("expenses").insert({
+      description: expense.description,
+      amount: expense.amount,
+      category: finalCategory,
+      date: expense.date,
+    });
+
+    const storeNote = expense.store ? ` — ${expense.store}` : "";
+    await sendTelegramMessage(chatId,
+      `✅ <b>Dépense ajoutée</b>${storeNote}\n\n` +
+      `📋 ${expense.description}\n` +
+      `💰 ${expense.amount}$\n` +
+      `📁 ${finalCategory}\n` +
+      `📅 ${expense.date}\n\n` +
+      `<i>Si c'est pas exact, dis "Corrige la dernière dépense: [correction]"</i>`
+    );
+  } catch (e) {
+    console.error("Photo receipt error:", e);
+    await sendTelegramMessage(chatId, "❌ Erreur lors de l'analyse. Essaie une photo plus nette ou ajoute la dépense manuellement.");
+  }
+}
+
+// ── Reminder callback handler ─────────────────────────────────────────────────
+async function handleReminderCallback(callbackId: string, data: string, chatId: number, messageId: number): Promise<void> {
+  await answerCallback(callbackId);
+
+  const [action, reminderId] = data.split("_REMIND_");
+
+  if (action === "done") {
+    await supabaseAdmin.from("reminders").update({ done: true }).eq("id", reminderId);
+    await editMessage(chatId, messageId, "✅ Fait !");
+  } else if (action === "snooze30") {
+    const snoozeUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    await supabaseAdmin.from("reminders").update({ snoozed_until: snoozeUntil }).eq("id", reminderId);
+    await editMessage(chatId, messageId, "⏰ Rappel dans 30 minutes.");
+  } else if (action === "cancel") {
+    await supabaseAdmin.from("reminders").update({ done: true }).eq("id", reminderId);
+    await editMessage(chatId, messageId, "❌ Rappel annulé.");
+  }
+}
+
 // ── Main webhook handler ──────────────────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const update = await req.json();
 
-    // ── Approval buttons ───────────────────────────────────────────────────────
+    // ── Callback buttons (approval + reminders) ───────────────────────────────
     if (update.callback_query) {
       const { id, data, message } = update.callback_query as {
         id: string; data?: string;
         message: { chat: { id: number }; message_id: number };
       };
+
+      // Reminder buttons
+      if (data && data.includes("_REMIND_")) {
+        await handleReminderCallback(id, data, message.chat.id, message.message_id);
+        return NextResponse.json({ ok: true });
+      }
+
       await answerCallback(id);
 
       if (!data || (!data.startsWith("approve_") && !data.startsWith("refuse_"))) {
@@ -559,6 +752,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
       await handleConversation(chatId, text);
     }
+
+    // ── Photo messages (receipt scanning) ────────────────────────────────────
+    if (update.message?.photo) {
+      const chatId = update.message.chat.id as number;
+
+      // In groups: only respond if bot is mentioned in caption
+      const isGroup = update.message.chat.type === "group" || update.message.chat.type === "supergroup";
+      const caption = (update.message.caption as string | undefined) || "";
+      const botUsername = process.env.TELEGRAM_BOT_USERNAME || "CiseauNoirOps_bot";
+      if (isGroup && !caption.includes(`@${botUsername}`)) {
+        return NextResponse.json({ ok: true });
+      }
+
+      // Take the largest photo version (last in array)
+      const photos = update.message.photo as { file_id: string; width: number }[];
+      const bestPhoto = photos[photos.length - 1];
+      await handlePhotoReceipt(chatId, bestPhoto.file_id, caption);
+    }
+
   } catch (e) {
     console.error("Telegram webhook error:", e);
   }
