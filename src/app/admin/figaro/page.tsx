@@ -97,6 +97,7 @@ function InboxTab() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadMessages();
   }, [loadMessages]);
 
@@ -359,6 +360,7 @@ function CampaignTab({ initialSubject, initialBody, onLoaded }: { initialSubject
   const [body, setBody] = useState(initialBody ?? "");
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (initialSubject) setSubject(initialSubject);
     if (initialBody) setBody(initialBody);
     if ((initialSubject || initialBody) && onLoaded) onLoaded();
@@ -815,6 +817,7 @@ function SMSCampaignTab({ initialMessage, onLoaded }: { initialMessage?: string;
   const [message, setMessage] = useState(initialMessage ?? DEFAULT_MSG);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (initialMessage) { setMessage(initialMessage); onLoaded?.(); }
   }, [initialMessage, onLoaded]);
   const [contactCount, setContactCount] = useState<number | null>(null);

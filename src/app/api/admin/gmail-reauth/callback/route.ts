@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
+export const dynamic = 'force-dynamic';
+
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
 const REDIRECT_URI = `${(process.env.NEXT_PUBLIC_SITE_URL || "").trim()}/api/admin/gmail-reauth/callback`;

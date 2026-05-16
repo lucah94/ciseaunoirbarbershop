@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { sendGmailReply, archiveEmail } from "@/lib/gmail";
 import { getUpcomingHolidays, isHoliday } from "@/lib/holidays-qc";
 import Anthropic from "@anthropic-ai/sdk";
+export const dynamic = 'force-dynamic';
 
 const TELEGRAM_API = "https://api.telegram.org/bot";
 
@@ -15,7 +16,7 @@ const anthropic = useOpenRouter
       baseURL: "https://openrouter.ai/api/v1",
       defaultHeaders: { "HTTP-Referer": "https://ciseaunoirbarbershop.com", "X-Title": "Ciseau Noir Figaro" },
     })
-  : new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+  : new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? 'placeholder-anthropic-key' });
 
 // Modèles selon le provider
 const MODEL_FAST = useOpenRouter

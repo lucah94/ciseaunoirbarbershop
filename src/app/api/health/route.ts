@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+export const dynamic = 'force-dynamic';
 
 type ServiceStatus = "ok" | "error" | "slow";
 type Check = { status: ServiceStatus; latency: number; message?: string };

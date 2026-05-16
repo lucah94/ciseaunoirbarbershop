@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import twilio from "twilio";
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {

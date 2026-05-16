@@ -3,8 +3,9 @@ import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { Resend } from "resend";
 import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
+export const dynamic = 'force-dynamic';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY ?? 'placeholder-resend-key');
 const FROM_EMAIL = process.env.FROM_EMAIL || "Ciseau Noir <noreply@ciseaunoirbarbershop.com>";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "ciseaunoirbarbershop@gmail.com";
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { sendNoShowAdminNotification } from "@/lib/email";
 import { sendNoShowSMS } from "@/lib/sms";
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {

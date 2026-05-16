@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendReviewRequestEmail } from "@/lib/email";
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   const { client_name, client_email, barber, service } = await req.json();

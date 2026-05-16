@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+export const dynamic = 'force-dynamic';
 
 function toICalDate(date: string, time: string): string {
   return date.replace(/-/g, "") + "T" + time.replace(":", "") + "00";

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+export const dynamic = 'force-dynamic';
 
 const TOKEN = process.env.FACEBOOK_ACCESS_TOKEN!;
 

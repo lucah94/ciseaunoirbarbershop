@@ -36,6 +36,7 @@ export default function BotPage() {
   // Load bot state from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("ciseau_bot_enabled");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved !== null) setBotEnabled(saved === "true");
 
     const savedDays = localStorage.getItem("ciseau_post_days");

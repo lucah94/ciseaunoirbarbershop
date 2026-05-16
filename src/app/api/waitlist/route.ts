@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import twilio from "twilio";
 import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
+export const dynamic = 'force-dynamic';
 
 const waitlistSchema = z.object({
   client_name: z.string().min(1, "Le nom est requis").max(100),

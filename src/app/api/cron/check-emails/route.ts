@@ -4,10 +4,11 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { fetchUnreadEmails, markAsRead, sendGmailReply, archiveEmail, deleteEmail } from "@/lib/gmail";
 import { sendSMS } from "@/lib/sms";
 import { notifyEscalation, notifyBookingCancelled, sendEmailApprovalRequest } from "@/lib/telegram";
+export const dynamic = 'force-dynamic';
 
 export const maxDuration = 120;
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? 'placeholder-anthropic-key' });
 
 const ESCALATION_KEYWORDS = ["plainte", "problème", "remboursement", "pas content", "mécontent", "terrible", "horrible", "arnaque", "insatisfait", "volé", "scandale"];
 

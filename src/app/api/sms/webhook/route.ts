@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import twilio from "twilio";
+export const dynamic = 'force-dynamic';
 
 const BOOKING_URL = process.env.NEXT_PUBLIC_SITE_URL + "/booking";
 

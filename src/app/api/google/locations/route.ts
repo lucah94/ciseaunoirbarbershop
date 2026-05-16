@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+export const dynamic = 'force-dynamic';
 
 function html(body: string) {
   return new NextResponse(`

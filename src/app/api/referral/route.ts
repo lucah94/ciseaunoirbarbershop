@@ -3,6 +3,7 @@ import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { sendReferralEmail } from "@/lib/email";
 import { rateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
+export const dynamic = 'force-dynamic';
 
 function generateReferralCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

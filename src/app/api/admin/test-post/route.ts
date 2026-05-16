@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+export const dynamic = 'force-dynamic';
 
 // Server-side proxy so the browser never sees CRON_SECRET
 // Protected by admin_auth cookie (same mechanism as middleware)

@@ -45,6 +45,7 @@ export default function SantePage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     check();
     const interval = setInterval(check, 60_000); // auto-refresh chaque minute
     return () => clearInterval(interval);

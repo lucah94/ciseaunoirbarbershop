@@ -7,6 +7,7 @@ import twilio from "twilio";
 import { Resend } from "resend";
 import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
+export const dynamic = 'force-dynamic';
 
 const bookingSchema = z.object({
   client_name: z.string().min(1, "Le nom est requis").max(100),
@@ -278,7 +279,7 @@ export async function PATCH(req: NextRequest) {
           }
 
           if (waitlistEntry.client_email) {
-            const resend = new Resend(process.env.RESEND_API_KEY);
+            const resend = new Resend(process.env.RESEND_API_KEY ?? 'placeholder-resend-key');
             const FROM_EMAIL = process.env.FROM_EMAIL || "Ciseau Noir <noreply@ciseaunoirbarbershop.com>";
             await resend.emails.send({
               from: FROM_EMAIL,

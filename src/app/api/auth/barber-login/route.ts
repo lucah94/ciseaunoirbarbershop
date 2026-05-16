@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
 import { generateToken } from "@/lib/auth";
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { limit: 5, windowMs: 60_000 });

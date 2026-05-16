@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
 
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID!;
 const TOKEN = process.env.FACEBOOK_ACCESS_TOKEN!;

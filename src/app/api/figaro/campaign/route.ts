@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/auth";
+export const dynamic = 'force-dynamic';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY ?? 'placeholder-resend-key');
 const FROM_EMAIL = process.env.FROM_EMAIL || "Ciseau Noir <noreply@ciseaunoirbarbershop.com>";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";

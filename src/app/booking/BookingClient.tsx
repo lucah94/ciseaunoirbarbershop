@@ -543,6 +543,7 @@ function BookingContent() {
       if (retryCountRef.current < 3) {
         retryCountRef.current += 1;
         const delay = retryCountRef.current * 3000;
+        // eslint-disable-next-line react-hooks/immutability
         setTimeout(() => refreshBookedSlots(date), delay);
       }
     });

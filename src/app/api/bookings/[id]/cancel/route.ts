@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+export const dynamic = 'force-dynamic';
 
 function htmlPage(title: string, emoji: string, body: string, gold = false) {
   return new NextResponse(

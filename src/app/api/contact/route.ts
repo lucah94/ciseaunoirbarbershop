@@ -7,6 +7,7 @@ import { escapeHtml } from "@/lib/sanitize";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendSMS } from "@/lib/sms";
 import { notifyEscalation, notifyNewContactMessage } from "@/lib/telegram";
+export const dynamic = 'force-dynamic';
 
 const contactSchema = z.object({
   name: z.string().min(1, "Le nom est requis").max(100),
@@ -14,8 +15,8 @@ const contactSchema = z.object({
   message: z.string().min(1, "Le message est requis").max(2000),
 });
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+const resend = new Resend(process.env.RESEND_API_KEY ?? 'placeholder-resend-key');
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? 'placeholder-anthropic-key' });
 
 const FROM_EMAIL = process.env.FROM_EMAIL || "Ciseau Noir <onboarding@resend.dev>";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "ciseaunoirbarbershop@gmail.com";

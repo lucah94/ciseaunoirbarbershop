@@ -3,12 +3,13 @@ import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import twilio from "twilio";
 import crypto from "crypto";
+export const dynamic = 'force-dynamic';
 
 const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN!;
 const PAGE_ACCESS_TOKEN = process.env.FACEBOOK_ACCESS_TOKEN!;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY!;
 
-const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY ?? 'placeholder-anthropic-key' });
 
 function getSystemPrompt() {
   const now = new Date();

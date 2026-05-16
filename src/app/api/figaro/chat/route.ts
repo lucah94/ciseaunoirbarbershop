@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAdmin } from "@/lib/auth";
+export const dynamic = 'force-dynamic';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? 'placeholder-anthropic-key' });
 
 const SYSTEM = `Tu es Figaro ✂️, l'assistant IA intelligent de Ciseau Noir Barbershop à Québec. Tu parles à Melynda, la propriétaire.
 

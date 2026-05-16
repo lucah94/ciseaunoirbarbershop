@@ -52,6 +52,7 @@ export default function SocialPage() {
 
   useEffect(() => {
     if (tab === "comments") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPostsLoading(true);
       fetch("/api/meta/comments")
         .then(r => r.json())

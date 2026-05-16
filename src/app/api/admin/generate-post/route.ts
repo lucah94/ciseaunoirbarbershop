@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAdmin } from "@/lib/auth";
+export const dynamic = 'force-dynamic';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? 'placeholder-anthropic-key' });
 
 const CONTENT_PROMPTS: Record<string, string> = {
   promotion: `Génère une publication Facebook promotionnelle pour Ciseau Noir Barbershop à Québec. Mentionne une offre spéciale, un service ou incite à réserver en ligne sur ciseaunoirbarbershop.com. Utilise des emojis appropriés. 2-4 phrases max. En français.`,

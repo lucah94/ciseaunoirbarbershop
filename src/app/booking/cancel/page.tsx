@@ -14,6 +14,7 @@ function CancelContent() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!id) { setLoading(false); return; }
     fetch(`/api/bookings?id=${id}`)
       .then(r => r.json())

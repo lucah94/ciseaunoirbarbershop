@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { postToGoogleMyBusiness } from "@/lib/google";
 import { requireAdmin } from "@/lib/auth";
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   const denied = requireAdmin(req);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { sendSMS, formatPhone } from "@/lib/sms";
 import { requireAdmin } from "@/lib/auth";
+export const dynamic = 'force-dynamic';
 
 export const maxDuration = 300;
 

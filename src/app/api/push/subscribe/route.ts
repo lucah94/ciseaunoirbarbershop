@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { z } from "zod";
+export const dynamic = 'force-dynamic';
 
 const subscriptionSchema = z.object({
   subscription: z.object({

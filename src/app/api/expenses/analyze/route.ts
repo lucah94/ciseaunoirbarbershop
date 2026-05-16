@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "@/lib/supabase";
+export const dynamic = 'force-dynamic';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? 'placeholder-anthropic-key' });
 
 const CATEGORIES = ["Loyer", "Produits", "Équipement", "Marketing", "Téléphone", "Assurances", "Salaires", "Employés", "Autre"];
 

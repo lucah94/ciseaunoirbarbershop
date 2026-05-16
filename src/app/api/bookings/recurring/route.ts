@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/auth";
+export const dynamic = 'force-dynamic';
 
 function addWeeks(dateStr: string, weeks: number): string {
   const d = new Date(dateStr + "T12:00:00");
