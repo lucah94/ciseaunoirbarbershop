@@ -397,6 +397,24 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
     return data.map(n => `📝 <b>${n.key}</b>\n${n.content}`).join("\n\n");
   }
 
+  // ── reschedule_booking ───────────────────────────────────────────────────────
+  if (name === "reschedule_booking") {
+    const id = input.id as string;
+    const newDate = input.new_date as string;
+    const newTime = input.new_time as string;
+
+    const { data: current } = await supabaseAdmin
+      .from("bookings").select("client_name, service, barber, date, time").eq("id", id).single();
+    if (!current) return `Impossible de trouver le RDV [${id}].`;
+
+    const { error } = await supabaseAdmin
+      .from("bookings").update({ date: newDate, time: newTime }).eq("id", id);
+    if (error) return `Erreur : ${error.message}`;
+
+    return `✅ RDV déplacé !\n${current.client_name} — ${current.service} avec ${current.barber}\n` +
+      `Ancien: ${current.date} à ${current.time}\nNouveau: ${newDate} à ${newTime}`;
+  }
+
   // ── get_holidays ─────────────────────────────────────────────────────────────
   if (name === "get_holidays") {
     const days = (input.days as number) || 30;
@@ -456,44 +474,46 @@ async function handleConversation(chatId: number, userMessage: string): Promise<
   const notes = notesData.data?.map(n => `• ${n.key}: ${n.content}`).join("\n") || "Aucune note";
   const rdvCount = rdvAujourdhui.count || 0;
 
-  const systemPrompt = `Tu es Figaro ✂️ — le bras droit de Melynda et Luca pour Ciseau Noir Barbershop à Québec.
-
-T'as pas l'air d'un bot. T'as l'air de quelqu'un qui est là depuis le premier jour. Tu connais le salon, tu connais les clients, tu connais leurs manies. Melynda et Luca te font confiance pour gérer les affaires sans avoir à tout expliquer.
+  const systemPrompt = `Tu es Figaro ✂️ — l'assistante de Melynda et Luca, Ciseau Noir Barbershop, 375 Boul. des Chutes, Québec.
 
 TON STYLE:
-— Québécois naturel. Pas formel. Pas robotique.
-— Court et direct. Max 4-5 lignes. Si y'a une liste, t'as le droit d'être plus long.
-— T'as une opinion. Si quelque chose cloche, tu le dis. Si c'est une bonne journée, tu le soulèves.
-— Proactif. T'attends pas qu'on te demande — si tu vois un pattern, un problème, une opportunité, tu le mentionnes.
-— Quand Melynda ou Luca te confie quelque chose d'important (préférence, habitude, contexte) → tu sauvegardes automatiquement avec save_note. Sans leur demander.
+— Québécois naturel. Court et direct. Max 4-5 lignes sauf si liste nécessaire.
+— Pas de "Bien sûr!" ou "Absolument!". Réponds et agis.
+— T'as une opinion. Si quelque chose cloche, tu le dis.
+— Quand on te donne une info utile → save_note automatiquement, sans demander.
 
-AUJOURD'HUI: ${todayLabel} (${todayQCStr})
-RDV aujourd'hui: ${rdvCount}
+AUJOURD'HUI: ${todayLabel}
+RDV aujourd'hui: ${rdvCount} confirmés
 
 LE SALON:
-— Coupe 35$ | Coupe+Barbe 50$ | Barbe 20$ | Coupe Enfant/Étudiant 25$ | Coupe+Rasage Lame 50$
-— Melynda: Mar/Mer/Sam 8h30-16h30, Jeu/Ven 8h30-20h30
-— Diodis: Ven 15h-20h30, Sam 9h-16h30 seulement
-— Fermé dim + lun
-— (418) 665-5703 | ciseaunoirbarbershop.com
+— Services: Coupe 35$ | Coupe+Barbe 50$ | Barbe 20$ | Coupe Enfant/Étudiant 25$ | Coupe+Rasage Lame 50$
+— Melynda: Mar/Mer/Sam 8h30-16h30 | Jeu/Ven 8h30-20h30
+— Diodis: Ven 15h-20h30 | Sam 9h-16h30 seulement
+— Fermé dimanche + lundi
+— Tel: (418) 665-5703
 
-CE QUE TU SAIS SUR EUX (mémoire persistante):
+MÉMOIRE PERSISTANTE:
 ${notes}
 
-TES OUTILS — utilise-les, jamais de chiffres inventés:
-get_bookings | get_revenue | get_client_history | search_client
-create_booking | cancel_booking | add_expense
-block_barber_day | unblock_barber_day | get_blocks
-get_pending_emails | get_holidays
-set_reminder (remind_at: "YYYY-MM-DD HH:MM", chat_id: ${chatId})
-save_note | get_notes
+OUTILS DISPONIBLES (utilise-les — jamais de chiffres inventés):
+• get_bookings — agenda par période/barbier
+• get_revenue — revenus par période
+• search_client / get_client_history — chercher un client
+• create_booking — créer un RDV (demande ce qui manque d'abord)
+• reschedule_booking — déplacer un RDV à une nouvelle date/heure
+• cancel_booking — annuler un RDV (cherche d'abord avec search_client)
+• add_expense — ajouter une dépense (catégories: Fournitures, Équipement, Loyer, Marketing, Employés, Services, Autre)
+• block_barber_day / unblock_barber_day / get_blocks — gérer les disponibilités
+• get_pending_emails — emails en attente d'approbation
+• get_holidays — jours fériés QC
+• set_reminder — créer un rappel (remind_at: "YYYY-MM-DD HH:MM", chat_id: ${chatId})
+• save_note / get_notes — mémoire persistante
 
-RÈGLES CLÉS:
-→ save_note automatiquement quand tu apprends quelque chose d'utile sur Melynda/Luca/salon
-→ Pour créer un RDV: demande ce qui manque, crée quand t'as tout
-→ Pour annuler: cherche d'abord avec search_client ou get_bookings
-→ Reminders: "dans 2h" / "à 15h" / "demain matin" → convertis en datetime exact
-→ Catégories dépenses: Fournitures, Équipement, Loyer, Marketing, Employés, Services, Autre`;
+RÈGLES:
+→ Pour créer un RDV: besoin de nom+service+barbier+date+heure. Demande ce qui manque.
+→ Pour annuler/déplacer: cherche d'abord avec search_client puis confirme avec l'humain.
+→ Reminders: convertis "dans 2h", "à 15h", "demain matin" en datetime exact (QC timezone).
+→ Toujours vérifier avec get_bookings avant de créer — évite les doublons.`;
 
   const tools: Anthropic.Tool[] = [
     {
@@ -545,6 +565,15 @@ RÈGLES CLÉS:
       input_schema: { type: "object" as const, properties: {
         id: { type: "string", description: "UUID ou 8 premiers chars" },
       }, required: ["id"] },
+    },
+    {
+      name: "reschedule_booking",
+      description: "Déplace un RDV à une nouvelle date/heure",
+      input_schema: { type: "object" as const, properties: {
+        id: { type: "string", description: "UUID du RDV" },
+        new_date: { type: "string", description: "YYYY-MM-DD" },
+        new_time: { type: "string", description: "HH:MM" },
+      }, required: ["id", "new_date", "new_time"] },
     },
     {
       name: "add_expense",
@@ -821,78 +850,68 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // ── Text messages ──────────────────────────────────────────────────────────
     if (update.message?.text) {
+      // Ignore messages from other bots (avoid loops)
+      if (update.message.from?.is_bot) return NextResponse.json({ ok: true });
+
       const chatId = update.message.chat.id as number;
       const rawText = (update.message.text as string).trim();
       const text = stripBotMention(rawText);
 
       if (text === "/start" || text === "/aide" || text === "/help") {
         await sendTelegramMessage(chatId,
-          `✂️ <b>Figaro — Ciseau Noir</b>\n\n` +
-          `Parle-moi normalement, comme à quelqu'un qui connaît le salon :\n\n` +
-          `📅 "RDV de demain"\n` +
-          `📅 "Montre-moi l'agenda de Diodis cette semaine"\n` +
-          `💰 "On a fait combien ce mois?"\n` +
-          `👤 "C'est qui Tremblay, son historique?"\n` +
-          `📝 "Book Tremblay samedi 10h Melynda coupe"\n` +
-          `❌ "Annule le RDV de Tremblay"\n` +
-          `💸 "Ajoute dépense: Wahl 89$"\n` +
-          `🔒 "Bloque Diodis vendredi 16 mai — vacances"\n` +
-          `⏰ "Rappelle-moi à 15h d'appeler le fournisseur"\n` +
-          `📸 Envoie une photo de reçu → dépense créée auto\n\n` +
-          `/melynda — je te pose quelques questions pour mieux te connaître\n` +
-          `/oublier — efface la mémoire de la conv`
-        );
-        return NextResponse.json({ ok: true });
-      }
-
-      if (text === "/melynda") {
-        const questions = [
-          "À quelle heure tu veux que je t'envoie les alertes importantes? (matin, midi, soir?)",
-          "Tu préfères que je sois plus court ou que j'explique plus en détail?",
-          "Y'a des types de messages que tu veux jamais recevoir la nuit?",
-          "C'est quoi tes journées les plus rushées en ce moment?",
-          "Y'a quelque chose que tu veux absolument que je sache sur comment tu aimes que ça se passe?",
-        ];
-        await sendTelegramMessage(chatId,
-          `✂️ <b>Apprendre à te connaître</b>\n\n` +
-          `Je vais te poser quelques questions pour mieux te servir. Réponds comme tu veux — je retiens tout.\n\n` +
-          `<b>Question 1 :</b> ${questions[0]}\n\n` +
-          `<i>Réponds normalement, je vais noter tes préférences automatiquement.</i>`
+          `✂️ <b>Figaro — ton assistant Ciseau Noir</b>\n\n` +
+          `Parle-moi comme à quelqu'un qui connaît le salon :\n\n` +
+          `<b>📅 Agenda</b>\n` +
+          `• "RDV de demain"\n` +
+          `• "Agenda Melynda cette semaine"\n` +
+          `• "Book Marie samedi 10h Melynda coupe"\n` +
+          `• "Déplace le RDV de Tremblay à lundi 14h"\n` +
+          `• "Annule le RDV de Jean"\n\n` +
+          `<b>💰 Finance</b>\n` +
+          `• "On a fait combien cette semaine?"\n` +
+          `• "Ajoute dépense: Wahl 89$"\n` +
+          `• 📸 Photo de reçu → dépense créée automatiquement\n\n` +
+          `<b>👤 Clients</b>\n` +
+          `• "Historique de Tremblay"\n` +
+          `• "C'est qui Marie Lavoie?"\n\n` +
+          `<b>🔒 Disponibilités</b>\n` +
+          `• "Bloque Diodis vendredi 23 mai — vacances"\n` +
+          `• "Journées bloquées à venir?"\n\n` +
+          `<b>⏰ Rappels</b>\n` +
+          `• "Rappelle-moi à 15h d'appeler le fournisseur"\n\n` +
+          `/oublier — efface l'historique de conversation`
         );
         return NextResponse.json({ ok: true });
       }
 
       if (text === "/oublier" || text === "/reset") {
         await supabaseAdmin.from("telegram_conversations").delete().eq("chat_id", chatId);
-        await sendTelegramMessage(chatId, "✅ Mémoire effacée. On repart à zéro !");
+        await sendTelegramMessage(chatId, "✅ Historique effacé. On repart à zéro !");
         return NextResponse.json({ ok: true });
       }
 
-      // In groups: only respond if the bot is mentioned OR message is a command
-      const isGroup = update.message.chat.type === "group" || update.message.chat.type === "supergroup";
-      const botUsername = process.env.TELEGRAM_BOT_USERNAME || "CiseauNoirOps_bot";
-      const isMentioned = rawText.includes(`@${botUsername}`);
-      const isCommand = rawText.startsWith("/");
-
-      if (isGroup && !isMentioned && !isCommand) {
-        // Silent — not mentioned in group
+      if (text === "/rdv" || text === "/aujourd'hui") {
+        await handleConversation(chatId, "RDV d'aujourd'hui");
         return NextResponse.json({ ok: true });
       }
 
+      if (text === "/stats") {
+        await handleConversation(chatId, "Donne-moi les stats de la semaine : RDV, revenus, et compare avec la semaine passée");
+        return NextResponse.json({ ok: true });
+      }
+
+      // Groupe admin privé — répondre à tout le monde (pas besoin de mention @bot)
+      // On ignore seulement les messages des autres bots (traité plus haut)
       await handleConversation(chatId, text);
     }
 
     // ── Photo messages (receipt scanning) ────────────────────────────────────
     if (update.message?.photo) {
-      const chatId = update.message.chat.id as number;
+      // Ignore messages from other bots
+      if (update.message.from?.is_bot) return NextResponse.json({ ok: true });
 
-      // In groups: only respond if bot is mentioned in caption
-      const isGroup = update.message.chat.type === "group" || update.message.chat.type === "supergroup";
+      const chatId = update.message.chat.id as number;
       const caption = (update.message.caption as string | undefined) || "";
-      const botUsername = process.env.TELEGRAM_BOT_USERNAME || "CiseauNoirOps_bot";
-      if (isGroup && !caption.includes(`@${botUsername}`)) {
-        return NextResponse.json({ ok: true });
-      }
 
       // Take the largest photo version (last in array)
       const photos = update.message.photo as { file_id: string; width: number }[];
