@@ -6,10 +6,10 @@ import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Notre Équipe",
-  description: "Melynda et Diodis, barbières expertes à Québec. 18+ ans d'expérience. Réservez en ligne avec votre barbière préférée.",
+  description: "Melynda, barbière experte à Québec. 18+ ans d'expérience. Réservez en ligne.",
   openGraph: {
     title: "Notre Équipe — Ciseau Noir Barbershop",
-    description: "Melynda et Diodis, barbières expertes à Québec. Réservez en ligne.",
+    description: "Melynda, barbière experte à Québec. Réservez en ligne.",
     url: "https://ciseaunoir.ca/team",
   },
   alternates: {
@@ -27,12 +27,12 @@ const TEAM = [
     specialties: ["Coupes classiques", "Rasage traditionnel", "Dégradés précis", "Coiffage & finitions"],
   },
   {
-    name: "Diodis",
+    name: "Disponible",
     id: "diodis",
-    role: "Barbière",
-    exp: "Experte en dégradés",
-    bio: "Diodis est reconnue pour sa précision et sa créativité. Spécialiste des dégradés et des coupes modernes, elle sait adapter chaque style à la morphologie et à la personnalité de ses clients. Son souci du détail fait de chaque visite une expérience unique.",
-    specialties: ["Dégradés", "Coupes modernes", "Barbe sculptée", "Designs & lignes"],
+    role: "Barbier · Barbière",
+    exp: "Place disponible",
+    bio: "Un nouveau talent rejoindra bientôt notre équipe. Restez à l'affût — Ciseau Noir grandit et nous avons hâte de vous présenter le prochain membre de la famille.",
+    specialties: ["Coupes", "Dégradés", "Barbe", "Styles modernes"],
   },
 ];
 
@@ -217,11 +217,11 @@ export default function TeamPage() {
                 <div className="avatar-ring">
                   <div className="avatar-inner" style={{ overflow: "hidden" }}>
                     <Image
-                      src={member.id === "melynda" ? "/images/melynda.jpg" : "/images/diodis.jpg"}
+                      src={member.id === "melynda" ? "/images/melynda.jpg" : "/images/barber-disponible.jpg"}
                       alt={member.name}
                       width={154}
                       height={154}
-                      style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: member.id === "melynda" ? "center 10%" : "center top", borderRadius: "50%" }}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", borderRadius: "50%" }}
                     />
                   </div>
                 </div>
@@ -298,9 +298,24 @@ export default function TeamPage() {
                 </div>
 
                 {/* CTA */}
-                <Link href={`/booking?barber=${member.id}`} className="cta-gold-team">
-                  Réserver avec {member.name}
-                </Link>
+                {member.id === "melynda" ? (
+                  <Link href={`/booking?barber=${member.id}`} className="cta-gold-team">
+                    Réserver avec {member.name}
+                  </Link>
+                ) : (
+                  <span style={{
+                    display: "inline-block",
+                    border: "1px solid rgba(212,175,55,0.3)",
+                    color: "#666",
+                    fontSize: "11px",
+                    letterSpacing: "3px",
+                    textTransform: "uppercase",
+                    padding: "14px 32px",
+                    borderRadius: "4px",
+                  }}>
+                    Bientôt disponible
+                  </span>
+                )}
               </div>
             ))}
           </div>

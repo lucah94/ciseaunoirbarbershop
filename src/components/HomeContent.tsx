@@ -621,7 +621,7 @@ export default function HomeContent() {
         }}>
           {[
             { name: "Melynda", role: "Barbière & Co-fondatrice", years: "18+ ans d'expérience" },
-            { name: "Diodis", role: "Barbière", years: "Experte en dégradés" },
+            { name: "Disponible", role: "Barbier · Barbière", years: "Bientôt disponible" },
           ].map((barber, i) => (
             <motion.div
               key={barber.name}
