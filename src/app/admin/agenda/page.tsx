@@ -257,10 +257,20 @@ export default function AgendaPage() {
         body: JSON.stringify(body),
       });
       if (res.ok) {
+        const created = await res.json().catch(() => null);
         setShowNewRDV(false);
         setSubmitError(null);
         resetNewRDVForm();
-        fetchBookings();
+        if (!newRDV.is_recurring && created && created.id) {
+          // Add directly to state — avoids calendar remount/reset
+          setBookings(prev => [...prev, created]);
+          if (calendarRef.current) {
+            calendarRef.current.getApi().gotoDate(created.date);
+          }
+        } else {
+          // Recurring: full reload (response doesn't include booking objects)
+          fetchBookings();
+        }
       } else {
         const errData = await res.json().catch(() => ({}));
         setSubmitError(res.status === 409
