@@ -23,8 +23,8 @@ const MODEL_FAST = useOpenRouter
   ? "anthropic/claude-haiku-4-5"       // Haiku via OpenRouter (~0.25$/MTok → ~0.08$/MTok)
   : "claude-haiku-4-5-20251001";        // Haiku direct Anthropic
 const MODEL_SMART = useOpenRouter
-  ? "anthropic/claude-sonnet-4-5"       // Sonnet via OpenRouter
-  : "claude-sonnet-4-6";                // Sonnet direct Anthropic
+  ? "anthropic/claude-sonnet-4-6"       // Sonnet 4.6 via OpenRouter
+  : "claude-sonnet-4-6";                // Sonnet 4.6 direct Anthropic
 
 // Détecte si la requête nécessite Sonnet ou si Haiku suffit
 function needsSonnet(msg: string): boolean {
@@ -705,7 +705,7 @@ async function handlePhotoReceipt(chatId: number, fileId: string, caption?: stri
 
     // 3. Claude Vision — extract expense data
     const visionRes = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: useOpenRouter ? "anthropic/claude-sonnet-4-6" : "claude-sonnet-4-6",
       max_tokens: 400,
       messages: [{
         role: "user",

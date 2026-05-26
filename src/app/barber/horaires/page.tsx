@@ -27,11 +27,11 @@ export default function BarberHorairesPage() {
   useEffect(() => {
     Promise.all([
       fetch("/api/barbers").then(r => r.json()),
-      fetch("/api/admin/blocks?barber=diodis").then(r => r.json()).catch(() => []),
-      fetch("/api/admin/day-overrides?barber=diodis").then(r => r.json()).catch(() => []),
+      fetch("/api/admin/blocks?barber=melynda").then(r => r.json()).catch(() => []),
+      fetch("/api/admin/day-overrides?barber=melynda").then(r => r.json()).catch(() => []),
     ]).then(([barbers, bl, ov]) => {
-      const diodis = Array.isArray(barbers) ? barbers.find((b: { name: string; schedule: Schedule }) => b.name?.toLowerCase() === "diodis") : null;
-      setSchedule(diodis?.schedule ?? {});
+      const melynda = Array.isArray(barbers) ? barbers.find((b: { name: string; schedule: Schedule }) => b.name?.toLowerCase() === "melynda") : null;
+      setSchedule(melynda?.schedule ?? {});
       setBlocks(Array.isArray(bl) ? bl.filter((b: { date: string }) => b.date >= todayStr()) : []);
       setOverrides(Array.isArray(ov) ? ov.filter((o: { date: string }) => o.date >= todayStr()) : []);
       setLoading(false);
@@ -45,7 +45,7 @@ export default function BarberHorairesPage() {
 
         <div style={{ marginBottom: "40px" }}>
           <h1 style={{ fontSize: "24px", fontWeight: 300, letterSpacing: "3px", color: "#F5F5F5", marginBottom: "6px" }}>Mes Horaires</h1>
-          <p style={{ color: "#555", fontSize: "13px" }}>Tes disponibilités — Diodis</p>
+          <p style={{ color: "#555", fontSize: "13px" }}>Tes disponibilités — Melynda</p>
         </div>
 
         {loading ? (

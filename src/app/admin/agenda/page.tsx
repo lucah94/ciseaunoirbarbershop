@@ -51,7 +51,7 @@ const SERVICES = [
   { label: "Coupe (enfants,étudiants,bébés)", price: 30 },
 ];
 
-const BARBERS_LIST = ["Melynda", "Diodis"];
+const BARBERS_LIST = ["Melynda"];
 
 const TIME_SLOTS: string[] = [];
 for (let h = 8; h < 21; h++) {
@@ -1090,7 +1090,6 @@ export default function AgendaPage() {
                       style={{ ...inputStyle, cursor: "pointer", appearance: "auto" }}
                     >
                       <option value="Melynda">Melynda</option>
-                      <option value="Diodis">Diodis</option>
                     </select>
                   </div>
                   <div style={{ flex: 1 }}>
@@ -1277,7 +1276,7 @@ export default function AgendaPage() {
                 <p style={{ color: "#555", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>Barbière</p>
                 <select value={blockForm.barber} onChange={e => setBlockForm(f => ({ ...f, barber: e.target.value }))}
                   style={{ background: "#1C2129", border: "1px solid rgba(238,85,85,0.2)", color: "#F0F0F0", padding: "10px 14px", borderRadius: "8px", fontSize: "14px", width: "100%" }}>
-                  <option>Melynda</option><option>Diodis</option>
+                  <option>Melynda</option>
                 </select>
               </div>
               <div>

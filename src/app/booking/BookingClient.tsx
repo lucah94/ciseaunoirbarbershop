@@ -19,7 +19,6 @@ const SERVICES = [
 
 const BARBERS = [
   { id: "melynda", name: "Melynda", role: "Barbière & Co-fondatrice", exp: "18+ ans d'expérience" },
-  { id: "diodis", name: "Diodis", role: "Barbière", exp: "Experte en dégradés" },
 ];
 
 // Horaires selon le jour : 0=dim, 1=lun, 2=mar, 3=mer, 4=jeu, 5=ven, 6=sam

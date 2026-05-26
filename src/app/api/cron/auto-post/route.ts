@@ -63,7 +63,7 @@ Informations:
 Génère uniquement le texte de la publication, sans guillemets ni introduction.`;
 
   const response = await anthropic.messages.create({
-    model: "claude-opus-4-6",
+    model: "claude-opus-4-7",
     max_tokens: 500,
     messages: [{ role: "user", content: prompt }],
   });

@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     : prompt;
 
   const message = await client.messages.create({
-    model: "claude-opus-4-6",
+    model: "claude-opus-4-7",
     max_tokens: 600,
     system: SYSTEM,
     messages: [{ role: "user", content: userMessage }],

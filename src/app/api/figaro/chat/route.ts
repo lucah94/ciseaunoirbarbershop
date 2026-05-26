@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
   if (!messages?.length) return NextResponse.json({ error: "Messages requis" }, { status: 400 });
 
   const response = await client.messages.create({
-    model: "claude-opus-4-6",
+    model: "claude-opus-4-7",
     max_tokens: 1024,
     system: SYSTEM,
     messages,
