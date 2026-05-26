@@ -216,13 +216,23 @@ export default function TeamPage() {
                 {/* Avatar with animated gold ring */}
                 <div className="avatar-ring">
                   <div className="avatar-inner" style={{ overflow: "hidden" }}>
-                    <Image
-                      src={member.id === "melynda" ? "/images/melynda.jpg" : "/images/barber-disponible.jpg"}
-                      alt={member.name}
-                      width={154}
-                      height={154}
-                      style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", borderRadius: "50%" }}
-                    />
+                    {member.id === "melynda" ? (
+                      <Image
+                        src="/images/melynda.jpg"
+                        alt={member.name}
+                        width={154}
+                        height={154}
+                        style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", borderRadius: "50%" }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: "100%", height: "100%", borderRadius: "50%",
+                        background: "linear-gradient(135deg, #1C2129, #2A3140)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}>
+                        <span style={{ fontSize: "48px", color: "rgba(212,175,55,0.4)" }}>✂</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

@@ -258,18 +258,29 @@ export default function AgendaPage() {
       });
       if (res.ok) {
         const created = await res.json().catch(() => null);
+        const isRecurring = newRDV.is_recurring;
+        const targetDate = newRDV.date;
         setShowNewRDV(false);
         setSubmitError(null);
         resetNewRDVForm();
-        if (!newRDV.is_recurring && created && created.id) {
-          // Add directly to state — avoids calendar remount/reset
+        if (!isRecurring && created && created.id) {
+          // Non-récurrent : ajout direct au state, pas de reset calendrier
           setBookings(prev => [...prev, created]);
           if (calendarRef.current) {
             calendarRef.current.getApi().gotoDate(created.date);
           }
         } else {
-          // Recurring: full reload (response doesn't include booking objects)
-          fetchBookings();
+          // Récurrent : refresh silencieux (pas de loading = pas de reset calendrier)
+          fetch("/api/bookings?start=2026-01-01")
+            .then(r => r.json())
+            .then(data => {
+              const list = Array.isArray(data) ? data : [];
+              setBookings(list);
+              if (calendarRef.current) {
+                calendarRef.current.getApi().gotoDate(targetDate);
+              }
+            })
+            .catch(() => {});
         }
       } else {
         const errData = await res.json().catch(() => ({}));

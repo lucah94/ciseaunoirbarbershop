@@ -53,7 +53,7 @@ export default function BarberAgendaPage() {
       .then(r => r.json())
       .then(data => {
         const list = (Array.isArray(data) ? data : []).filter((b: Booking) =>
-          b.barber?.toLowerCase() === "diodis"
+          b.barber?.toLowerCase() === "melynda"
         );
         setBookings(list);
         setLoading(false);
@@ -81,7 +81,7 @@ export default function BarberAgendaPage() {
       const res = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...newRDV, barber: "Diodis", status: "confirmed" }),
+        body: JSON.stringify({ ...newRDV, barber: "Melynda", status: "confirmed" }),
       });
       if (res.ok) {
         setShowNew(false);
@@ -124,7 +124,7 @@ export default function BarberAgendaPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "40px" }}>
           <div>
             <h1 style={{ fontSize: "24px", fontWeight: 300, letterSpacing: "3px", color: "#F5F5F5", marginBottom: "6px" }}>Mon Agenda</h1>
-            <p style={{ color: "#555", fontSize: "13px" }}>Mes rendez-vous — Diodis</p>
+            <p style={{ color: "#555", fontSize: "13px" }}>Mes rendez-vous — Melynda</p>
           </div>
           <button onClick={() => setShowNew(true)}
             style={{ background: "linear-gradient(135deg, #D4AF37, #B8860B)", color: "#080808", border: "none", padding: "10px 22px", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", fontWeight: 700, cursor: "pointer", borderRadius: "8px" }}>
