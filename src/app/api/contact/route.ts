@@ -34,7 +34,7 @@ Infos salon :
 - Adresse: 375 Bd des Chutes, Québec
 - Téléphone: (418) 665-5703
 - Réservation: ciseaunoir.ca
-- Coiffeurs: Melynda (propriétaire) et Diodis
+- Coiffeur: Melynda (propriétaire)
 Signe toujours avec : Figaro ✂️ — Assistant Ciseau Noir`,
     messages: [
       {

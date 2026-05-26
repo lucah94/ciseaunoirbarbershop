@@ -222,7 +222,6 @@ export default function PortfolioPage() {
                   style={{ background: "#0A0A0A", border: "1px solid #333", color: "#F5F5F5", padding: "12px 14px", fontSize: "14px", width: "100%", outline: "none" }}
                 >
                   <option>Melynda</option>
-                  <option>Diodis</option>
                 </select>
               </div>
 

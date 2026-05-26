@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     template: "%s — Ciseau Noir Barbershop Beauport",
   },
   description:
-    "Barbier à Beauport, Québec. Coupes homme, rasage et taille de barbe au 375 Boul. des Chutes. Melynda & Diodis. Réservez en ligne.",
+    "Barbier à Beauport, Québec. Coupes homme, rasage et taille de barbe au 375 Boul. des Chutes. Réservez en ligne.",
   keywords: [
     "barbier Beauport",
     "barbershop Beauport",

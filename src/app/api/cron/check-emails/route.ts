@@ -87,7 +87,7 @@ const tools: Anthropic.Tool[] = [
     input_schema: {
       type: "object" as const,
       properties: {
-        barber: { type: "string", enum: ["Melynda", "Diodis"], description: "Nom du barbier" },
+        barber: { type: "string", enum: ["Melynda"], description: "Nom du barbier" },
         date: { type: "string", description: "Date au format YYYY-MM-DD" },
       },
       required: ["barber", "date"],
@@ -103,7 +103,7 @@ const tools: Anthropic.Tool[] = [
         client_email: { type: "string" },
         client_phone: { type: "string", description: "Optionnel si pas connu" },
         service: { type: "string", description: "ex: Coupe, Coupe + Barbe, Barbe, Coupe Enfant" },
-        barber: { type: "string", enum: ["Melynda", "Diodis"] },
+        barber: { type: "string", enum: ["Melynda"] },
         date: { type: "string", description: "YYYY-MM-DD" },
         time: { type: "string", description: "HH:MM (ex: 10:00)" },
         price: { type: "number", description: "Prix du service" },

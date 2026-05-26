@@ -32,7 +32,7 @@ HORAIRES:
 
 COIFFEURS ET DISPONIBILITÉS:
 - Melynda: Mardi à Samedi. Mar/Mer/Sam: 8h30-16h30. Jeu/Ven: 8h30-20h30.
-- Diodis: Vendredi 15h00-20h30 et Samedi 9h00-16h30 seulement.
+- Melynda est la seule barbière disponible pour le moment.
 
 COORDONNÉES: 375 Boul. des Chutes, Québec | (418) 665-5703
 RÉSERVATION EN LIGNE: ciseaunoirbarbershop.com
@@ -59,7 +59,7 @@ const CLAUDE_TOOLS: Anthropic.Tool[] = [
       type: "object" as const,
       properties: {
         dates: { type: "array", items: { type: "string" }, description: "Dates au format YYYY-MM-DD (peut en vérifier plusieurs)" },
-        barber: { type: "string", description: "Nom du coiffeur (Melynda ou Diodis) — optionnel" },
+        barber: { type: "string", description: "Nom du coiffeur — optionnel (Melynda par défaut)" },
       },
       required: ["dates"],
     },
@@ -74,7 +74,7 @@ const CLAUDE_TOOLS: Anthropic.Tool[] = [
         phone: { type: "string", description: "Numéro de téléphone du client" },
         email: { type: "string", description: "Adresse email du client" },
         service: { type: "string", description: "Service choisi" },
-        barber: { type: "string", description: "Coiffeur choisi (Melynda ou Diodis)" },
+        barber: { type: "string", description: "Coiffeur choisi (Melynda)" },
         date: { type: "string", description: "Date au format YYYY-MM-DD" },
         time: { type: "string", description: "Heure au format HH:MM" },
       },
@@ -97,18 +97,9 @@ const CLAUDE_TOOLS: Anthropic.Tool[] = [
 // Schedule constants
 const MELYNDA_SHORT = ["8:30","9:00","9:30","10:00","10:30","11:00","11:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00"];
 const MELYNDA_LONG  = ["8:30","9:00","9:30","10:00","10:30","11:00","11:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00","18:30","19:00","19:30","20:00"];
-const DIODIS_FRI    = ["15:00","15:30","16:00","16:30","17:00","17:30","18:00","18:30","19:00","19:30","20:00"];
-const DIODIS_SAT    = ["9:00","9:30","10:00","10:30","11:00","11:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00"];
-
-function getSlotsForBarber(barber: string, dateStr: string): string[] {
+function getSlotsForBarber(_barber: string, dateStr: string): string[] {
   const day = new Date(dateStr + "T12:00:00").getDay();
   if ([0, 1].includes(day)) return []; // Fermé dim/lun
-  if (barber.toLowerCase() === "diodis") {
-    if (day === 5) return DIODIS_FRI;
-    if (day === 6) return DIODIS_SAT;
-    return [];
-  }
-  // Melynda
   if (day === 4 || day === 5) return MELYNDA_LONG;
   return MELYNDA_SHORT;
 }
@@ -139,7 +130,7 @@ async function handleToolCall(toolName: string, toolInput: Record<string, unknow
         .eq("status", "confirmed");
 
       const bookedSet = new Set((bookings || []).map((b: { time: string; barber: string }) => `${b.barber}-${b.time}`));
-      const barbers = barberFilter ? [barberFilter] : ["Melynda", "Diodis"];
+      const barbers = barberFilter ? [barberFilter] : ["Melynda"];
       const barberResults: string[] = [];
 
       for (const barber of barbers) {

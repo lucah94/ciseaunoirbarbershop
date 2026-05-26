@@ -62,7 +62,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     await sendTelegram(msg, {
       inline_keyboard: [[
-        { text: "🔒 Bloquer Melynda + Diodis", callback_data: `block_all_${holiday.date}` },
+        { text: "🔒 Bloquer Melynda", callback_data: `block_all_${holiday.date}` },
         { text: "✅ Déjà géré", callback_data: `holiday_ok_${holiday.date}` },
       ]],
     });

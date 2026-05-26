@@ -13,7 +13,7 @@ Infos sur le salon :
 - Site : ciseaunoirbarbershop.com
 - Réservations : ciseaunoirbarbershop.com/booking
 - Programme fidélité : 10e coupe gratuite — ciseaunoirbarbershop.com/fidelite
-- Barbières : Melynda et Diodis
+- Barbière : Melynda (propriétaire)
 - Style : élégant, moderne, chaleureux, inclusif
 
 Quand on te demande de générer un EMAIL, réponds EXACTEMENT dans ce format JSON :

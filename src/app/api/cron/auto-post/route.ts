@@ -31,10 +31,10 @@ Utilise des emojis appropriés. 2-4 phrases max. En français.`,
 
   service_highlight: `Génère une publication Facebook qui met en avant un service spécifique de Ciseau Noir Barbershop.
 Choisis aléatoirement parmi : Coupe adulte (35$), Coupe + Barbe (45$), Coupe enfant (25$), Barbe (20$), Coupe + Lavage (35$).
-Décris le service avec enthousiasme. Inclus les coiffeurs Melynda et Diodis. Utilise des emojis. 3-4 phrases. En français.`,
+Décris le service avec enthousiasme. Mentionne la barbière Melynda. Utilise des emojis. 3-4 phrases. En français.`,
 
   tip: `Génère un conseil de coiffure ou de soin de barbe pour les clients de Ciseau Noir Barbershop.
-Partage un conseil professionnel utile. Mentionne que les experts Melynda et Diodis peuvent aider.
+Partage un conseil professionnel utile. Mentionne que Melynda peut aider.
 Utilise des emojis. 3-4 phrases. En français.`,
 
   client_appreciation: `Génère un message de remerciement chaleureux envers les clients de Ciseau Noir Barbershop.

@@ -180,7 +180,7 @@ export default function AdminPage() {
   const weekRevenue = weekCuts.reduce((sum, c) => sum + c.price * (1 - c.discount_percent / 100) + c.tip, 0);
   const weekExpenseTotal = weekExpenses.reduce((sum, e) => sum + e.amount, 0);
 
-  const barbers = ["Melynda", "Diodis"];
+  const barbers = ["Melynda"];
   const payeSemaine = barbers.map(name => {
     const barberCuts = weekCuts.filter(c => c.barber === name);
     const total = barberCuts.reduce((sum, c) => sum + c.price * (1 - c.discount_percent / 100) + c.tip, 0);

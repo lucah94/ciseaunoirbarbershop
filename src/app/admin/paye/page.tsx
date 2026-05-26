@@ -8,7 +8,7 @@ type Cut = {
 };
 
 const SERVICES = ["Coupe + Lavage", "Coupe + Rasage Lame", "Service Premium", "Rasage / Barbe", "Tarif Étudiant", "Autre"];
-const BARBERS = ["Melynda", "Diodis"];
+const BARBERS = ["Melynda"];
 
 function getWeekDates(offset = 0) {
   const now = new Date();

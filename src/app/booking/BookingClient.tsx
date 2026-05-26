@@ -28,9 +28,6 @@ const CLOSED_DAYS = [0, 1]; // Dimanche et Lundi fermés
 const TIMES_SHORT = ["8:30","8:45","9:00","9:15","9:30","9:45","10:00","10:15","10:30","10:45","11:00","11:15","11:30","11:45","13:00","13:15","13:30","13:45","14:00","14:15","14:30","14:45","15:00","15:15","15:30","15:45","16:00","16:15"]; // mar/mer/sam
 const TIMES_LONG  = ["8:30","8:45","9:00","9:15","9:30","9:45","10:00","10:15","10:30","10:45","11:00","11:15","11:30","11:45","13:00","13:15","13:30","13:45","14:00","14:15","14:30","14:45","15:00","15:15","15:30","15:45","16:00","16:15","16:30","16:45","17:00","17:15","17:30","17:45","18:00","18:15","18:30","18:45","19:00","19:15","19:30","19:45","20:00","20:15"]; // jeu/ven
 
-// Diodis — vendredi 15h00-20h30, samedi 9h00-16h30
-const DIODIS_TIMES_FRIDAY   = ["15:00","15:15","15:30","15:45","16:00","16:15","16:30","16:45","17:00","17:15","17:30","17:45","18:00","18:15","18:30","18:45","19:00","19:15","19:30","19:45","20:00","20:15"];
-const DIODIS_TIMES_SATURDAY = ["9:00","9:15","9:30","9:45","10:00","10:15","10:30","10:45","11:00","11:15","11:30","11:45","13:00","13:15","13:30","13:45","14:00","14:15","14:30","14:45","15:00","15:15","15:30","15:45","16:00","16:15"];
 
 function generateTimesFromRange(open: string, close: string): string[] {
   const [oh, om] = open.split(":").map(Number);
@@ -65,13 +62,8 @@ function getTimesForBarberAndDate(
     if (!daySchedule) return [];
     return generateTimesFromRange(daySchedule.open, daySchedule.close);
   }
-  // Fallback hardcoded
+  // Fallback hardcoded (Melynda schedule)
   const day = new Date(dateStr + "T12:00:00").getDay();
-  if (barberId === "diodis") {
-    if (day === 5) return DIODIS_TIMES_FRIDAY;
-    if (day === 6) return DIODIS_TIMES_SATURDAY;
-    return [];
-  }
   if (day === 4 || day === 5) return TIMES_LONG;
   return TIMES_SHORT;
 }
@@ -438,10 +430,6 @@ function BookingContent() {
   const [blockedDates, setBlockedDates] = useState<string[]>([]);
   const [blockedRanges, setBlockedRanges] = useState<{ date: string; start_time: string; end_time: string }[]>([]);
   const [dayOverrides, setDayOverrides] = useState<{ date: string; open: string; close: string }[]>([]);
-  const [bookedSlotsOther, setBookedSlotsOther] = useState<{ time: string; service: string; end_time?: string }[]>([]);
-  const [blockedDatesDiodis, setBlockedDatesDiodis] = useState<string[]>([]);
-  const [blockedRangesOther, setBlockedRangesOther] = useState<{ date: string; start_time: string; end_time: string }[]>([]);
-  const [dayOverridesOther, setDayOverridesOther] = useState<{ date: string; open: string; close: string }[]>([]);
   const [availabilityReady, setAvailabilityReady] = useState(false);
   const [barberSchedules, setBarberSchedules] = useState<Record<string, DaySchedule>>({});
   const [waitlistModal, setWaitlistModal] = useState<{time: string} | null>(null);
@@ -481,7 +469,6 @@ function BookingContent() {
       .then((data: {
         barbers: { name: string; schedule: DaySchedule }[];
         melynda: { blocks: { date: string; start_time: string | null; end_time: string | null }[]; overrides: { date: string; open: string; close: string }[] };
-        diodis: { blocks: { date: string; start_time: string | null; end_time: string | null }[]; overrides: { date: string; open: string; close: string }[] };
       }) => {
         // Barber schedules
         if (Array.isArray(data.barbers)) {
@@ -495,12 +482,6 @@ function BookingContent() {
         setBlockedRanges(melBlocks.filter(b => b.start_time && b.end_time)
           .map(b => ({ date: b.date, start_time: b.start_time!, end_time: b.end_time! })));
         setDayOverrides(data.melynda?.overrides ?? []);
-        // Diodis
-        const dioBlocks = data.diodis?.blocks ?? [];
-        setBlockedDatesDiodis(dioBlocks.filter(b => !b.start_time).map(b => b.date));
-        setBlockedRangesOther(dioBlocks.filter(b => b.start_time && b.end_time)
-          .map(b => ({ date: b.date, start_time: b.start_time!, end_time: b.end_time! })));
-        setDayOverridesOther(data.diodis?.overrides ?? []);
         setAvailabilityReady(true);
       })
       .catch(() => {});
@@ -518,17 +499,12 @@ function BookingContent() {
     setSlotsError(false);
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 8000);
-    Promise.all([
-      fetch(`/api/bookings?date=${date}&barber=Melynda`, { signal: ctrl.signal }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
-      fetch(`/api/bookings?date=${date}&barber=Diodis`, { signal: ctrl.signal }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
-    ]).then(([melData, dioData]) => {
+    fetch(`/api/bookings?date=${date}&barber=Melynda`, { signal: ctrl.signal })
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then((melData) => {
       clearTimeout(timeout);
       if (Array.isArray(melData)) {
         setBookedSlots(melData.filter((b: { status: string }) => b.status !== "cancelled")
-          .map((b: { time: string; service: string; end_time?: string }) => ({ time: b.time, service: b.service || "", end_time: b.end_time })));
-      }
-      if (Array.isArray(dioData)) {
-        setBookedSlotsOther(dioData.filter((b: { status: string }) => b.status !== "cancelled")
           .map((b: { time: string; service: string; end_time?: string }) => ({ time: b.time, service: b.service || "", end_time: b.end_time })));
       }
       setSlotsLoading(false);
@@ -1047,7 +1023,7 @@ function BookingContent() {
               </motion.div>
             )}
 
-            {/* STEP 2 - Date & Heure (2 colonnes : Melynda or | Diodis mauve) */}
+            {/* STEP 2 - Date & Heure */}
             {step === 2 && (
               <motion.div
                 key="step2"
@@ -1063,22 +1039,12 @@ function BookingContent() {
                     color: #D4AF37 !important;
                     transform: translateY(-2px);
                   }
-                  .slot-diodis:not(:disabled):hover {
-                    background: rgba(155,89,182,0.18) !important;
-                    border-color: #9B59B6 !important;
-                    color: #C39BD3 !important;
-                    transform: translateY(-2px);
-                  }
                   .barbers-grid {
                     display: grid;
-                    grid-template-columns: 1fr 1fr;
+                    grid-template-columns: 1fr;
                     gap: 20px;
-                  }
-                  @media (max-width: 520px) {
-                    .barbers-grid {
-                      grid-template-columns: 1fr 1fr;
-                      gap: 12px;
-                    }
+                    max-width: 320px;
+                    margin: 0 auto;
                   }
                 `}</style>
                 <h2 style={{
@@ -1110,8 +1076,7 @@ function BookingContent() {
                     blockedDates={[]}
                     overrideDates={[]}
                     isAvailableFn={(dateStr) =>
-                      isDateAvailableForBarber("melynda", dateStr, blockedDates, dayOverrides.map(o => o.date), barberSchedules["melynda"]) ||
-                      isDateAvailableForBarber("diodis", dateStr, blockedDatesDiodis, dayOverridesOther.map(o => o.date), barberSchedules["diodis"])
+                      isDateAvailableForBarber("melynda", dateStr, blockedDates, dayOverrides.map(o => o.date), barberSchedules["melynda"])
                     }
                   />
                 </div>
@@ -1224,57 +1189,6 @@ function BookingContent() {
                         )}
                       </div>
 
-                      {/* Colonne Diodis (mauve) */}
-                      <div>
-                        <div style={{ textAlign: "center", marginBottom: "16px" }}>
-                          <div style={{
-                            width: "64px", height: "64px", borderRadius: "50%",
-                            border: "2px solid rgba(155,89,182,0.5)",
-                            margin: "0 auto 10px", overflow: "hidden",
-                            boxShadow: "0 0 16px rgba(155,89,182,0.2)",
-                          }}>
-                            <Image src="/images/diodis.jpg" alt="Diodis" width={80} height={80} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
-                          </div>
-                          <p style={{ color: "#9B59B6", fontSize: "13px", letterSpacing: "3px", textTransform: "uppercase", fontWeight: 600 }}>Diodis</p>
-                        </div>
-                        {isDateAvailableForBarber("diodis", selected.date, blockedDatesDiodis, dayOverridesOther.map(o => o.date), barberSchedules["diodis"]) ? (() => {
-                          const serviceDur = getServiceDuration(SERVICES.find(s => s.id === selected.service)?.name || "");
-                          const slots = getTimesForBarberAndDate("diodis", selected.date, dayOverridesOther, barberSchedules["diodis"]).filter(t => {
-                            const now = new Date();
-                            const [tH, tM] = t.split(":").map(Number);
-                            if (selected.date === today && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()))) return false;
-                            return !isSlotOccupied(t, bookedSlotsOther, blockedRangesOther, selected.date, serviceDur);
-                          });
-                          return slots.length > 0 ? (
-                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                              {slots.map(t => (
-                                <button
-                                  key={t}
-                                  onClick={() => { setSelected({ ...selected, barber: "diodis", time: t }); setStep(3); }}
-                                  className="slot-diodis"
-                                  style={{
-                                    background: "#0D0D0D",
-                                    border: "1px solid rgba(155,89,182,0.25)",
-                                    color: "#9B59B6",
-                                    padding: "12px 8px",
-                                    cursor: "pointer",
-                                    fontSize: "15px",
-                                    fontWeight: 500,
-                                    borderRadius: "10px",
-                                    transition: "all 0.25s ease",
-                                    letterSpacing: "1px",
-                                    width: "100%",
-                                  }}
-                                >{t}</button>
-                              ))}
-                            </div>
-                          ) : (
-                            <p style={{ color: "#444", fontSize: "12px", textAlign: "center", padding: "20px 0", lineHeight: 1.6 }}>Complet ce jour</p>
-                          );
-                        })() : (
-                          <p style={{ color: "#333", fontSize: "12px", textAlign: "center", padding: "20px 0", lineHeight: 1.6 }}>Pas disponible<br/>ce jour</p>
-                        )}
-                      </div>
                     </div>}
                   </motion.div>
                 )}

@@ -473,7 +473,7 @@ RDV aujourd'hui: ${rdvCount} confirmés
 LE SALON:
 — Services: Coupe 35$ | Coupe+Barbe 50$ | Barbe 20$ | Coupe Enfant/Étudiant 25$ | Coupe+Rasage Lame 50$
 — Melynda: Mar/Mer/Sam 8h30-16h30 | Jeu/Ven 8h30-20h30
-— Diodis: Ven 15h-20h30 | Sam 9h-16h30 seulement
+— Melynda est la seule barbière disponible présentement
 — Fermé dimanche + lundi
 — Tel: (418) 665-5703
 
@@ -537,7 +537,7 @@ RÈGLES:
         client_phone: { type: "string" },
         client_email: { type: "string" },
         service: { type: "string", description: "Coupe / Coupe+Barbe / Barbe / Coupe Enfant / Coupe+Rasage" },
-        barber: { type: "string", enum: ["Melynda", "Diodis"] },
+        barber: { type: "string", enum: ["Melynda"] },
         date: { type: "string", description: "YYYY-MM-DD" },
         time: { type: "string", description: "HH:MM" },
         price: { type: "number" },
@@ -573,7 +573,7 @@ RÈGLES:
       name: "block_barber_day",
       description: "Bloque une journée (empêche les réservations)",
       input_schema: { type: "object" as const, properties: {
-        barber: { type: "string", enum: ["Melynda", "Diodis"] },
+        barber: { type: "string", enum: ["Melynda"] },
         date: { type: "string", description: "YYYY-MM-DD" },
         reason: { type: "string" },
       }, required: ["barber", "date"] },
@@ -860,7 +860,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           `• "Historique de Tremblay"\n` +
           `• "C'est qui Marie Lavoie?"\n\n` +
           `<b>🔒 Disponibilités</b>\n` +
-          `• "Bloque Diodis vendredi 23 mai — vacances"\n` +
+          `• "Bloque Melynda vendredi 23 mai — vacances"\n` +
           `• "Journées bloquées à venir?"\n\n` +
           `<b>⏰ Rappels</b>\n` +
           `• "Rappelle-moi à 15h d'appeler le fournisseur"\n\n` +
