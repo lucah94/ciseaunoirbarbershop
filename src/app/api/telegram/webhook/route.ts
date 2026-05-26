@@ -2,29 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendGmailReply, archiveEmail } from "@/lib/gmail";
 import { getUpcomingHolidays, isHoliday } from "@/lib/holidays-qc";
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
+import { aiClient as anthropic, MODELS } from "@/lib/ai";
 export const dynamic = 'force-dynamic';
 
 const TELEGRAM_API = "https://api.telegram.org/bot";
 
-// Supporte Anthropic direct OU OpenRouter (plus économique)
-// Pour OpenRouter: ajouter OPENROUTER_API_KEY dans Vercel env vars
-const useOpenRouter = !!process.env.OPENROUTER_API_KEY;
-const anthropic = useOpenRouter
-  ? new Anthropic({
-      apiKey: process.env.OPENROUTER_API_KEY!,
-      baseURL: "https://openrouter.ai/api/v1",
-      defaultHeaders: { "HTTP-Referer": "https://ciseaunoirbarbershop.com", "X-Title": "Ciseau Noir Figaro" },
-    })
-  : new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? 'placeholder-anthropic-key' });
-
-// Modèles selon le provider
-const MODEL_FAST = useOpenRouter
-  ? "anthropic/claude-haiku-4-5"       // Haiku via OpenRouter (~0.25$/MTok → ~0.08$/MTok)
-  : "claude-haiku-4-5-20251001";        // Haiku direct Anthropic
-const MODEL_SMART = useOpenRouter
-  ? "anthropic/claude-sonnet-4-6"       // Sonnet 4.6 via OpenRouter
-  : "claude-sonnet-4-6";                // Sonnet 4.6 direct Anthropic
+const MODEL_FAST = MODELS.FAST;
+const MODEL_SMART = MODELS.BALANCED;
 
 // Détecte si la requête nécessite Sonnet ou si Haiku suffit
 function needsSonnet(msg: string): boolean {
@@ -705,7 +690,7 @@ async function handlePhotoReceipt(chatId: number, fileId: string, caption?: stri
 
     // 3. Claude Vision — extract expense data
     const visionRes = await anthropic.messages.create({
-      model: useOpenRouter ? "anthropic/claude-sonnet-4-6" : "claude-sonnet-4-6",
+      model: MODELS.BALANCED,
       max_tokens: 400,
       messages: [{
         role: "user",

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "@/lib/supabase";
+import { aiClient, MODELS } from "@/lib/ai";
 export const dynamic = 'force-dynamic';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? 'placeholder-anthropic-key' });
 
 const CATEGORIES = ["Loyer", "Produits", "Équipement", "Marketing", "Téléphone", "Assurances", "Salaires", "Employés", "Autre"];
 
@@ -26,8 +25,8 @@ export async function POST(req: NextRequest) {
     const mediaType = (file.type || "image/jpeg") as "image/jpeg" | "image/png" | "image/webp" | "image/gif";
 
     // Analyser avec Claude Vision
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
+    const response = await aiClient.messages.create({
+      model: MODELS.BALANCED,
       max_tokens: 300,
       messages: [{
         role: "user",

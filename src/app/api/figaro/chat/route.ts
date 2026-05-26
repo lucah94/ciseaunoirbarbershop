@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { requireAdmin } from "@/lib/auth";
+import { aiClient as client, MODELS } from "@/lib/ai";
 export const dynamic = 'force-dynamic';
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? 'placeholder-anthropic-key' });
 
 const SYSTEM = `Tu es Figaro ✂️, l'assistant IA intelligent de Ciseau Noir Barbershop à Québec. Tu parles à Melynda, la propriétaire.
 
@@ -46,7 +44,7 @@ export async function POST(req: NextRequest) {
   if (!messages?.length) return NextResponse.json({ error: "Messages requis" }, { status: 400 });
 
   const response = await client.messages.create({
-    model: "claude-opus-4-7",
+    model: MODELS.SMART,
     max_tokens: 1024,
     system: SYSTEM,
     messages,

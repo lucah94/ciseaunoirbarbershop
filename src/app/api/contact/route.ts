@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
+import { aiClient, MODELS } from "@/lib/ai";
 import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
 import { escapeHtml } from "@/lib/sanitize";
@@ -16,7 +17,6 @@ const contactSchema = z.object({
 });
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? 'placeholder-resend-key');
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? 'placeholder-anthropic-key' });
 
 const FROM_EMAIL = process.env.FROM_EMAIL || "Ciseau Noir <onboarding@resend.dev>";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "ciseaunoirbarbershop@gmail.com";
@@ -24,8 +24,8 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "ciseaunoirbarbershop@gmail.com";
 const ESCALATION_KEYWORDS = ["plainte","plaindre","problème","remboursement","pas content","mécontent","terrible","horrible","erreur","arnaque","urgent","accident","insatisfait","volé","scandale"];
 
 async function generateAutoReply(name: string, message: string): Promise<string> {
-  const response = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
+  const response = await aiClient.messages.create({
+    model: MODELS.FAST,
     max_tokens: 450,
     system: `Tu es Figaro ✂️, l'assistant IA de Ciseau Noir Barbershop à Québec. Tu réponds aux clients avec chaleur et professionnalisme en français québécois.
 Infos salon :

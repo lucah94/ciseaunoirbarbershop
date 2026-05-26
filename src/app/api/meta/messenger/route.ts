@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import twilio from "twilio";
 import crypto from "crypto";
@@ -7,9 +6,8 @@ export const dynamic = 'force-dynamic';
 
 const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN!;
 const PAGE_ACCESS_TOKEN = process.env.FACEBOOK_ACCESS_TOKEN!;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY!;
-
-const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY ?? 'placeholder-anthropic-key' });
+import type Anthropic from "@anthropic-ai/sdk";
+import { aiClient as anthropic, MODELS } from "@/lib/ai";
 
 function getSystemPrompt() {
   const now = new Date();
@@ -268,7 +266,7 @@ async function processMessageWithClaude(senderId: string, userMessage: string): 
 
   // Agentic loop
   let response = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
+    model: MODELS.BALANCED,
     max_tokens: 1024,
     system: getSystemPrompt(),
     tools: CLAUDE_TOOLS,
@@ -295,7 +293,7 @@ async function processMessageWithClaude(senderId: string, userMessage: string): 
     });
 
     response = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: MODELS.BALANCED,
       max_tokens: 1024,
       system: getSystemPrompt(),
       tools: CLAUDE_TOOLS,

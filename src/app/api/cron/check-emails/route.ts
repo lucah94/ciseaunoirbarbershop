@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
+import { aiClient as anthropic, MODELS } from "@/lib/ai";
 import { supabaseAdmin } from "@/lib/supabase";
 import { fetchUnreadEmails, markAsRead, sendGmailReply, archiveEmail, deleteEmail } from "@/lib/gmail";
 import { sendSMS } from "@/lib/sms";
@@ -8,7 +9,6 @@ export const dynamic = 'force-dynamic';
 
 export const maxDuration = 120;
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? 'placeholder-anthropic-key' });
 
 const ESCALATION_KEYWORDS = ["plainte", "problème", "remboursement", "pas content", "mécontent", "terrible", "horrible", "arnaque", "insatisfait", "volé", "scandale"];
 
@@ -319,7 +319,7 @@ Signe avec : Figaro ✂️ — Ciseau Noir`;
   // Agentic loop — max 5 tours
   for (let turn = 0; turn < 5; turn++) {
     const response = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: MODELS.FAST,
       max_tokens: 1000,
       system: systemPrompt,
       tools,

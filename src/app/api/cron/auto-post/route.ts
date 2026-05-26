@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { postToGoogleMyBusiness } from "@/lib/google";
+import type Anthropic from "@anthropic-ai/sdk";
+import { aiClient as anthropic, MODELS } from "@/lib/ai";
 export const dynamic = 'force-dynamic';
 
 export const maxDuration = 120;
@@ -8,7 +9,6 @@ export const maxDuration = 120;
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID!;
 const TOKEN = process.env.FACEBOOK_ACCESS_TOKEN!;
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? 'placeholder-anthropic-key' });
 
 // Day of week → content type rotation
 const CONTENT_TYPES: Record<number, string[]> = {
@@ -63,7 +63,7 @@ Informations:
 Génère uniquement le texte de la publication, sans guillemets ni introduction.`;
 
   const response = await anthropic.messages.create({
-    model: "claude-opus-4-7",
+    model: MODELS.SMART,
     max_tokens: 500,
     messages: [{ role: "user", content: prompt }],
   });
