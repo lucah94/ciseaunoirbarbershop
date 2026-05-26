@@ -102,7 +102,7 @@ export default function BarberSidebar() {
           {" "}
           <span style={{ background: "linear-gradient(135deg, #D4AF37, #E8C84A, #B8860B)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>NOIR</span>
         </p>
-        <p style={{ color: "#7D8590", fontSize: "10px", marginTop: "6px", letterSpacing: "3px", textTransform: "uppercase" }}>Espace Diodis</p>
+        <p style={{ color: "#7D8590", fontSize: "10px", marginTop: "6px", letterSpacing: "3px", textTransform: "uppercase" }}>Espace Barbier</p>
       </div>
 
       <nav style={{ padding: "20px 0", flex: 1 }}>

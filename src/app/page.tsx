@@ -5,7 +5,7 @@ import HomeContent from "@/components/HomeContent";
 
 export const metadata: Metadata = {
   title: "Ciseau Noir — Barbershop Québec",
-  description: "Salon de barbier premium à Québec. Coupes, rasages et soins professionnels avec Melynda et Diodis. 375 Boul. des Chutes. Réservez en ligne.",
+  description: "Salon de barbier premium à Québec. Coupes, rasages et soins professionnels. 375 Boul. des Chutes. Réservez en ligne.",
   openGraph: {
     title: "Ciseau Noir — Barbershop Québec",
     description: "Salon de barbier premium à Québec. Coupes, rasages et soins professionnels. Réservez en ligne.",
