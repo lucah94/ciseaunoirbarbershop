@@ -620,8 +620,8 @@ export default function HomeContent() {
           margin: "72px auto 0",
         }}>
           {[
-            { name: "Melynda", role: "Barbière & Co-fondatrice", years: "18+ ans d'expérience" },
-            { name: "Disponible", role: "Barbier · Barbière", years: "Bientôt disponible" },
+            { name: "Melynda", role: "Barbière & Co-fondatrice", years: "18+ ans d'expérience", image: "/images/melynda.jpg" },
+            { name: "Barbier disponible", role: "Place disponible", years: "Rejoignez l'équipe", image: "/images/diodis.jpg" },
           ].map((barber, i) => (
             <motion.div
               key={barber.name}
@@ -662,7 +662,7 @@ export default function HomeContent() {
                   position: "relative",
                 }}>
                   <Image
-                    src={`/images/${barber.name.toLowerCase()}.jpg`}
+                    src={barber.image}
                     alt={barber.name}
                     width={120}
                     height={120}

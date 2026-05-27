@@ -27,10 +27,10 @@ const TEAM = [
     specialties: ["Coupes classiques", "Rasage traditionnel", "Dégradés précis", "Coiffage & finitions"],
   },
   {
-    name: "Disponible",
+    name: "Barbier disponible",
     id: "available",
-    role: "Barbier · Barbière",
-    exp: "Place disponible",
+    role: "Place disponible",
+    exp: "Rejoignez l'équipe",
     bio: "Un nouveau talent rejoindra bientôt notre équipe. Restez à l'affût — Ciseau Noir grandit et nous avons hâte de vous présenter le prochain membre de la famille.",
     specialties: ["Coupes", "Dégradés", "Barbe", "Styles modernes"],
   },
@@ -217,7 +217,7 @@ export default function TeamPage() {
                 <div className="avatar-ring">
                   <div className="avatar-inner" style={{ overflow: "hidden" }}>
                     <Image
-                      src={member.id === "melynda" ? "/images/melynda.jpg" : "/images/barber-disponible.jpg"}
+                      src={member.id === "melynda" ? "/images/melynda.jpg" : "/images/diodis.jpg"}
                       alt={member.name}
                       width={154}
                       height={154}
