@@ -141,14 +141,51 @@ export async function sendReminderSMS(booking: {
 }
 
 /**
- * Generic SMS sender — sends an arbitrary message to any phone number.
- * The `to` value is auto-formatted via formatPhone.
+ * Vérifie qu'aucun SMS du même type n'a été envoyé à ce numéro dans les dernières heures.
+ * Évite les doublons absolus (ex: rebooking envoyé 2 fois si cron retry).
  */
-export async function sendSMS(to: string, message: string): Promise<void> {
+async function wasRecentlySent(phone: string, type: string, hoursBack = 24): Promise<boolean> {
+  try {
+    const digits = phone.replace(/\D/g, "").slice(-10);
+    const since = new Date(Date.now() - hoursBack * 60 * 60 * 1000).toISOString();
+    const { data } = await supabaseAdmin
+      .from("sms_log")
+      .select("id")
+      .eq("phone", digits)
+      .eq("message_type", type)
+      .gte("sent_at", since)
+      .limit(1);
+    return (data?.length ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function logSMS(phone: string, type: string, preview: string, bookingId?: string) {
+  try {
+    const digits = phone.replace(/\D/g, "").slice(-10);
+    await supabaseAdmin.from("sms_log").insert([{
+      phone: digits,
+      message_type: type,
+      message_preview: preview.slice(0, 100),
+      booking_id: bookingId || null,
+    }]);
+  } catch {}
+}
+
+/**
+ * Generic SMS sender — sends an arbitrary message to any phone number.
+ * - Check blacklist STOP automatiquement
+ * - Check dedupe par type sur 24h (anti-doublon absolu)
+ * - Log dans sms_log pour traçabilité
+ */
+export async function sendSMS(to: string, message: string, type = "generic", bookingId?: string): Promise<void> {
   if (await isBlacklisted(to)) return; // STOP respecté
+  if (await wasRecentlySent(to, type, 24)) return; // Dedup 24h
   await getClient().messages.create({
     from: getFromNumber(),
     to: formatPhone(to),
     body: message,
   });
+  await logSMS(to, type, message, bookingId);
 }

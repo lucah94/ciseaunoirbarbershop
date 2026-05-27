@@ -91,11 +91,13 @@ export async function GET(req: NextRequest) {
         // Envoyer SMS de rebooking
         if (booking.client_phone) {
           try {
-            await twilioClient.messages.create({
-              from: process.env.TWILIO_PHONE_NUMBER,
-              to: formatPhone(booking.client_phone),
-              body: `Ciseau Noir ✂️ Bonjour ${booking.client_name} !\n\nÇa fait 3 semaines depuis votre dernière coupe avec ${booking.barber}. Prêt pour un rafraîchissement ?\n\nRéservez en ligne : ${process.env.NEXT_PUBLIC_SITE_URL}/booking`,
-            });
+            const { sendSMS } = await import("@/lib/sms");
+            await sendSMS(
+              booking.client_phone,
+              `Ciseau Noir ✂️ Bonjour ${booking.client_name} !\n\nÇa fait 3 semaines depuis votre dernière coupe avec ${booking.barber}. Prêt pour un rafraîchissement ?\n\nRéservez en ligne : ${process.env.NEXT_PUBLIC_SITE_URL}/booking`,
+              "rebooking-3w",
+              booking.id
+            );
             rebookingSent++;
           } catch (e) {
             console.error(`Rebooking SMS error for ${booking.id}:`, e);
@@ -158,11 +160,13 @@ export async function GET(req: NextRequest) {
         // Send SMS
         if (booking.client_phone && twilioClientReeng) {
           try {
-            await twilioClientReeng.messages.create({
-              from: process.env.TWILIO_PHONE_NUMBER,
-              to: formatPhone(booking.client_phone),
-              body: milestone.sms(booking.client_name, bookingUrl),
-            });
+            const { sendSMS: sendSMS2 } = await import("@/lib/sms");
+            await sendSMS2(
+              booking.client_phone,
+              milestone.sms(booking.client_name, bookingUrl),
+              `reengage-${milestone.days}d`,
+              booking.id
+            );
             reengagementSent++;
           } catch (e) {
             console.error(`Re-engagement SMS (${milestone.days}d) error for ${booking.id}:`, e);

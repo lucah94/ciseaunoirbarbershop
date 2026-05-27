@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import twilio from "twilio";
-import { formatPhone } from "@/lib/sms";
+import { sendSMS } from "@/lib/sms";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -66,7 +65,6 @@ export async function GET(req: NextRequest) {
     .range(0, 999);
   const recentSentSet = new Set((recentSent || []).map(r => r.phone));
 
-  const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
   let sent = 0;
   let skipped = 0;
 
@@ -75,12 +73,9 @@ export async function GET(req: NextRequest) {
     try {
       const firstName = info.name?.split(" ")[0] || "";
       const message = `Salut ${firstName} ✂️\nCa fait un bout qu'on s'est pas vu chez Ciseau Noir ! Melynda aimerait te revoir. Reserve ton prochain RDV : ciseaunoirbarbershop.com/booking`;
-      await twilioClient.messages.create({
-        from: process.env.TWILIO_PHONE_NUMBER!,
-        to: formatPhone(phone),
-        body: message,
-      });
-      // Log dans sms_blacklist (réutilisé comme log)
+      // sendSMS() check automatiquement isBlacklisted + dedup 24h via sms_log
+      await sendSMS(phone, message, "winback-60d");
+      // Log winback envoyé (réutilise sms_blacklist comme log de dedupe à 30j)
       await supabaseAdmin.from("sms_blacklist").insert([{ phone, reason: "winback-sent-" + new Date().toISOString().split("T")[0] }]).then(() => {}, () => {});
       sent++;
     } catch {

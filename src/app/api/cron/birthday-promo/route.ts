@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { Resend } from "resend";
-import twilio from "twilio";
-import { formatPhone } from "@/lib/sms";
+import { sendSMS } from "@/lib/sms";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -32,9 +31,7 @@ export async function GET(req: NextRequest) {
   });
 
   const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-  const twilioClient = process.env.TWILIO_ACCOUNT_SID
-    ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
-    : null;
+  const twilioReady = !!process.env.TWILIO_ACCOUNT_SID;
 
   let sent_emails = 0;
   let sent_sms = 0;
@@ -64,13 +61,13 @@ export async function GET(req: NextRequest) {
       } catch {}
     }
 
-    if (c.phone && twilioClient && process.env.TWILIO_PHONE_NUMBER) {
+    if (c.phone && twilioReady) {
       try {
-        await twilioClient.messages.create({
-          from: process.env.TWILIO_PHONE_NUMBER,
-          to: formatPhone(c.phone),
-          body: `🎂 Joyeux anniversaire ${firstName} ! -20% sur ton prochain RDV chez Ciseau Noir. Code: BDAY-${firstName.toUpperCase()}. Reserve: ciseaunoirbarbershop.com/booking ✂️`,
-        });
+        await sendSMS(
+          c.phone,
+          `🎂 Joyeux anniversaire ${firstName} ! -20% sur ton prochain RDV chez Ciseau Noir. Code: BDAY-${firstName.toUpperCase()}. Reserve: ciseaunoirbarbershop.com/booking ✂️`,
+          "birthday"
+        );
         sent_sms++;
       } catch {}
     }
