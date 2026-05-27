@@ -37,7 +37,7 @@ export function requireAdmin(req: NextRequest): NextResponse | null {
 /** Returns 401 response if not barber, or null if authorized. */
 export function requireBarber(req: NextRequest): NextResponse | null {
   const auth = req.cookies.get("barber_auth");
-  if (auth && (verifyToken("barber", auth.value) || auth.value === "diodis")) {
+  if (auth && verifyToken("barber", auth.value)) {
     return null;
   }
   return NextResponse.json({ error: "Non autorisé" }, { status: 401 });

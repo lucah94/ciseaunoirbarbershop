@@ -22,7 +22,6 @@ type Booking = {
 
 const BARBER_ID: Record<string, string> = {
   melynda: "melynda",
-  diodis: "diodis",
 };
 
 function formatDate(dateStr: string) {

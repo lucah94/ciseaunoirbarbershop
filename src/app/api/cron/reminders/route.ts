@@ -96,12 +96,11 @@ export async function GET(req: NextRequest) {
 
         // Envoyer SMS de rebooking
         if (booking.client_phone) {
-          const barberParam = booking.barber?.toLowerCase().includes("melynda") ? "melynda" : "diodis";
           try {
             await twilioClient.messages.create({
               from: process.env.TWILIO_PHONE_NUMBER,
               to: formatPhone(booking.client_phone),
-              body: `Ciseau Noir ✂️ Bonjour ${booking.client_name} !\n\nÇa fait 3 semaines depuis votre dernière coupe avec ${booking.barber}. Prêt pour un rafraîchissement ?\n\nRéservez en ligne : ${process.env.NEXT_PUBLIC_SITE_URL}/booking?barber=${barberParam}`,
+              body: `Ciseau Noir ✂️ Bonjour ${booking.client_name} !\n\nÇa fait 3 semaines depuis votre dernière coupe avec ${booking.barber}. Prêt pour un rafraîchissement ?\n\nRéservez en ligne : ${process.env.NEXT_PUBLIC_SITE_URL}/booking`,
             });
             rebookingSent++;
           } catch (e) {
@@ -161,8 +160,7 @@ export async function GET(req: NextRequest) {
 
         if (newerBookings && newerBookings.length > 0) continue;
 
-        const barberParam = booking.barber?.toLowerCase().includes("melynda") ? "melynda" : "diodis";
-        const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/booking?barber=${barberParam}`;
+        const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/booking`;
 
         // Send SMS
         if (booking.client_phone && twilioClientReeng) {
@@ -235,7 +233,7 @@ export async function GET(req: NextRequest) {
           const firstName = booking.client_name?.split(" ")[0] || booking.client_name;
           await sendSMS(
             booking.client_phone,
-            `Ciseau Noir ✂️ Merci ${firstName} ! Content de ta coupe avec ${booking.barber} ? Laisse-nous un avis Google en 30 secondes → https://g.page/r/GOOGLE_REVIEW_LINK/review Ça nous aide vraiment ! 🙏`
+            `Ciseau Noir ✂️ Merci ${firstName} ! Content de ta coupe avec ${booking.barber} ? Laisse-nous un avis Google en 30 secondes → ${process.env.GOOGLE_REVIEW_URL || "https://g.page/r/CQluoL7lA0BBEAE/review"} Ça nous aide vraiment ! 🙏`
           );
           reviewsSent++;
         } catch (e) {

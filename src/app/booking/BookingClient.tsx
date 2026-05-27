@@ -85,7 +85,6 @@ function isDateAvailableForBarber(
   // Fallback hardcoded
   const day = new Date(dateStr + "T12:00:00").getDay();
   if (CLOSED_DAYS.includes(day)) return false;
-  if (barberId === "diodis" && day !== 5 && day !== 6) return false;
   return true;
 }
 

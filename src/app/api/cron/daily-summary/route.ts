@@ -56,11 +56,6 @@ export async function GET(req: NextRequest) {
         b.barber?.toLowerCase().includes("melynda") &&
         b.status !== "cancelled"
     ).length;
-    const diodisCount = all.filter(
-      (b) =>
-        b.barber?.toLowerCase().includes("diodis") &&
-        b.status !== "cancelled"
-    ).length;
 
     const dateLabel = new Date(today + "T12:00:00").toLocaleDateString(
       "fr-CA",
@@ -71,7 +66,7 @@ export async function GET(req: NextRequest) {
       `🌙 <b>Résumé — ${dateLabel}</b>\n\n` +
       `✅ Complétés: ${completed} | ⏳ Confirmés: ${confirmed} | ❌ No-show: ${noShow}\n` +
       `💰 Revenus: ${revenue}$ (${revenueArrow} vs semaine passée: ${Math.abs(revenueDiff)}$)\n` +
-      `Melynda: ${melyndaCount} RDV | Diodis: ${diodisCount} RDV`;
+      `Melynda: ${melyndaCount} RDV`;
 
     await notifySystemAlert(message);
 
@@ -85,7 +80,6 @@ export async function GET(req: NextRequest) {
       revenue,
       revenue_last_week: lastWeekRevenue,
       melynda: melyndaCount,
-      diodis: diodisCount,
     });
   } catch (e) {
     console.error("daily-summary cron error:", e);

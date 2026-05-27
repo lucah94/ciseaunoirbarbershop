@@ -30,7 +30,7 @@ export async function GET(
 
   const { barber } = await params;
   const barberName = barber.toLowerCase();
-  if (barberName !== "melynda" && barberName !== "diodis") {
+  if (barberName !== "melynda") {
     return NextResponse.json({ error: "Barbier invalide" }, { status: 400 });
   }
 

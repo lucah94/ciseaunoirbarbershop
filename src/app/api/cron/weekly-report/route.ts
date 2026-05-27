@@ -48,9 +48,6 @@ export async function GET(req: NextRequest) {
     const bookingsMelynda = activeBookings.filter(
       (b) => b.barber?.toLowerCase().includes("melynda")
     ).length;
-    const bookingsDiodis = activeBookings.filter(
-      (b) => b.barber?.toLowerCase().includes("diodis")
-    ).length;
 
     // Revenue from cuts table (more accurate with tips/discounts)
     const { data: cuts } = await supabaseAdmin
@@ -109,14 +106,13 @@ export async function GET(req: NextRequest) {
       noShows,
       newWaitlist,
       bookingsMelynda,
-      bookingsDiodis,
     });
 
     const weekLabel = `${new Date(startDate + "T12:00:00").toLocaleDateString("fr-CA", { day: "numeric", month: "short" })} – ${new Date(endDate + "T12:00:00").toLocaleDateString("fr-CA", { day: "numeric", month: "short" })}`;
     await notifySystemAlert(
       `📈 <b>Rapport semaine — ${weekLabel}</b>\n\n` +
       `✅ ${totalBookings} RDV — <b>${totalRevenue.toFixed(0)}$</b>\n` +
-      `Melynda: ${bookingsMelynda} | Diodis: ${bookingsDiodis}\n` +
+      `Melynda: ${bookingsMelynda} RDV\n` +
       `❌ Annulés: ${cancellations} | 👻 No-shows: ${noShows}\n\n` +
       `👤 Nouveaux clients: ${newClients} | 🔄 Réguliers: ${returningClients}`
     );
@@ -131,7 +127,6 @@ export async function GET(req: NextRequest) {
         noShows,
         newWaitlist,
         bookingsMelynda,
-        bookingsDiodis,
         newClients,
         returningClients,
       },

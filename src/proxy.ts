@@ -20,7 +20,7 @@ export async function proxy(req: NextRequest) {
 
   if (pathname.startsWith("/barber") && !pathname.startsWith("/barber/login")) {
     const auth = req.cookies.get("barber_auth");
-    if (!auth || !(verifyToken("barber", auth.value) || auth.value === "diodis")) {
+    if (!auth || !verifyToken("barber", auth.value)) {
       return NextResponse.redirect(new URL("/barber/login", req.url));
     }
   }

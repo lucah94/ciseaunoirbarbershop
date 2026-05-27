@@ -30,9 +30,6 @@ export async function GET(req: NextRequest) {
     const melyndaBookings = all.filter((b) =>
       b.barber?.toLowerCase().includes("melynda")
     );
-    const diodisBookings = all.filter((b) =>
-      b.barber?.toLowerCase().includes("diodis")
-    );
 
     const totalRevenue = all.reduce((sum, b) => sum + (b.price || 0), 0);
 
@@ -47,8 +44,6 @@ export async function GET(req: NextRequest) {
       `☀️ <b>Bonjour Melynda — Planning du jour</b>\n\n` +
       `<b>Melynda (${melyndaBookings.length} RDV)</b>\n` +
       `${formatLines(melyndaBookings)}\n\n` +
-      `<b>Diodis (${diodisBookings.length} RDV)</b>\n` +
-      `${formatLines(diodisBookings)}\n\n` +
       `💰 Revenus estimés: ${totalRevenue}$`;
 
     await notifySystemAlert(message);
@@ -58,7 +53,6 @@ export async function GET(req: NextRequest) {
       date: today,
       total: all.length,
       melynda: melyndaBookings.length,
-      diodis: diodisBookings.length,
       revenue: totalRevenue,
     });
   } catch (e) {

@@ -350,8 +350,7 @@ export async function sendRebookingEmail(booking: {
   client_email: string;
   barber: string;
 }) {
-  const barberParam = booking.barber.toLowerCase().includes("melynda") ? "melynda" : "diodis";
-  const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/booking?barber=${barberParam}`;
+  const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/booking`;
 
   await resend.emails.send({
     from: FROM_EMAIL,
@@ -388,8 +387,7 @@ export async function sendReengagementEmail(params: {
   barber: string;
   variant: 30 | 60 | 90;
 }) {
-  const barberParam = params.barber.toLowerCase().includes("melynda") ? "melynda" : "diodis";
-  const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/booking?barber=${barberParam}`;
+  const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/booking`;
 
   const variants: Record<30 | 60 | 90, { subject: string; heading: string; body: string; cta: string }> = {
     30: {
@@ -501,7 +499,6 @@ export async function sendWeeklyReportEmail(report: {
   noShows: number;
   newWaitlist: number;
   bookingsMelynda: number;
-  bookingsDiodis: number;
 }) {
   const startFormatted = new Date(report.startDate + "T12:00:00").toLocaleDateString("fr-CA", {
     day: "numeric", month: "long",
@@ -520,7 +517,7 @@ export async function sendWeeklyReportEmail(report: {
     week_label: `${startFormatted} – ${endFormatted}`,
     total_bookings: report.totalBookings,
     total_revenue: report.totalRevenue,
-    top_service: `Melynda (${report.bookingsMelynda}) / Diodis (${report.bookingsDiodis})`,
+    top_service: `Melynda (${report.bookingsMelynda})`,
     new_clients: report.newWaitlist,
     completed: report.totalBookings - report.cancellations - report.noShows,
     cancelled: report.cancellations,
@@ -553,7 +550,6 @@ export async function sendWeeklyReportEmail(report: {
           <p style="color: #C9A84C; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 16px;">Par barbier</p>
           <table style="width: 100%; border-collapse: collapse;">
             ${statRow("Melynda", `${report.bookingsMelynda} réservation${report.bookingsMelynda > 1 ? "s" : ""}`)}
-            ${statRow("Diodis", `${report.bookingsDiodis} réservation${report.bookingsDiodis > 1 ? "s" : ""}`)}
           </table>
         </div>
 
@@ -629,8 +625,7 @@ export async function sendFirstVisitPromoEmail(params: {
   barber: string;
   promo_code: string;
 }) {
-  const barberParam = params.barber.toLowerCase().includes("melynda") ? "melynda" : "diodis";
-  const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com"}/booking?barber=${barberParam}`;
+  const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com"}/booking`;
 
   await resend.emails.send({
     from: FROM_EMAIL,

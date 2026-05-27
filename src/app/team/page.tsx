@@ -28,7 +28,7 @@ const TEAM = [
   },
   {
     name: "Disponible",
-    id: "diodis",
+    id: "available",
     role: "Barbier · Barbière",
     exp: "Place disponible",
     bio: "Un nouveau talent rejoindra bientôt notre équipe. Restez à l'affût — Ciseau Noir grandit et nous avons hâte de vous présenter le prochain membre de la famille.",
