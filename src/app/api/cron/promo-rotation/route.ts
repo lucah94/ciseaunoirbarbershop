@@ -1,0 +1,88 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getPromoOfTheMonth } from "@/lib/promo-rotator";
+import { aiClient as anthropic, MODELS } from "@/lib/ai";
+import type Anthropic from "@anthropic-ai/sdk";
+import { isComposioConfigured, composioFacebookPost, composioInstagramPost } from "@/lib/composio";
+import { postToGoogleMyBusiness } from "@/lib/google";
+import { supabaseAdmin } from "@/lib/supabase";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 120;
+
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+
+  const promo = getPromoOfTheMonth();
+
+  // 1. Récupérer 1 photo aléatoire du portfolio pour le post (si dispo)
+  const { data: photos } = await supabaseAdmin
+    .from("portfolio")
+    .select("url, caption, tags")
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  const photo = photos && photos.length > 0
+    ? photos[Math.floor(Math.random() * photos.length)]
+    : null;
+
+  // 2. Générer le contenu enrichi via AI
+  const prompt = `Tu es community manager pour Ciseau Noir Barbershop à Beauport, Québec.
+
+Promo du mois: ${promo.title}
+Base: ${promo.body}
+${photo?.caption ? `Photo associée: ${photo.caption}` : ""}
+
+Génère un post Facebook+Instagram engageant en français québécois:
+- Garde le ton chaleureux de Melynda
+- Maximum 4 phrases
+- Inclus emoji pertinents
+- Termine par CTA naturel: "${promo.cta}"
+- Inclus les hashtags: ${promo.hashtags.join(" ")} #BeauPort #Quebec
+- N'inclus PAS d'URL (sera ajoutée auto)`;
+
+  const aiResponse = await anthropic.messages.create({
+    model: MODELS.BALANCED,
+    max_tokens: 400,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const aiText = aiResponse.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text || "";
+  const finalContent = `${aiText.trim()}\n\n📍 ciseaunoirbarbershop.com/booking`;
+
+  const results: Record<string, unknown> = {
+    promo_key: promo.key,
+    photo_used: photo?.url || null,
+    content_preview: finalContent.slice(0, 100),
+  };
+
+  // 3. Poster sur Facebook + Instagram via Composio
+  if (isComposioConfigured()) {
+    try {
+      const fb = await composioFacebookPost(finalContent);
+      results.facebook = fb;
+    } catch (e) {
+      results.facebook_error = String(e);
+    }
+    try {
+      const ig = await composioInstagramPost(finalContent, photo?.url);
+      results.instagram = ig;
+    } catch (e) {
+      results.instagram_error = String(e);
+    }
+  }
+
+  // 4. Poster sur Google My Business
+  if (process.env.GOOGLE_LOCATION_NAME) {
+    try {
+      const gmb = await postToGoogleMyBusiness(finalContent);
+      results.gmb = gmb;
+    } catch (e) {
+      results.gmb_error = String(e);
+    }
+  }
+
+  return NextResponse.json({ ok: true, ...results });
+}
