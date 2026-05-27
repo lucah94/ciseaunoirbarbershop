@@ -290,7 +290,7 @@ export default function AgendaPage() {
           }
         } else {
           // Récurrent : refresh silencieux (pas de loading = pas de reset calendrier)
-          fetch("/api/bookings?start=2026-01-01")
+          fetch(`/api/bookings?start=2026-01-01&_=${Date.now()}`, { cache: "no-store" })
             .then(r => r.json())
             .then(data => {
               const list = Array.isArray(data) ? data : [];
