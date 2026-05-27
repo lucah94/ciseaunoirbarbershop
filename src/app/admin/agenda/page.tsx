@@ -67,7 +67,7 @@ export default function AgendaPage() {
   const [loadError, setLoadError] = useState(false);
   const retryRef = useRef(0);
   const [selected, setSelected] = useState<Booking | null>(null);
-  const [filter, setFilter] = useState<"all" | "Melynda">("all");
+  const [filter, setFilter] = useState<"all" | "Melynda" | "Barbier disponible">("all");
   const calendarRef = useRef<FullCalendar>(null);
   const [visitCounts, setVisitCounts] = useState<Record<string, number>>({});
   const [isMobile, setIsMobile] = useState(false);
@@ -579,8 +579,9 @@ export default function AgendaPage() {
           <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
             {/* Barber filters */}
             {[
-              { key: "all" as const, label: "Toutes", color: "#D4AF37" },
+              { key: "all" as const, label: "Tous", color: "#D4AF37" },
               { key: "Melynda" as const, label: "Melynda", color: "#D4AF37" },
+              { key: "Barbier disponible" as const, label: "2e barbier", color: "#B8860B" },
             ].map(f => (
               <button
                 key={f.key}
