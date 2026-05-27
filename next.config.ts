@@ -32,7 +32,7 @@ const securityHeaders = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://*.supabase.co https://www.google-analytics.com",
+      "img-src 'self' data: blob: https://*.supabase.co https://www.google-analytics.com https://www.google.com https://*.googleusercontent.com https://maps.googleapis.com",
       "font-src 'self' data:",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.google-analytics.com https://api.resend.com https://api.anthropic.com https://openrouter.ai",
       "frame-ancestors 'none'",
