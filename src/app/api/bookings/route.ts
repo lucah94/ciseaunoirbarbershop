@@ -245,6 +245,29 @@ export async function PATCH(req: NextRequest) {
     const { data, error } = await supabase.from("bookings").update(updates as Record<string, unknown>).eq("id", id).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+    // ── Auto-créer un cut quand RDV passe à completed (pour calcul paye live) ──
+    if (updates.status === "completed" && data) {
+      try {
+        // Vérifier qu'on n'a pas déjà un cut pour ce booking (évite doublon)
+        const { data: existingCut } = await supabase
+          .from("cuts").select("id").eq("booking_id", data.id).maybeSingle();
+
+        if (!existingCut) {
+          await supabase.from("cuts").insert([{
+            barber: data.barber,
+            service_name: data.service,
+            price: data.price || 0,
+            tip: 0,
+            discount_percent: 0,
+            date: data.date,
+            booking_id: data.id,
+          }]);
+        }
+      } catch (cutErr) {
+        console.error("Auto-cut creation error:", cutErr);
+      }
+    }
+
     if (updates.status === "cancelled") {
       notifyBookingCancelled({
         client_name: data.client_name,

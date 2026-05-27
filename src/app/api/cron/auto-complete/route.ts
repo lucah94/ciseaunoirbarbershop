@@ -62,6 +62,25 @@ export async function GET(req: NextRequest) {
       }
       completedCount++;
 
+      // Auto-créer un cut pour calcul paye live (évite doublon)
+      try {
+        const { data: existingCut } = await supabase
+          .from("cuts").select("id").eq("booking_id", booking.id).maybeSingle();
+        if (!existingCut) {
+          await supabase.from("cuts").insert([{
+            barber: booking.barber,
+            service_name: booking.service,
+            price: booking.price || 0,
+            tip: 0,
+            discount_percent: 0,
+            date: booking.date,
+            booking_id: booking.id,
+          }]);
+        }
+      } catch (cutErr) {
+        console.error(`Auto-cut error for ${booking.id}:`, cutErr);
+      }
+
       // Send review request only if appointment ended 2+ hours ago
       const appointmentStart = new Date(`${booking.date}T${booking.time}:00`);
       if (appointmentStart <= twoHoursAgo && booking.client_email) {
