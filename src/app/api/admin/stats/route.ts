@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-function weekRange(offset = 0) {
+function weekRange(offset = 0, capToToday = false) {
   const now = new Date();
   now.setDate(now.getDate() + offset * 7);
   const day = now.getDay() || 7;
@@ -12,7 +12,15 @@ function weekRange(offset = 0) {
   mon.setDate(now.getDate() - day + 1);
   const sun = new Date(mon);
   sun.setDate(mon.getDate() + 6);
-  return { start: mon.toISOString().split("T")[0], end: sun.toISOString().split("T")[0] };
+  let endDate = sun;
+  // Pour comparaison équitable: si offset=-1 (semaine passée), capper à même jour-de-semaine que today
+  if (capToToday) {
+    const todayDayOfWeek = new Date().getDay() || 7;
+    const cappedEnd = new Date(mon);
+    cappedEnd.setDate(mon.getDate() + todayDayOfWeek - 1);
+    endDate = cappedEnd;
+  }
+  return { start: mon.toISOString().split("T")[0], end: endDate.toISOString().split("T")[0] };
 }
 
 function monthRange(offset = 0) {
@@ -27,8 +35,11 @@ export async function GET(req: NextRequest) {
   if (denied) return denied;
 
   try {
-    const thisWeek = weekRange(0);
-    const lastWeek = weekRange(-1);
+    const thisWeek = weekRange(0); // Pour affichage UI (lun-dim complet)
+    const lastWeek = weekRange(-1); // Pour affichage UI (lun-dim complet)
+    // Pour comparaison équitable (this week en cours vs same period last week)
+    const thisWeekToToday = weekRange(0, true); // lundi → aujourd'hui
+    const lastWeekSameDay = weekRange(-1, true); // lundi passé → même jour-de-semaine
     const thisMonth = monthRange(0);
     const lastMonth = monthRange(-1);
 
@@ -46,18 +57,18 @@ export async function GET(req: NextRequest) {
       twilioBalance,
     ] = await Promise.all([
       supabaseAdmin.from("bookings").select("id, status, source, client_email, barber")
-        .gte("date", thisWeek.start).lte("date", thisWeek.end).neq("status", "cancelled"),
+        .gte("date", thisWeekToToday.start).lte("date", thisWeekToToday.end).neq("status", "cancelled"),
       supabaseAdmin.from("bookings").select("id, status, source")
-        .gte("date", lastWeek.start).lte("date", lastWeek.end).neq("status", "cancelled"),
+        .gte("date", lastWeekSameDay.start).lte("date", lastWeekSameDay.end).neq("status", "cancelled"),
       supabaseAdmin.from("bookings").select("id, status, source, client_email, barber, price")
         .gte("date", thisMonth.start).lte("date", thisMonth.end).neq("status", "cancelled"),
       supabaseAdmin.from("bookings").select("id, status, client_email")
         .gte("date", lastMonth.start).lte("date", lastMonth.end).neq("status", "cancelled"),
       supabaseAdmin.from("clients").select("id, email", { count: "exact", head: true }),
       supabaseAdmin.from("cuts").select("price, tip, discount_percent")
-        .gte("date", thisWeek.start).lte("date", thisWeek.end),
+        .gte("date", thisWeekToToday.start).lte("date", thisWeekToToday.end),
       supabaseAdmin.from("cuts").select("price, tip, discount_percent")
-        .gte("date", lastWeek.start).lte("date", lastWeek.end),
+        .gte("date", lastWeekSameDay.start).lte("date", lastWeekSameDay.end),
       supabaseAdmin.from("email_campaigns").select("id, subject, sent_to_count, created_at")
         .order("created_at", { ascending: false }).limit(3),
       supabaseAdmin.from("waitlist").select("id", { count: "exact", head: true }),
