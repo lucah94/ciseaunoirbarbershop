@@ -77,22 +77,16 @@ export async function GET(req: NextRequest) {
     let rebookingSent = 0;
     if (process.env.TWILIO_ACCOUNT_SID && completedBookings?.length) {
       const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
+      const { hasClientReturnedSince } = await import("@/lib/client-dedupe");
       for (const booking of completedBookings) {
-        // Vérifier si le client est revenu depuis (par téléphone OU email)
-        const lookupField = booking.client_email ? "client_email" : "client_phone";
-        const lookupValue = booking.client_email || booking.client_phone;
-        if (!lookupValue) continue;
-
-        const { data: newerBookings } = await supabase
-          .from("bookings")
-          .select("id")
-          .eq(lookupField, lookupValue)
-          .gt("date", threeWeeksAgoStr)
-          .in("status", ["confirmed", "completed"])
-          .limit(1);
-
-        // Client est déjà revenu → ne pas envoyer
-        if (newerBookings && newerBookings.length > 0) continue;
+        // Dedupe robuste — normalise email+phone+nom pour éviter doublons SMS si format diffère
+        const returned = await hasClientReturnedSince(
+          booking.client_phone,
+          booking.client_email,
+          threeWeeksAgoStr,
+          booking.client_name
+        );
+        if (returned) continue;
 
         // Envoyer SMS de rebooking
         if (booking.client_phone) {
@@ -145,20 +139,19 @@ export async function GET(req: NextRequest) {
 
       if (!oldBookings?.length) continue;
 
+      const { hasClientReturnedSince: hasReturned2 } = await import("@/lib/client-dedupe");
       for (const booking of oldBookings) {
-        // Skip if no email (can't dedupe without it)
-        if (!booking.client_email) continue;
+        // Skip if no contact info
+        if (!booking.client_email && !booking.client_phone) continue;
 
-        // Check client hasn't booked anything after that date
-        const { data: newerBookings } = await supabase
-          .from("bookings")
-          .select("id")
-          .eq("client_email", booking.client_email)
-          .gt("date", targetDateStr)
-          .in("status", ["confirmed", "completed"])
-          .limit(1);
-
-        if (newerBookings && newerBookings.length > 0) continue;
+        // Dedupe robuste — accept phone OR email match, normalisé
+        const returned = await hasReturned2(
+          booking.client_phone,
+          booking.client_email,
+          targetDateStr,
+          booking.client_name
+        );
+        if (returned) continue;
 
         const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/booking`;
 

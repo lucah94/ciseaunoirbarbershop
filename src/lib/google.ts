@@ -13,6 +13,45 @@ async function getAccessToken(): Promise<string> {
   return data.access_token;
 }
 
+export type GmbReview = {
+  reviewId: string;
+  reviewer: { displayName: string; profilePhotoUrl?: string };
+  starRating: "ONE" | "TWO" | "THREE" | "FOUR" | "FIVE";
+  comment?: string;
+  createTime: string;
+  reviewReply?: { comment: string; updateTime: string };
+};
+
+export async function fetchGoogleReviews(): Promise<{ reviews: GmbReview[]; error?: string }> {
+  try {
+    const accessToken = await getAccessToken();
+    const locationName = process.env.GOOGLE_LOCATION_NAME!;
+    const res = await fetch(`https://mybusiness.googleapis.com/v4/${locationName}/reviews?pageSize=50`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) return { reviews: [], error: `HTTP ${res.status}` };
+    const data = await res.json();
+    return { reviews: data.reviews || [] };
+  } catch (e) {
+    return { reviews: [], error: String(e) };
+  }
+}
+
+export async function replyToGoogleReview(reviewName: string, comment: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const accessToken = await getAccessToken();
+    const res = await fetch(`https://mybusiness.googleapis.com/v4/${reviewName}/reply`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ comment }),
+    });
+    if (!res.ok) return { success: false, error: `HTTP ${res.status}: ${await res.text()}` };
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: String(e) };
+  }
+}
+
 export async function postToGoogleMyBusiness(text: string): Promise<{ success: boolean; error?: string }> {
   try {
     const accessToken = await getAccessToken();

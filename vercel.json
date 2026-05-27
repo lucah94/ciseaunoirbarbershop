@@ -47,6 +47,22 @@
     {
       "path": "/api/cron/holiday-alerts",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/reply-reviews",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/cron/newsletter",
+      "schedule": "0 14 1 * *"
+    },
+    {
+      "path": "/api/cron/winback-sms",
+      "schedule": "0 15 * * 2"
+    },
+    {
+      "path": "/api/cron/birthday-promo",
+      "schedule": "0 10 * * *"
     }
   ]
 }

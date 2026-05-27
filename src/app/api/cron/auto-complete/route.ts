@@ -98,15 +98,19 @@ export async function GET(req: NextRequest) {
 
         // ── First visit promo: check if this is the client's first completed booking ──
         try {
+          // Normaliser email pour matcher format variations
+          const { normalizeEmail } = await import("@/lib/client-dedupe");
+          const normEmail = normalizeEmail(booking.client_email);
           const { data: previousBookings } = await supabase
             .from("bookings")
-            .select("id")
-            .eq("client_email", booking.client_email)
+            .select("id, client_email")
+            .ilike("client_email", `%${normEmail}%`)
             .eq("status", "completed")
             .neq("id", booking.id)
-            .limit(1);
-
-          if (!previousBookings || previousBookings.length === 0) {
+            .limit(5);
+          // Vérifier match exact post-normalisation
+          const hasPrevious = (previousBookings || []).some(b => normalizeEmail(b.client_email) === normEmail);
+          if (!hasPrevious) {
             // This is their first completed booking — send promo!
             const promoCode = generatePromoCode();
             await sendFirstVisitPromoEmail({
