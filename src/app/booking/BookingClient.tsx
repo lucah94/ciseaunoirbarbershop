@@ -20,6 +20,7 @@ const SERVICES = [
 
 const BARBERS = [
   { id: "melynda", name: "Melynda", role: "Barbière & Co-fondatrice", exp: "18+ ans d'expérience" },
+  { id: "barbier-disponible", name: "Barbier disponible", role: "Place disponible", exp: "Temps partiel" },
 ];
 
 // Horaires selon le jour : 0=dim, 1=lun, 2=mar, 3=mer, 4=jeu, 5=ven, 6=sam
@@ -1085,9 +1086,9 @@ function BookingContent() {
                   }
                   .barbers-grid {
                     display: grid;
-                    grid-template-columns: 1fr;
+                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
                     gap: 20px;
-                    max-width: 320px;
+                    max-width: 640px;
                     margin: 0 auto;
                   }
                 `}</style>
@@ -1232,6 +1233,63 @@ function BookingContent() {
                           </p>
                         )}
                       </div>
+
+                      {/* Colonne Barbier disponible — affiché uniquement si schedule défini ou day_override actif pour la date */}
+                      {(() => {
+                        const dispoSchedule = barberSchedules["barbier disponible"];
+                        const dayKey = DAY_KEYS[new Date(selected.date + "T12:00:00").getDay()];
+                        const hasSchedule = dispoSchedule && dispoSchedule[dayKey];
+                        const hasOverride = dayOverrides.some(o => o.date === selected.date);
+                        // Si pas de dispo pour ce jour → ne pas afficher le 2e barbier
+                        if (!hasSchedule && !hasOverride) return null;
+                        const serviceDur = getServiceDuration(SERVICES.find(s => s.id === selected.service)?.name || "");
+                        const dispoSlots = getTimesForBarberAndDate("barbier-disponible", selected.date, dayOverrides, dispoSchedule);
+                        return (
+                          <div>
+                            <div style={{ textAlign: "center", marginBottom: "16px" }}>
+                              <div style={{
+                                width: "64px", height: "64px", borderRadius: "50%",
+                                border: "2px solid rgba(212,175,55,0.5)",
+                                margin: "0 auto 10px", overflow: "hidden",
+                                boxShadow: "0 0 16px rgba(212,175,55,0.2)",
+                              }}>
+                                <Image src="/images/diodis.jpg" alt="Barbier disponible" width={80} height={80} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 10%" }} />
+                              </div>
+                              <p style={{ color: "#D4AF37", fontSize: "13px", letterSpacing: "3px", textTransform: "uppercase", fontWeight: 600 }}>Barbier dispo</p>
+                            </div>
+                            {dispoSlots.length > 0 ? (
+                              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                {dispoSlots.filter(t => {
+                                  const now = new Date();
+                                  const [tH, tM] = t.split(":").map(Number);
+                                  if (selected.date === today && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()))) return false;
+                                  return !isSlotOccupied(t, bookedSlots, blockedRanges, selected.date, serviceDur);
+                                }).map(t => (
+                                  <button
+                                    key={t}
+                                    onClick={() => { setSelected({ ...selected, barber: "barbier-disponible", time: t }); setStep(3); }}
+                                    style={{
+                                      background: "transparent",
+                                      border: "1px solid rgba(212,175,55,0.25)",
+                                      color: "#F0F0F0",
+                                      padding: "12px",
+                                      cursor: "pointer",
+                                      fontSize: "15px",
+                                      fontWeight: 500,
+                                      borderRadius: "10px",
+                                      transition: "all 0.25s ease",
+                                      letterSpacing: "1px",
+                                      width: "100%",
+                                    }}
+                                  >{t}</button>
+                                ))}
+                              </div>
+                            ) : (
+                              <p style={{ color: "#444", fontSize: "12px", textAlign: "center", padding: "20px 0" }}>Complet ce jour</p>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                     </div>}
                   </motion.div>
