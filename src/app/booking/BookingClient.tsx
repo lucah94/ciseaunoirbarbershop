@@ -585,6 +585,29 @@ function BookingContent() {
     if (resData?.id) setBookingId(resData.id);
     setSubmitted(true);
 
+    // Tracking conversion Google Ads (via GA4) + Meta Pixel — fire-and-forget
+    try {
+      const w = window as unknown as { gtag?: (...args: unknown[]) => void; fbq?: (...args: unknown[]) => void };
+      if (typeof w.gtag === "function") {
+        w.gtag("event", "purchase", {
+          transaction_id: resData?.id,
+          value: price,
+          currency: "CAD",
+          items: [{
+            item_id: service?.id,
+            item_name: service?.name || "Service",
+            item_category: "barbershop",
+            price,
+            quantity: 1,
+          }],
+        });
+      }
+      if (typeof w.fbq === "function") {
+        w.fbq("track", "Schedule", { value: price, currency: "CAD", content_name: service?.name });
+        w.fbq("track", "Purchase", { value: price, currency: "CAD", content_name: service?.name });
+      }
+    } catch {}
+
     // Fetch loyalty data after booking
     if (selected.email) {
       fetch(`/api/loyalty?email=${encodeURIComponent(selected.email)}`)
