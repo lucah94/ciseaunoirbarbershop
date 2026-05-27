@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   if (limited) return limited;
 
   const { password } = await req.json();
-  const BARBER_PASSWORD = process.env.DIODIS_PASSWORD;
+  const BARBER_PASSWORD = process.env.MELYNDA_PASSWORD;
   if (!BARBER_PASSWORD || password !== BARBER_PASSWORD) {
     return NextResponse.json({ error: "Mot de passe incorrect" }, { status: 401 });
   }

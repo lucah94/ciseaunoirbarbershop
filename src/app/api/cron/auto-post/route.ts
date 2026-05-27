@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { postToGoogleMyBusiness } from "@/lib/google";
 import type Anthropic from "@anthropic-ai/sdk";
 import { aiClient as anthropic, MODELS } from "@/lib/ai";
+import { isComposioConfigured, composioFacebookPost, composioInstagramPost } from "@/lib/composio";
 export const dynamic = 'force-dynamic';
 
 export const maxDuration = 120;
@@ -88,9 +89,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
-  // Check configuration
-  if (!PAGE_ID || !TOKEN) {
-    return NextResponse.json({ error: "Facebook credentials manquants" }, { status: 500 });
+  // Check configuration — Composio OU Facebook Graph API requis
+  const useComposio = isComposioConfigured();
+  if (!useComposio && (!PAGE_ID || !TOKEN)) {
+    return NextResponse.json({ error: "Facebook credentials manquants (FACEBOOK_PAGE_ID + FACEBOOK_ACCESS_TOKEN ou COMPOSIO_API_KEY requis)" }, { status: 500 });
   }
 
   // Get current day of week (0=Sun, 1=Mon, ..., 6=Sat)
@@ -116,9 +118,53 @@ export async function GET(req: NextRequest) {
     const contentType = getContentTypeForDay(dayOfWeek, i);
     try {
       const content = await generatePostContent(contentType, dayOfWeek);
-      const fbResult = await postToFacebook(content);
 
-      // Post to Google My Business if configured
+      // ── Publication Facebook : Composio en primaire, Graph API en fallback ─
+      let fbOk = false;
+      let fbPostId: string | undefined;
+      let fbError: string | undefined;
+      let fbChannel: "composio" | "graph_api" = "composio";
+
+      if (useComposio) {
+        const composioResult = await composioFacebookPost(content);
+        if (composioResult.success) {
+          fbOk = true;
+          fbPostId = (composioResult.data as { postId?: string })?.postId;
+        } else {
+          // Fallback vers Facebook Graph API si Composio échoue
+          fbError = composioResult.error;
+          if (PAGE_ID && TOKEN) {
+            fbChannel = "graph_api";
+            const graphResult = await postToFacebook(content);
+            if (!graphResult.error) {
+              fbOk = true;
+              fbPostId = graphResult.id;
+              fbError = undefined;
+            } else {
+              fbError = `composio: ${fbError} | graph_api: ${graphResult.error}`;
+            }
+          }
+        }
+      } else {
+        fbChannel = "graph_api";
+        const graphResult = await postToFacebook(content);
+        fbOk = !graphResult.error;
+        fbPostId = graphResult.id;
+        fbError = graphResult.error;
+      }
+
+      // ── Instagram via Composio (bonus si configuré) ────────────────────────
+      let igResult: { success: boolean; error?: string } | null = null;
+      if (useComposio) {
+        try {
+          const igRes = await composioInstagramPost(content);
+          igResult = { success: igRes.success, error: igRes.error };
+        } catch (igErr) {
+          igResult = { success: false, error: String(igErr) };
+        }
+      }
+
+      // ── Google My Business (si configuré) ─────────────────────────────────
       let gmbResult: { success: boolean; error?: string } | null = null;
       if (process.env.GOOGLE_LOCATION_NAME) {
         try {
@@ -128,11 +174,17 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      if (fbResult.error) {
-        results.push({ index: i + 1, contentType, ok: false, error: fbResult.error, gmb: gmbResult });
-      } else {
-        results.push({ index: i + 1, contentType, ok: true, postId: fbResult.id, preview: content.slice(0, 100) + "...", gmb: gmbResult });
-      }
+      results.push({
+        index: i + 1,
+        contentType,
+        ok: fbOk,
+        postId: fbPostId,
+        channel: fbChannel,
+        ...(fbError ? { error: fbError } : {}),
+        preview: content.slice(0, 100) + "...",
+        instagram: igResult,
+        gmb: gmbResult,
+      });
     } catch (e) {
       results.push({ index: i + 1, contentType, ok: false, error: String(e) });
     }
