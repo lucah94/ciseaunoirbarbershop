@@ -181,7 +181,7 @@ export default function AgendaPage() {
         fetchBookings();
         fetchBlocks();
       }
-    }, 120000);
+    }, 30000); // 30s — nouveaux RDV clients apparaissent plus vite
     return () => clearInterval(interval);
   }, [fetchBookings, fetchBlocks, selected, showNewRDV, showBlock]);
 

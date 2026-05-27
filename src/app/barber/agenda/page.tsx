@@ -44,6 +44,7 @@ export default function BarberAgendaPage() {
     date: localDateStr(), time: "09:00", note: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const todayStr = localDateStr();
 
@@ -77,18 +78,38 @@ export default function BarberAgendaPage() {
   async function submitNewRDV() {
     if (!newRDV.client_name.trim() || !newRDV.date || !newRDV.time) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
       const res = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...newRDV, barber: "Melynda", status: "confirmed" }),
+        body: JSON.stringify({ ...newRDV, barber: "Melynda", status: "confirmed", force: true }),
       });
-      if (res.ok) {
+      const resData = await res.json().catch(() => ({}));
+      if (res.ok && resData?.id) {
+        // Ajout optimiste — pas de reload, pas de "CHARGEMENT"
+        setBookings(prev => [...prev, resData as Booking]);
+        // Naviguer vers la date du nouveau RDV si différente
+        if (newRDV.date !== selectedDate) {
+          setSelectedDate(newRDV.date);
+          const d = new Date(newRDV.date + "T12:00:00");
+          setViewMonth(d.getMonth());
+          setViewYear(d.getFullYear());
+        }
         setShowNew(false);
+        setSubmitError(null);
         setNewRDV({ client_name: "", client_phone: "", client_email: "", service: "Coupe + Lavage", price: 35, date: todayStr, time: "09:00", note: "" });
-        fetchBookings();
+      } else {
+        setSubmitError(res.status === 409
+          ? `⚠️ ${resData?.error || "Ce créneau est déjà occupé."}`
+          : `Erreur: ${resData?.error || "Impossible de créer le RDV."}`
+        );
       }
-    } finally { setSubmitting(false); }
+    } catch {
+      setSubmitError("Erreur de connexion. Réessayez.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   // Calendar
@@ -107,7 +128,8 @@ export default function BarberAgendaPage() {
   }, {} as Record<string, Booking[]>);
 
   const [selectedDate, setSelectedDate] = useState(todayStr);
-  const dayBookings = bookingsByDate[selectedDate] ?? [];
+  // Filtrer les annulés de la vue jour (sinon ça reste affiché même après annulation)
+  const dayBookings = (bookingsByDate[selectedDate] ?? []).filter(b => b.status !== "cancelled");
 
   const todayBookings = bookings.filter(b => b.date === todayStr && b.status !== "cancelled");
   const upcomingBookings = bookings
@@ -344,9 +366,14 @@ export default function BarberAgendaPage() {
                   <textarea value={newRDV.note} onChange={e => setNewRDV(f => ({ ...f, note: e.target.value }))} rows={2}
                     style={{ background: "#1C2129", border: "1px solid rgba(212,175,55,0.15)", color: "#F0F0F0", padding: "10px 14px", borderRadius: "8px", fontSize: "14px", width: "100%", resize: "none" }} />
                 </div>
+                {submitError && (
+                  <div style={{ background: "rgba(238,85,85,0.1)", border: "1px solid rgba(238,85,85,0.3)", borderRadius: "8px", padding: "12px 16px", color: "#e55", fontSize: "13px" }}>
+                    {submitError}
+                  </div>
+                )}
                 <button onClick={submitNewRDV} disabled={!newRDV.client_name || !newRDV.date || submitting}
                   style={{ background: newRDV.client_name ? "linear-gradient(135deg, #D4AF37, #B8860B)" : "#1A1A1A", color: newRDV.client_name ? "#080808" : "#444", border: "none", padding: "14px", cursor: "pointer", borderRadius: "8px", fontSize: "13px", fontWeight: 700, letterSpacing: "1px", marginTop: "8px" }}>
-                  {submitting ? "..." : "Créer le rendez-vous"}
+                  {submitting ? "Enregistrement..." : "Créer le rendez-vous"}
                 </button>
               </div>
             </div>
