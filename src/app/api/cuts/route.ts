@@ -6,22 +6,35 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const week = searchParams.get("week"); // format: YYYY-Www
 
-  let query = supabase.from("cuts").select("*").order("date", { ascending: false });
-
+  let weekStart: string | null = null;
+  let weekEnd: string | null = null;
   if (week) {
-    // Get start and end of week
     const [year, w] = week.split("-W").map(Number);
     const jan4 = new Date(year, 0, 4);
     const startOfWeek = new Date(jan4);
     startOfWeek.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7) + (w - 1) * 7);
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
-    query = query.gte("date", startOfWeek.toISOString().split("T")[0]).lte("date", endOfWeek.toISOString().split("T")[0]);
+    weekStart = startOfWeek.toISOString().split("T")[0];
+    weekEnd = endOfWeek.toISOString().split("T")[0];
   }
 
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  // Pagination côté serveur — évite la limite hard Supabase 1000
+  const PAGE_SIZE = 1000;
+  const all: unknown[] = [];
+  let from = 0;
+  while (true) {
+    let query = supabase.from("cuts").select("*").order("date", { ascending: false }).range(from, from + PAGE_SIZE - 1);
+    if (weekStart && weekEnd) query = query.gte("date", weekStart).lte("date", weekEnd);
+    const { data: page, error } = await query;
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!page || page.length === 0) break;
+    all.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+    if (from > 50000) break;
+  }
+  return NextResponse.json(all);
 }
 
 export async function POST(req: NextRequest) {
