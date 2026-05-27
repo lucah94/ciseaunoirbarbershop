@@ -150,6 +150,18 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Track conversion Meta/Google Ads (fire-and-forget, n'attend pas la réponse)
+  import("@/lib/conversions").then(m => m.trackBookingConversion({
+    id: data.id,
+    client_name: data.client_name,
+    client_email: data.client_email,
+    client_phone: data.client_phone,
+    price: data.price || 0,
+    service: data.service,
+    source: data.source,
+    created_at: data.created_at,
+  })).catch(() => {});
+
   try {
     await Promise.all([
       data.client_phone && process.env.TWILIO_ACCOUNT_SID ? sendBookingConfirmationSMS({
