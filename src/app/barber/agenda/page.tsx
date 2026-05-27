@@ -57,7 +57,8 @@ export default function BarberAgendaPage() {
 
   const fetchBookings = useCallback((silent = false) => {
     if (!silent) setLoading(true);
-    fetch(`/api/bookings?start=${getStartDate()}`)
+    // cache: no-store + cache-buster pour forcer un rechargement frais sur mobile
+    fetch(`/api/bookings?start=${getStartDate()}&_=${Date.now()}`, { cache: "no-store" })
       .then(r => r.json())
       .then(data => {
         const list = (Array.isArray(data) ? data : []).filter((b: Booking) =>
