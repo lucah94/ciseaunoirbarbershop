@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { isPushSupported, subscribeAndSave } from "@/lib/push-notifications";
+import { supabase } from "@/lib/supabase";
 
 const SERVICES = [
   { id: "wash-cut", name: "Coupe + Lavage", price: "35$", duration: "45 min", desc: "Coupe classique avec shampoing", icon: "✂️" },
@@ -486,11 +487,21 @@ function BookingContent() {
       .catch(() => {});
   }, []);
 
-  // Load on mount + auto-refresh every 30s
+  // Load on mount + Supabase Realtime (block instantané quand Melynda en crée un)
   useEffect(() => {
     refreshAvailability();
-    const interval = setInterval(refreshAvailability, 30000);
-    return () => clearInterval(interval);
+    const channel = supabase
+      .channel("booking-client-blocks")
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "barber_blocks" },
+        () => refreshAvailability()
+      )
+      .subscribe();
+    const interval = setInterval(refreshAvailability, 300000);
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, [refreshAvailability]);
 
   const refreshBookedSlots = useCallback((date: string) => {
@@ -523,11 +534,22 @@ function BookingContent() {
     });
   }, []);
 
+  // Push live: si un autre client réserve sur la même date, les créneaux se mettent à jour instantanément
   useEffect(() => {
     if (!selected.date) return;
     refreshBookedSlots(selected.date);
-    const interval = setInterval(() => refreshBookedSlots(selected.date), 30000);
-    return () => clearInterval(interval);
+    const channel = supabase
+      .channel(`booking-slots-${selected.date}`)
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "bookings", filter: `date=eq.${selected.date}` },
+        () => refreshBookedSlots(selected.date)
+      )
+      .subscribe();
+    const interval = setInterval(() => refreshBookedSlots(selected.date), 300000);
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, [selected.date, refreshBookedSlots]);
 
   async function handleSubmit() {

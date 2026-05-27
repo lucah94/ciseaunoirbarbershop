@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import BarberSidebar from "@/components/BarberSidebar";
 import { localDateStr } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 
 type Booking = {
   id: string; client_name: string; client_phone: string; client_email: string;
@@ -70,11 +71,25 @@ export default function BarberAgendaPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  // Chargement initial + auto-refresh silencieux toutes les 60s
+  // Chargement initial + Supabase Realtime (push live WebSocket)
+  // + filet de sécurité polling 5 min au cas où WebSocket déconnecte
   useEffect(() => {
     fetchBookings();
-    const interval = setInterval(() => fetchBookings(true), 60000);
-    return () => clearInterval(interval);
+
+    const channel = supabase
+      .channel("bookings-barber-agenda")
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "bookings" },
+        () => fetchBookings(true)
+      )
+      .subscribe();
+
+    const interval = setInterval(() => fetchBookings(true), 300000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, [fetchBookings]);
 
   async function updateStatus(id: string, status: string) {

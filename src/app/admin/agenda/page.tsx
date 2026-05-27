@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import AdminSidebar from "@/components/AdminSidebar";
 import { localDateStr } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -176,13 +177,32 @@ export default function AgendaPage() {
   useEffect(() => {
     fetchBookings();
     fetchBlocks();
+
+    // Push live via Supabase Realtime — 0 délai, vrai WebSocket
+    const channel = supabase
+      .channel("admin-agenda-realtime")
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "bookings" },
+        () => { if (!selected && !showNewRDV && !showBlock) fetchBookings(); }
+      )
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "barber_blocks" },
+        () => { if (!selected && !showNewRDV && !showBlock) fetchBlocks(); }
+      )
+      .subscribe();
+
+    // Filet polling 5 min (au cas où WebSocket déconnecte)
     const interval = setInterval(() => {
       if (!selected && !showNewRDV && !showBlock) {
         fetchBookings();
         fetchBlocks();
       }
-    }, 30000); // 30s — nouveaux RDV clients apparaissent plus vite
-    return () => clearInterval(interval);
+    }, 300000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, [fetchBookings, fetchBlocks, selected, showNewRDV, showBlock]);
 
   // Client search with debounce
