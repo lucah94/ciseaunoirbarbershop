@@ -4,6 +4,14 @@ import { requireAdmin } from "@/lib/auth";
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
+  // Admin OU barber peuvent lire les blocs (Melynda voit ses blocks aussi)
+  const adminDenied = requireAdmin(req);
+  if (adminDenied) {
+    // Check si c'est un barber
+    const auth = req.cookies.get("barber_auth");
+    if (!auth) return adminDenied;
+  }
+
   const barber = req.nextUrl.searchParams.get("barber");
   let query = supabaseAdmin.from("barber_blocks").select("*").order("date");
   if (barber) query = query.eq("barber", barber);

@@ -5,6 +5,13 @@ import { requireAdmin } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  // Admin OU barber pour voir leurs day overrides
+  const adminDenied = requireAdmin(req);
+  if (adminDenied) {
+    const auth = req.cookies.get("barber_auth");
+    if (!auth) return adminDenied;
+  }
+
   const barber = req.nextUrl.searchParams.get("barber");
   const today = new Date().toISOString().split("T")[0];
   let query = supabaseAdmin.from("barber_day_overrides").select("*").gte("date", today).order("date");

@@ -55,12 +55,21 @@ export const metadata: Metadata = {
     description:
       "Barbier à Beauport, Québec. Coupes homme, rasage et taille de barbe. Réservez en ligne.",
     url: "https://ciseaunoirbarbershop.com",
+    images: [
+      {
+        url: "/images/melynda.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Ciseau Noir Barbershop — Melynda à Beauport, Québec",
+      },
+    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Ciseau Noir | Barbershop Beauport Québec",
     description:
       "Barbier à Beauport, Québec. Réservez en ligne.",
+    images: ["/images/melynda.jpg"],
   },
   alternates: {
     canonical: "https://ciseaunoirbarbershop.com",

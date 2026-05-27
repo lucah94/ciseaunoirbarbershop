@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
+import { requireAdmin, requireBarber } from "@/lib/auth";
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
+  // Admin OU barber peuvent lire (Melynda voit ses cuts dans /barber, Luca voit tout dans /admin)
+  const adminDenied = requireAdmin(req);
+  const barberDenied = requireBarber(req);
+  if (adminDenied && barberDenied) return adminDenied;
+
   const { searchParams } = new URL(req.url);
   const week = searchParams.get("week"); // format: YYYY-Www
 
@@ -38,6 +44,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   const body = await req.json();
   const { data, error } = await supabase.from("cuts").insert([body]).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -45,6 +54,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   const { error } = await supabase.from("cuts").delete().eq("id", id);
