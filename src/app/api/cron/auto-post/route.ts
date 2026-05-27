@@ -63,8 +63,9 @@ Informations:
 
 Génère uniquement le texte de la publication, sans guillemets ni introduction.`;
 
+  // BALANCED = DeepSeek via OpenRouter si configuré (10x moins cher que Claude Opus)
   const response = await anthropic.messages.create({
-    model: MODELS.SMART,
+    model: MODELS.BALANCED,
     max_tokens: 500,
     messages: [{ role: "user", content: prompt }],
   });

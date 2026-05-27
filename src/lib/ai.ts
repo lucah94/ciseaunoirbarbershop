@@ -16,12 +16,12 @@ export const aiClient = useOpenRouter
 
 // Dernier modèle pour chaque niveau — 1 seul endroit à changer
 export const MODELS = {
-  // Tâches simples: classification, réponses courtes, formulaires (~0.08$/MTok)
-  FAST: useOpenRouter ? "anthropic/claude-haiku-4-5-20251001" : "claude-haiku-4-5-20251001",
+  // Tâches simples: classification, réponses courtes (~0.14$/MTok via DeepSeek)
+  FAST: useOpenRouter ? "deepseek/deepseek-chat" : "claude-haiku-4-5-20251001",
 
-  // Tâches moyennes: conversations clients, analyse dépenses, emails (~0.90$/MTok)
-  BALANCED: useOpenRouter ? "anthropic/claude-sonnet-4-6" : "claude-sonnet-4-6",
+  // Tâches moyennes: conversations clients, analyse emails (~0.14$/MTok via DeepSeek)
+  BALANCED: useOpenRouter ? "deepseek/deepseek-chat" : "claude-sonnet-4-6",
 
-  // Tâches complexes: Figaro, génération contenu, raisonnement profond (~7$/MTok)
-  SMART: useOpenRouter ? "anthropic/claude-opus-4-7" : "claude-opus-4-7",
+  // Tâches complexes: Figaro, raisonnement profond (~3$/MTok Claude Sonnet via OpenRouter)
+  SMART: useOpenRouter ? "anthropic/claude-sonnet-4-6" : "claude-sonnet-4-6",
 } as const;

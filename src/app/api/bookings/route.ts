@@ -37,7 +37,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(data);
     }
 
-    let query = supabase.from("bookings").select("*").order("date", { ascending: true }).order("time", { ascending: true });
+    // Limite explicite à 10 000 — évite la coupure à 1000 (défaut Supabase PostgREST)
+    let query = supabase.from("bookings").select("*").order("date", { ascending: true }).order("time", { ascending: true }).limit(10000);
 
     if (date) query = query.eq("date", date);
     if (barber) query = query.eq("barber", barber);

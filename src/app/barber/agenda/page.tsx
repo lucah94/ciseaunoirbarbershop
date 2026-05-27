@@ -48,9 +48,16 @@ export default function BarberAgendaPage() {
 
   const todayStr = localDateStr();
 
-  const fetchBookings = useCallback(() => {
-    setLoading(true);
-    fetch("/api/bookings?start=2026-01-01")
+  // Charger 60 jours dans le passé + tout le futur — évite la coupure à 1000 lignes Supabase
+  const getStartDate = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 60);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  };
+
+  const fetchBookings = useCallback((silent = false) => {
+    if (!silent) setLoading(true);
+    fetch(`/api/bookings?start=${getStartDate()}`)
       .then(r => r.json())
       .then(data => {
         const list = (Array.isArray(data) ? data : []).filter((b: Booking) =>
@@ -62,7 +69,12 @@ export default function BarberAgendaPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  useEffect(() => { fetchBookings(); }, [fetchBookings]);
+  // Chargement initial + auto-refresh silencieux toutes les 60s
+  useEffect(() => {
+    fetchBookings();
+    const interval = setInterval(() => fetchBookings(true), 60000);
+    return () => clearInterval(interval);
+  }, [fetchBookings]);
 
   async function updateStatus(id: string, status: string) {
     if (status === "cancelled" && !confirm("Annuler ce rendez-vous ?")) return;
