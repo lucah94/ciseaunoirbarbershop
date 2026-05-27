@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://ciseaunoir.ca"),
+  metadataBase: new URL("https://ciseaunoirbarbershop.com"),
   title: {
     default: "Ciseau Noir | Barbershop Beauport Québec",
     template: "%s — Ciseau Noir Barbershop Beauport",
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
     title: "Ciseau Noir | Barbershop Beauport Québec",
     description:
       "Barbier à Beauport, Québec. Coupes homme, rasage et taille de barbe. Réservez en ligne.",
-    url: "https://ciseaunoir.ca",
+    url: "https://ciseaunoirbarbershop.com",
   },
   twitter: {
     card: "summary",
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
       "Barbier à Beauport, Québec. Réservez en ligne.",
   },
   alternates: {
-    canonical: "https://ciseaunoir.ca",
+    canonical: "https://ciseaunoirbarbershop.com",
   },
   robots: {
     index: true,

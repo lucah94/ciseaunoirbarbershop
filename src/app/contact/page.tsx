@@ -7,10 +7,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Contact — Ciseau Noir Barbershop",
     description: "Adresse, horaires et formulaire de contact. Barbershop premium au 375 Boul. des Chutes, Québec.",
-    url: "https://ciseaunoir.ca/contact",
+    url: "https://ciseaunoirbarbershop.com/contact",
   },
   alternates: {
-    canonical: "https://ciseaunoir.ca/contact",
+    canonical: "https://ciseaunoirbarbershop.com/contact",
   },
 };
 

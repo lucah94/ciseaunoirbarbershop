@@ -9,10 +9,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Ciseau Noir — Barbershop Québec",
     description: "Salon de barbier premium à Québec. Coupes, rasages et soins professionnels. Réservez en ligne.",
-    url: "https://ciseaunoir.ca",
+    url: "https://ciseaunoirbarbershop.com",
   },
   alternates: {
-    canonical: "https://ciseaunoir.ca",
+    canonical: "https://ciseaunoirbarbershop.com",
   },
 };
 

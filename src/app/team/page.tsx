@@ -10,10 +10,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Notre Équipe — Ciseau Noir Barbershop",
     description: "Melynda, barbière experte à Québec. Réservez en ligne.",
-    url: "https://ciseaunoir.ca/team",
+    url: "https://ciseaunoirbarbershop.com/team",
   },
   alternates: {
-    canonical: "https://ciseaunoir.ca/team",
+    canonical: "https://ciseaunoirbarbershop.com/team",
   },
 };
 

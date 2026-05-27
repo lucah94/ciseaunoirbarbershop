@@ -9,10 +9,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Galerie — Ciseau Noir Barbershop",
     description: "Découvrez le savoir-faire de nos barbiers à travers nos réalisations.",
-    url: "https://ciseaunoir.ca/galerie",
+    url: "https://ciseaunoirbarbershop.com/galerie",
   },
   alternates: {
-    canonical: "https://ciseaunoir.ca/galerie",
+    canonical: "https://ciseaunoirbarbershop.com/galerie",
   },
 };
 

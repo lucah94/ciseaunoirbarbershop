@@ -7,10 +7,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Réservation — Ciseau Noir Barbershop",
     description: "Réservez en ligne avec Melynda. Coupes, rasages, service premium à Québec.",
-    url: "https://ciseaunoir.ca/booking",
+    url: "https://ciseaunoirbarbershop.com/booking",
   },
   alternates: {
-    canonical: "https://ciseaunoir.ca/booking",
+    canonical: "https://ciseaunoirbarbershop.com/booking",
   },
 };
 

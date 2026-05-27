@@ -5,7 +5,7 @@ export default function JsonLd() {
     name: "Ciseau Noir Barbershop",
     description:
       "Salon de barbier premium a Quebec. Coupes, rasages et soins professionnels.",
-    url: "https://ciseaunoir.ca",
+    url: "https://ciseaunoirbarbershop.com",
     telephone: "+1-418-665-5703",
     address: {
       "@type": "PostalAddress",
@@ -35,7 +35,7 @@ export default function JsonLd() {
       },
     ],
     priceRange: "$$",
-    image: "https://ciseaunoir.ca/favicon.ico",
+    image: "https://ciseaunoirbarbershop.com/favicon.ico",
     hasOfferCatalog: {
       "@type": "OfferCatalog",
       name: "Services de barbier",

@@ -8,10 +8,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Politique de confidentialité — Ciseau Noir Barbershop",
     description: "Politique de confidentialité de Ciseau Noir Barbershop.",
-    url: "https://ciseaunoir.ca/politique-de-confidentialite",
+    url: "https://ciseaunoirbarbershop.com/politique-de-confidentialite",
   },
   alternates: {
-    canonical: "https://ciseaunoir.ca/politique-de-confidentialite",
+    canonical: "https://ciseaunoirbarbershop.com/politique-de-confidentialite",
   },
 };
 

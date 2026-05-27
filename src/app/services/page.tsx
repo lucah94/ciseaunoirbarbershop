@@ -9,10 +9,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Services & Tarifs — Ciseau Noir Barbershop",
     description: "Coupes à partir de 30$, rasage lame, service premium 75$. Barbershop premium à Québec.",
-    url: "https://ciseaunoir.ca/services",
+    url: "https://ciseaunoirbarbershop.com/services",
   },
   alternates: {
-    canonical: "https://ciseaunoir.ca/services",
+    canonical: "https://ciseaunoirbarbershop.com/services",
   },
 };
 

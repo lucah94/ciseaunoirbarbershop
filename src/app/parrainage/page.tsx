@@ -7,10 +7,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Parrainage — Ciseau Noir Barbershop",
     description: "Référez un ami et recevez tous les deux 5$ de rabais sur votre prochaine visite.",
-    url: "https://ciseaunoir.ca/parrainage",
+    url: "https://ciseaunoirbarbershop.com/parrainage",
   },
   alternates: {
-    canonical: "https://ciseaunoir.ca/parrainage",
+    canonical: "https://ciseaunoirbarbershop.com/parrainage",
   },
 };
 

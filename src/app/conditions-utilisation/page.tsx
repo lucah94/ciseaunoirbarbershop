@@ -8,10 +8,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Conditions d'utilisation — Ciseau Noir Barbershop",
     description: "Conditions d'utilisation du service de réservation en ligne de Ciseau Noir Barbershop.",
-    url: "https://ciseaunoir.ca/conditions-utilisation",
+    url: "https://ciseaunoirbarbershop.com/conditions-utilisation",
   },
   alternates: {
-    canonical: "https://ciseaunoir.ca/conditions-utilisation",
+    canonical: "https://ciseaunoirbarbershop.com/conditions-utilisation",
   },
 };
 

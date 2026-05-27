@@ -33,7 +33,7 @@ Infos salon :
 - Horaires: Mar-Mer 8h30-16h30, Jeu-Ven 8h30-20h30, Sam 8h30-16h30, Dim-Lun fermé
 - Adresse: 375 Bd des Chutes, Québec
 - Téléphone: (418) 665-5703
-- Réservation: ciseaunoir.ca
+- Réservation: ciseaunoirbarbershop.com
 - Coiffeur: Melynda (propriétaire)
 Signe toujours avec : Figaro ✂️ — Assistant Ciseau Noir`,
     messages: [
@@ -47,7 +47,7 @@ Signe toujours avec : Figaro ✂️ — Assistant Ciseau Noir`,
   const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === "text");
   return (
     textBlock?.text ||
-    `Bonjour ${name},\n\nMerci pour votre message ! Je l'ai bien reçu et l'équipe vous répondra rapidement.\n\nRéservation : ciseaunoir.ca\nUrgent : (418) 665-5703\n\nFigaro ✂️ — Assistant Ciseau Noir`
+    `Bonjour ${name},\n\nMerci pour votre message ! Je l'ai bien reçu et l'équipe vous répondra rapidement.\n\nRéservation : ciseaunoirbarbershop.com\nUrgent : (418) 665-5703\n\nFigaro ✂️ — Assistant Ciseau Noir`
   );
 }
 
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
             <p style="color: #888; font-size: 13px; margin: 0; line-height: 1.7;">
               📍 375 Bd des Chutes, Québec, QC<br>
               📞 (418) 665-5703<br>
-              🌐 ciseaunoir.ca
+              🌐 ciseaunoirbarbershop.com
             </p>
           </div>
           <p style="color: #444; font-size: 11px; text-align: center; letter-spacing: 1px;">Figaro ✂️ — Assistant IA de Ciseau Noir</p>

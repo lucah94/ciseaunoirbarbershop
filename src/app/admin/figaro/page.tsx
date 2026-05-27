@@ -563,7 +563,7 @@ function CampaignTab({ initialSubject, initialBody, onLoaded }: { initialSubject
                   fontSize: "11px",
                 }}
               >
-                Ciseau Noir Barbershop — ciseaunoir.ca
+                Ciseau Noir Barbershop — ciseaunoirbarbershop.com
               </div>
             </div>
           </div>
@@ -681,10 +681,10 @@ function CampaignTab({ initialSubject, initialBody, onLoaded }: { initialSubject
 
 function ConfigTab() {
   const steps = [
-    "Aller sur resend.com → Domains → Add Domain → « ciseaunoir.ca »",
+    "Aller sur resend.com → Domains → Add Domain → « ciseaunoirbarbershop.com »",
     "Ajouter les DNS records fournis par Resend chez votre registraire (TXT, MX)",
     "Attendre la validation DNS (jusqu'à 48h)",
-    "Créer un « Inbound Route » pointant vers https://ciseaunoir.ca/api/contact",
+    "Créer un « Inbound Route » pointant vers https://ciseaunoirbarbershop.com/api/contact",
   ];
 
   return (
@@ -728,7 +728,7 @@ function ConfigTab() {
           <span style={{ fontSize: "22px" }}>📧</span>
           <div>
             <p style={{ color: GOLD, fontSize: "13px", fontWeight: 600, letterSpacing: "1px" }}>
-              Activer les emails entrants sur ciseaunoir.ca
+              Activer les emails entrants sur ciseaunoirbarbershop.com
             </p>
             <p style={{ color: TEXT_DIM, fontSize: "12px" }}>
               Optionnel — permet à Figaro de traiter les emails directs
@@ -739,7 +739,7 @@ function ConfigTab() {
         <p style={{ color: TEXT_MID, fontSize: "13px", lineHeight: 1.7, marginBottom: "20px" }}>
           Pour que Figaro reçoive et traite les emails envoyés directement à une adresse
           <code style={{ color: GOLD, background: "rgba(201,168,76,0.1)", padding: "1px 6px", borderRadius: "2px", margin: "0 4px" }}>
-            @ciseaunoir.ca
+            @ciseaunoirbarbershop.com
           </code>
           , configurez Resend Inbound :
         </p>

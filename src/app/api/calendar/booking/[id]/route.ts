@@ -48,7 +48,7 @@ export async function GET(
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
-    `UID:${data.id}@ciseaunoir.ca`,
+    `UID:${data.id}@ciseaunoirbarbershop.com`,
     `DTSTAMP:${now}`,
     `DTSTART:${dtStart}`,
     `DTEND:${dtEnd}`,

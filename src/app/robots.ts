@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/admin/", "/api/", "/booking/cancel/"],
     },
-    sitemap: "https://ciseaunoir.ca/sitemap.xml",
+    sitemap: "https://ciseaunoirbarbershop.com/sitemap.xml",
   };
 }
