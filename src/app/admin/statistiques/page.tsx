@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import AdminSidebar from "@/components/AdminSidebar";
+import { useRealtimeTable } from "@/lib/use-realtime-bookings";
 
 type MonthData = { month: string; bookings: number; revenue: number };
 
@@ -10,10 +11,10 @@ export default function StatistiquesPage() {
   const [serviceBreakdown, setServiceBreakdown] = useState<{ service: string; count: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const refreshStats = useCallback(() => {
     Promise.all([
-      fetch("/api/bookings?start=2025-01-01").then(r => r.json()),
-      fetch("/api/cuts").then(r => r.json()),
+      fetch(`/api/bookings?start=2025-01-01&_=${Date.now()}`, { cache: "no-store" }).then(r => r.json()),
+      fetch(`/api/cuts?_=${Date.now()}`, { cache: "no-store" }).then(r => r.json()),
     ]).then(([bookings, cuts]) => {
       if (!Array.isArray(bookings)) bookings = [];
       if (!Array.isArray(cuts)) cuts = [];
@@ -67,6 +68,9 @@ export default function StatistiquesPage() {
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
+
+  useEffect(() => { refreshStats(); }, [refreshStats]);
+  useRealtimeTable("admin-stats-rt", ["bookings", "cuts"], refreshStats);
 
   const maxRevenue = Math.max(...monthlyData.map(m => m.revenue), 1);
   const maxBookings = Math.max(...monthlyData.map(m => m.bookings), 1);

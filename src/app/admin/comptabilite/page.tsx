@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useRealtimeTable } from "@/lib/use-realtime-bookings";
 import AdminSidebar from "@/components/AdminSidebar";
 import { localDateStr } from "@/lib/utils";
 
@@ -40,16 +41,21 @@ export default function ComptabilitePage() {
   const manualPhotoRefs = useRef<(HTMLInputElement | null)[]>([]);
   const month = getMonthRange(monthOffset);
 
-  useEffect(() => {
+  const refreshData = useCallback(() => {
     Promise.all([
-      fetch("/api/expenses").then(r => r.json()),
-      fetch("/api/cuts").then(r => r.json()),
+      fetch(`/api/expenses?_=${Date.now()}`, { cache: "no-store" }).then(r => r.json()),
+      fetch(`/api/cuts?_=${Date.now()}`, { cache: "no-store" }).then(r => r.json()),
     ]).then(([e, c]) => {
       setExpenses(Array.isArray(e) ? e : []);
       setCuts(Array.isArray(c) ? c : []);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
+
+  useEffect(() => { refreshData(); }, [refreshData]);
+
+  // Push live — cuts (paye) + expenses propagent partout instantanément
+  useRealtimeTable("admin-comptabilite-rt", ["cuts", "expenses"], refreshData);
 
   const monthExpenses = expenses.filter(e => e.date >= month.start && e.date <= month.end);
   const monthCuts = cuts.filter(c => c.date >= month.start && c.date <= month.end);

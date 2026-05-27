@@ -2,7 +2,18 @@
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
-type Table = "bookings" | "barber_blocks" | "waitlist" | "clients";
+type Table =
+  | "bookings"
+  | "barber_blocks"
+  | "barber_day_overrides"
+  | "barbers"
+  | "waitlist"
+  | "clients"
+  | "cuts"
+  | "expenses"
+  | "portfolio"
+  | "gift_cards"
+  | "referrals";
 
 /**
  * Hook Supabase Realtime — push live de toute modification de table.

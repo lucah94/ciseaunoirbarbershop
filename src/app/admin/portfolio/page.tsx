@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useRealtimeTable } from "@/lib/use-realtime-bookings";
 import Image from "next/image";
 import AdminSidebar from "@/components/AdminSidebar";
 
@@ -23,11 +24,14 @@ export default function PortfolioPage() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    fetch("/api/portfolio")
+  const fetchPhotos = useCallback(() => {
+    fetch(`/api/portfolio?_=${Date.now()}`, { cache: "no-store" })
       .then(r => r.json())
       .then(data => { setPhotos(Array.isArray(data) ? data : []); setLoading(false); });
   }, []);
+
+  useEffect(() => { fetchPhotos(); }, [fetchPhotos]);
+  useRealtimeTable("admin-portfolio-rt", ["portfolio"], fetchPhotos);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;

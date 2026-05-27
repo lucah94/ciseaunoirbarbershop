@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import AdminSidebar from "@/components/AdminSidebar";
+import { useRealtimeTable } from "@/lib/use-realtime-bookings";
 
 type Cut = {
   id: string; barber: string; service_name: string;
@@ -33,12 +34,15 @@ export default function PayePage() {
   const [saving, setSaving] = useState(false);
   const week = getWeekDates(weekOffset);
 
-  useEffect(() => {
-    fetch("/api/cuts")
+  const fetchCuts = useCallback(() => {
+    fetch(`/api/cuts?_=${Date.now()}`, { cache: "no-store" })
       .then(r => r.json())
       .then(data => { setCuts(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
+
+  useEffect(() => { fetchCuts(); }, [fetchCuts]);
+  useRealtimeTable("admin-paye-rt", ["cuts"], fetchCuts);
 
   const weekCuts = cuts.filter(c => c.date >= week.start && c.date <= week.end);
 

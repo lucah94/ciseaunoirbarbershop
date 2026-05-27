@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import AdminSidebar from "@/components/AdminSidebar";
+import { useRealtimeTable } from "@/lib/use-realtime-bookings";
 
 type Booking = {
   id: string;
@@ -37,8 +38,8 @@ export default function ClientsPage() {
   const [sortKey, setSortKey] = useState<SortKey>("totalVisits");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  useEffect(() => {
-    fetch("/api/bookings")
+  const fetchBookings = useCallback(() => {
+    fetch(`/api/bookings?_=${Date.now()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         setBookings(Array.isArray(data) ? data : data.bookings || []);
@@ -46,6 +47,11 @@ export default function ClientsPage() {
       })
       .catch(() => setLoading(false));
   }, []);
+
+  useEffect(() => { fetchBookings(); }, [fetchBookings]);
+
+  // Push live: tout changement bookings ou clients propage instantanément
+  useRealtimeTable("admin-clients-rt", ["bookings", "clients"], fetchBookings);
 
   const clients = useMemo(() => {
     const map = new Map<string, Booking[]>();

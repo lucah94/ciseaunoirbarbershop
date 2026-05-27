@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import AdminSidebar from "@/components/AdminSidebar";
 import { localDateStr } from "@/lib/utils";
+import { useRealtimeTable } from "@/lib/use-realtime-bookings";
 
 const DAYS = [
   { key: "mon", label: "Lundi" },
@@ -99,11 +100,11 @@ export default function HorairesPage() {
   const [addingOverride, setAddingOverride] = useState<string | null>(null);
   const [overrideForm, setOverrideForm] = useState({ date: "", open: "09:00", close: "17:00" });
 
-  useEffect(() => {
+  const refreshAll = useCallback(() => {
     Promise.all([
-      fetch("/api/barbers").then(r => r.json()),
-      fetch("/api/admin/blocks").then(r => r.json()).catch(() => []),
-      fetch("/api/admin/day-overrides").then(r => r.json()).catch(() => []),
+      fetch(`/api/barbers?_=${Date.now()}`, { cache: "no-store" }).then(r => r.json()),
+      fetch(`/api/admin/blocks?_=${Date.now()}`, { cache: "no-store" }).then(r => r.json()).catch(() => []),
+      fetch(`/api/admin/day-overrides?_=${Date.now()}`, { cache: "no-store" }).then(r => r.json()).catch(() => []),
     ]).then(([b, bl, ov]) => {
       setBarbers(Array.isArray(b) ? b : []);
       setBlocks(Array.isArray(bl) ? bl : []);
@@ -111,6 +112,9 @@ export default function HorairesPage() {
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => { refreshAll(); }, [refreshAll]);
+  useRealtimeTable("admin-horaires-rt", ["barbers", "barber_blocks", "barber_day_overrides"], refreshAll);
 
   async function saveBarber() {
     if (!editingId) return;
