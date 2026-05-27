@@ -132,7 +132,7 @@ export default function AgendaPage() {
     setLoadError(false);
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 12000);
-    fetch("/api/bookings?start=2026-01-01", { signal: ctrl.signal })
+    fetch(`/api/bookings?start=2026-01-01&_=${Date.now()}`, { signal: ctrl.signal, cache: "no-store" })
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
       .then(data => {
         clearTimeout(timeout);
@@ -145,7 +145,7 @@ export default function AgendaPage() {
         // Fetch loyalty visit counts for unique client emails
         const emails = [...new Set(list.map((b: Booking) => b.client_email).filter(Boolean))] as string[];
         emails.forEach(email => {
-          fetch(`/api/loyalty?email=${encodeURIComponent(email)}`)
+          fetch(`/api/loyalty?email=${encodeURIComponent(email)}&_=${Date.now()}`, { cache: "no-store" })
             .then(r => r.json())
             .then(d => {
               if (d && typeof d.visits === "number") {
@@ -168,7 +168,7 @@ export default function AgendaPage() {
   }, []);
 
   const fetchBlocks = useCallback(() => {
-    fetch("/api/admin/blocks")
+    fetch(`/api/admin/blocks?_=${Date.now()}`, { cache: "no-store" })
       .then(r => r.json())
       .then(data => setBlocks(Array.isArray(data) ? data : []))
       .catch(() => {});
@@ -214,7 +214,7 @@ export default function AgendaPage() {
       return;
     }
     searchTimeout.current = setTimeout(() => {
-      fetch(`/api/clients?q=${encodeURIComponent(clientSearch.trim())}`)
+      fetch(`/api/clients?q=${encodeURIComponent(clientSearch.trim())}&_=${Date.now()}`, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
           if (Array.isArray(data)) {

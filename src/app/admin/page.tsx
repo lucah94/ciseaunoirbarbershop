@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useRealtimeTable } from "@/lib/use-realtime-bookings";
 import Link from "next/link";
 import { localDateStr } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -151,13 +152,14 @@ export default function AdminPage() {
   const now = new Date();
   const today = localDateStr(now);
 
-  useEffect(() => {
+  const refreshAll = useCallback(() => {
+    const t = Date.now();
     Promise.all([
-      fetch("/api/bookings?start=2026-01-01").then(r => r.json()),
-      fetch("/api/cuts").then(r => r.json()),
-      fetch("/api/expenses").then(r => r.json()),
-      fetch("/api/admin/stats").then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch("/api/reviews").then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`/api/bookings?start=2026-01-01&_=${t}`, { cache: "no-store" }).then(r => r.json()),
+      fetch(`/api/cuts?_=${t}`, { cache: "no-store" }).then(r => r.json()),
+      fetch(`/api/expenses?_=${t}`, { cache: "no-store" }).then(r => r.json()),
+      fetch(`/api/admin/stats?_=${t}`, { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`/api/reviews?_=${t}`, { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
     ]).then(([b, c, e, s, rev]) => {
       setBookings(Array.isArray(b) ? b : []);
       setCuts(Array.isArray(c) ? c : []);
@@ -167,6 +169,10 @@ export default function AdminPage() {
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
+
+  useEffect(() => { refreshAll(); }, [refreshAll]);
+  // Push live — toute action de Melynda met à jour le dashboard home instantanément
+  useRealtimeTable("admin-home-rt", ["bookings", "cuts", "expenses", "barber_blocks"], refreshAll);
 
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const todayBookings = bookings.filter(b => {
