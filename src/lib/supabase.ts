@@ -1,8 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 
-// Fall back to placeholder values during build — at runtime the real env vars are always set
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+// trim() obligatoire — newline accidentel dans env var Vercel casse WebSocket Realtime auth
+const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co').trim();
+const supabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key').trim();
 
 // Public client — used client-side and for reads that respect RLS anon policies
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -11,7 +11,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // NEVER import this in client components — only use in route handlers (server-side)
 export const supabaseAdmin = createClient(
   supabaseUrl,
-  process.env.SUPABASE_SERVICE_ROLE_KEY ?? supabaseAnonKey
+  (process.env.SUPABASE_SERVICE_ROLE_KEY ?? supabaseAnonKey).trim()
 );
 
 export type Booking = {
