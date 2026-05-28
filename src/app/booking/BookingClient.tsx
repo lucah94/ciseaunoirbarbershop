@@ -427,7 +427,7 @@ function BookingContent() {
   const [submitted, setSubmitted] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);
-  const [bookedSlots, setBookedSlots] = useState<{ time: string; service: string; end_time?: string }[]>([]);
+  const [bookedSlots, setBookedSlots] = useState<{ time: string; service: string; end_time?: string; barber?: string }[]>([]);
   const [blockedDates, setBlockedDates] = useState<string[]>([]);
   const [blockedRanges, setBlockedRanges] = useState<{ date: string; start_time: string; end_time: string }[]>([]);
   const [dayOverrides, setDayOverrides] = useState<{ date: string; open: string; close: string }[]>([]);
@@ -510,13 +510,15 @@ function BookingContent() {
     setSlotsError(false);
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 8000);
-    fetch(`/api/bookings?date=${date}&barber=Melynda`, { signal: ctrl.signal })
+    // Fetch TOUS les bookings de la date (sans filtre barber) — on séparera côté client
+    fetch(`/api/bookings?date=${date}&_=${Date.now()}`, { signal: ctrl.signal, cache: "no-store" })
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-      .then((melData) => {
+      .then((allData) => {
       clearTimeout(timeout);
-      if (Array.isArray(melData)) {
-        setBookedSlots(melData.filter((b: { status: string }) => b.status !== "cancelled")
-          .map((b: { time: string; service: string; end_time?: string }) => ({ time: b.time, service: b.service || "", end_time: b.end_time })));
+      if (Array.isArray(allData)) {
+        // bookedSlots = global (compat existant) mais on garde aussi par barbier
+        const allActive = allData.filter((b: { status: string }) => b.status !== "cancelled");
+        setBookedSlots(allActive.map((b: { time: string; service: string; end_time?: string; barber: string }) => ({ time: b.time, service: b.service || "", end_time: b.end_time, barber: b.barber })));
       }
       setSlotsLoading(false);
       setSlotsError(false);
@@ -1198,11 +1200,13 @@ function BookingContent() {
                         </div>
                         {isDateAvailableForBarber("melynda", selected.date, blockedDates, dayOverrides.map(o => o.date), barberSchedules["melynda"]) ? (() => {
                           const serviceDur = getServiceDuration(SERVICES.find(s => s.id === selected.service)?.name || "");
+                          // Filtrer bookedSlots pour ne garder QUE ceux de Melynda
+                          const melyndaBooked = bookedSlots.filter(b => !b.barber || b.barber.toLowerCase() === "melynda");
                           const slots = getTimesForBarberAndDate("melynda", selected.date, dayOverrides, barberSchedules["melynda"]).filter(t => {
                             const now = new Date();
                             const [tH, tM] = t.split(":").map(Number);
                             if (selected.date === today && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()))) return false;
-                            return !isSlotOccupied(t, bookedSlots, blockedRanges, selected.date, serviceDur);
+                            return !isSlotOccupied(t, melyndaBooked, blockedRanges, selected.date, serviceDur);
                           });
                           return slots.length > 0 ? (
                             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -1266,7 +1270,9 @@ function BookingContent() {
                                   const now = new Date();
                                   const [tH, tM] = t.split(":").map(Number);
                                   if (selected.date === today && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()))) return false;
-                                  return !isSlotOccupied(t, bookedSlots, blockedRanges, selected.date, serviceDur);
+                                  // Filtrer pour garder QUE les RDV du 2e barbier
+                                  const dispoBooked = bookedSlots.filter(b => b.barber && b.barber.toLowerCase().includes("disponible"));
+                                  return !isSlotOccupied(t, dispoBooked, blockedRanges, selected.date, serviceDur);
                                 }).map(t => (
                                   <button
                                     key={t}
