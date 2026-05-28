@@ -40,6 +40,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const BARBER_COLORS: Record<string, string> = {
   Melynda: "#D4AF37",
+  "Barbier disponible": "#4A9EDB",
 };
 
 const SERVICES = [
@@ -1175,7 +1176,9 @@ export default function AgendaPage() {
                       onChange={e => setNewRDV(p => ({ ...p, barber: e.target.value }))}
                       style={{ ...inputStyle, cursor: "pointer", appearance: "auto" }}
                     >
-                      <option value="Melynda">Melynda</option>
+                      {BARBERS_LIST.map(b => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
                     </select>
                   </div>
                   <div style={{ flex: 1 }}>
@@ -1362,7 +1365,7 @@ export default function AgendaPage() {
                 <p style={{ color: "#555", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>Barbière</p>
                 <select value={blockForm.barber} onChange={e => setBlockForm(f => ({ ...f, barber: e.target.value }))}
                   style={{ background: "#1C2129", border: "1px solid rgba(238,85,85,0.2)", color: "#F0F0F0", padding: "10px 14px", borderRadius: "8px", fontSize: "14px", width: "100%" }}>
-                  <option>Melynda</option>
+                  {BARBERS_LIST.map(b => <option key={b} value={b}>{b}</option>)}
                 </select>
               </div>
               <div>
