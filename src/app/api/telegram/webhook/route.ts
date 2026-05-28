@@ -949,7 +949,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           `<b>📅 Agenda</b>\n` +
           `• "RDV de demain"\n` +
           `• "Agenda Melynda cette semaine"\n` +
+          `• "Agenda Barbier disponible samedi"\n` +
           `• "Book Marie samedi 10h Melynda coupe"\n` +
+          `• "Book Carlos jeudi 14h Barbier disponible coupe"\n` +
           `• "Déplace le RDV de Tremblay à lundi 14h"\n` +
           `• "Annule le RDV de Jean"\n\n` +
           `<b>💰 Finance</b>\n` +
@@ -959,8 +961,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           `<b>👤 Clients</b>\n` +
           `• "Historique de Tremblay"\n` +
           `• "C'est qui Marie Lavoie?"\n\n` +
+          `<b>📨 Communications</b>\n` +
+          `• "Envoie un SMS à Marie: ton RDV est demain à 10h"\n` +
+          `• "Email à jean@email.com: offre spéciale 20% vendredi"\n\n` +
           `<b>🔒 Disponibilités</b>\n` +
           `• "Bloque Melynda vendredi 23 mai — vacances"\n` +
+          `• "Bloque Barbier disponible lundi — pas là"\n` +
           `• "Journées bloquées à venir?"\n\n` +
           `<b>⏰ Rappels</b>\n` +
           `• "Rappelle-moi à 15h d'appeler le fournisseur"\n\n` +
