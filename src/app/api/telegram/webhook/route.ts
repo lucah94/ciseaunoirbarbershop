@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendGmailReply, archiveEmail } from "@/lib/gmail";
 import { getUpcomingHolidays, isHoliday } from "@/lib/holidays-qc";
+import { sendSMS, formatPhone } from "@/lib/sms";
+import { Resend } from "resend";
 import type Anthropic from "@anthropic-ai/sdk";
 import { aiClient as anthropic, MODELS } from "@/lib/ai";
+
+const resend = new Resend(process.env.RESEND_API_KEY ?? "");
+const FROM_EMAIL = process.env.FROM_EMAIL || "Ciseau Noir <noreply@ciseaunoirbarbershop.com>";
 export const dynamic = 'force-dynamic';
 
 const TELEGRAM_API = "https://api.telegram.org/bot";
@@ -437,6 +442,63 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
     return `⏰ Reminder créé : "${message}" → ${label}`;
   }
 
+  // ── update_booking ───────────────────────────────────────────────────────────
+  if (name === "update_booking") {
+    const id = input.id as string;
+    const updates: Record<string, unknown> = {};
+    if (input.service) updates.service = input.service;
+    if (input.barber) updates.barber = input.barber;
+    if (input.price !== undefined) updates.price = Number(input.price);
+    if (input.note !== undefined) updates.note = input.note;
+    if (input.client_name) updates.client_name = input.client_name;
+    if (input.client_phone) updates.client_phone = input.client_phone;
+    if (input.client_email) updates.client_email = input.client_email;
+    if (!Object.keys(updates).length) return "Aucune modification spécifiée.";
+
+    const { data, error } = await supabaseAdmin
+      .from("bookings").update(updates).eq("id", id)
+      .select("client_name, service, barber, date, time").single();
+    if (error || !data) return `Impossible de trouver le RDV [${id}]. Vérifie l'ID.`;
+    return `✅ RDV mis à jour : ${data.client_name} — ${data.service} avec ${data.barber}, ${data.date} à ${data.time}\nModifications : ${Object.entries(updates).map(([k,v]) => `${k}=${v}`).join(", ")}`;
+  }
+
+  // ── send_sms ─────────────────────────────────────────────────────────────────
+  if (name === "send_sms") {
+    const phone = input.phone as string;
+    const message = input.message as string;
+    try {
+      await sendSMS(phone, message, "figaro-custom");
+      return `✅ SMS envoyé à ${formatPhone(phone)}\n\n"${message.slice(0, 80)}${message.length > 80 ? "..." : ""}"`;
+    } catch (e) {
+      return `❌ Erreur SMS : ${e instanceof Error ? e.message : "inconnu"}`;
+    }
+  }
+
+  // ── send_email ───────────────────────────────────────────────────────────────
+  if (name === "send_email") {
+    const toEmail = input.to_email as string;
+    const toName = (input.to_name as string) || "";
+    const subject = input.subject as string;
+    const body = input.body as string;
+    try {
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: toName ? `${toName} <${toEmail}>` : toEmail,
+        subject,
+        html: `<div style="font-family: Georgia, serif; color: #1a1a1a; max-width: 560px; margin: 0 auto; padding: 32px;">
+          <p style="color: #888; font-size: 11px; letter-spacing: 3px; text-transform: uppercase;">Ciseau Noir Barbershop</p>
+          ${body.split("\n").map(line => `<p style="margin: 8px 0;">${line}</p>`).join("")}
+          <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
+          <p style="color: #999; font-size: 12px;">✂️ Ciseau Noir — 375 Boul. des Chutes, Québec — (418) 665-5703</p>
+        </div>`,
+        text: body,
+      });
+      return `✅ Email envoyé à ${toEmail}\nSujet : "${subject}"`;
+    } catch (e) {
+      return `❌ Erreur email : ${e instanceof Error ? e.message : "inconnu"}`;
+    }
+  }
+
   return "Outil inconnu.";
 }
 
@@ -473,7 +535,8 @@ RDV aujourd'hui: ${rdvCount} confirmés
 LE SALON:
 — Services: Coupe 35$ | Coupe+Barbe 50$ | Barbe 20$ | Coupe Enfant/Étudiant 25$ | Coupe+Rasage Lame 50$
 — Melynda: Mar/Mer/Sam 8h30-16h30 | Jeu/Ven 8h30-20h30
-— Melynda est la seule barbière disponible présentement
+— Barbier disponible: temps partiel (horaire variable — utilise get_bookings pour vérifier sa dispo)
+— Il y a DEUX barbiers : Melynda ET Barbier disponible
 — Fermé dimanche + lundi
 — Tel: (418) 665-5703
 
@@ -485,6 +548,7 @@ OUTILS DISPONIBLES (utilise-les — jamais de chiffres inventés):
 • get_revenue — revenus par période
 • search_client / get_client_history — chercher un client
 • create_booking — créer un RDV (demande ce qui manque d'abord)
+• update_booking — modifier service/barbier/prix/note d'un RDV existant
 • reschedule_booking — déplacer un RDV à une nouvelle date/heure
 • cancel_booking — annuler un RDV (cherche d'abord avec search_client)
 • add_expense — ajouter une dépense (catégories: Fournitures, Équipement, Loyer, Marketing, Employés, Services, Autre)
@@ -493,12 +557,16 @@ OUTILS DISPONIBLES (utilise-les — jamais de chiffres inventés):
 • get_holidays — jours fériés QC
 • set_reminder — créer un rappel (remind_at: "YYYY-MM-DD HH:MM", chat_id: ${chatId})
 • save_note / get_notes — mémoire persistante
+• send_sms — envoyer un SMS personnalisé à un client (numéro de téléphone requis)
+• send_email — envoyer un email personnalisé à un client (adresse email requise)
 
 RÈGLES:
-→ Pour créer un RDV: besoin de nom+service+barbier+date+heure. Demande ce qui manque.
+→ Pour créer un RDV: besoin de nom+service+barbier+date+heure. Demande ce qui manque. Barbier = "Melynda" ou "Barbier disponible".
 → Pour annuler/déplacer: cherche d'abord avec search_client puis confirme avec l'humain.
 → Reminders: convertis "dans 2h", "à 15h", "demain matin" en datetime exact (QC timezone).
-→ Toujours vérifier avec get_bookings avant de créer — évite les doublons.`;
+→ Toujours vérifier avec get_bookings avant de créer — évite les doublons.
+→ SMS: toujours demander confirmation avant d'envoyer si le message est important.
+→ Email: si un client n'a pas d'email dans la BD, signale-le clairement.`;
 
   const tools: Anthropic.Tool[] = [
     {
@@ -537,7 +605,7 @@ RÈGLES:
         client_phone: { type: "string" },
         client_email: { type: "string" },
         service: { type: "string", description: "Coupe / Coupe+Barbe / Barbe / Coupe Enfant / Coupe+Rasage" },
-        barber: { type: "string", enum: ["Melynda"] },
+        barber: { type: "string", enum: ["Melynda", "Barbier disponible"] },
         date: { type: "string", description: "YYYY-MM-DD" },
         time: { type: "string", description: "HH:MM" },
         price: { type: "number" },
@@ -573,7 +641,7 @@ RÈGLES:
       name: "block_barber_day",
       description: "Bloque une journée (empêche les réservations)",
       input_schema: { type: "object" as const, properties: {
-        barber: { type: "string", enum: ["Melynda"] },
+        barber: { type: "string", enum: ["Melynda", "Barbier disponible"] },
         date: { type: "string", description: "YYYY-MM-DD" },
         reason: { type: "string" },
       }, required: ["barber", "date"] },
@@ -621,6 +689,38 @@ RÈGLES:
       name: "get_notes",
       description: "Affiche toutes les notes mémorisées",
       input_schema: { type: "object" as const, properties: {}, required: [] },
+    },
+    {
+      name: "update_booking",
+      description: "Modifie les détails d'un RDV existant (service, barbier, prix, note)",
+      input_schema: { type: "object" as const, properties: {
+        id: { type: "string", description: "UUID ou 8 premiers chars du RDV" },
+        service: { type: "string" },
+        barber: { type: "string", enum: ["Melynda", "Barbier disponible"] },
+        price: { type: "number" },
+        note: { type: "string" },
+        client_name: { type: "string" },
+        client_phone: { type: "string" },
+        client_email: { type: "string" },
+      }, required: ["id"] },
+    },
+    {
+      name: "send_sms",
+      description: "Envoie un SMS personnalisé à un numéro de téléphone",
+      input_schema: { type: "object" as const, properties: {
+        phone: { type: "string", description: "Numéro de téléphone du client" },
+        message: { type: "string", description: "Texte du SMS (max 160 chars recommandé)" },
+      }, required: ["phone", "message"] },
+    },
+    {
+      name: "send_email",
+      description: "Envoie un email personnalisé à un client",
+      input_schema: { type: "object" as const, properties: {
+        to_email: { type: "string", description: "Adresse email du destinataire" },
+        to_name: { type: "string", description: "Nom du destinataire" },
+        subject: { type: "string", description: "Sujet de l'email" },
+        body: { type: "string", description: "Corps du message (texte simple)" },
+      }, required: ["to_email", "subject", "body"] },
     },
   ];
 
