@@ -1,6 +1,6 @@
 // Service Worker for Ciseau Noir push notifications
-// VERSION 3 — force update on mobile (Melynda agenda live push)
-const SW_VERSION = "v3-2026-05-27";
+// VERSION 4 — force update mobile (dropdowns 2e barbier + créneaux séparés)
+const SW_VERSION = "v4-2026-05-28";
 
 // Force le nouveau SW à prendre le contrôle immédiatement (au lieu d'attendre la fermeture de tous les onglets)
 self.addEventListener("install", function (event) {
