@@ -205,8 +205,18 @@ export default function AdminPage() {
 
   return (
     <div style={{ background: "#111318", minHeight: "100vh", display: "flex" }}>
+      <style>{`
+        @media (max-width: 768px) {
+          main { padding: 16px !important; margin-left: 0 !important; }
+          main > div { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+          main > div > div { padding: 12px !important; }
+        }
+        @media (max-width: 480px) {
+          main > div { gap: 6px !important; }
+        }
+      `}</style>
       <AdminSidebar />
-      <main style={{ marginLeft: "260px", flex: 1, padding: "40px 48px" }}>
+      <main style={{ marginLeft: "260px", flex: 1, padding: "40px 48px", minWidth: 0 }}>
 
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} style={{ marginBottom: "40px" }}>
