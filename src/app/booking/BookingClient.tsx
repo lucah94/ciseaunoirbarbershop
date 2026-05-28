@@ -1086,10 +1086,13 @@ function BookingContent() {
                   }
                   .barbers-grid {
                     display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                    gap: 20px;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 12px;
                     max-width: 640px;
                     margin: 0 auto;
+                  }
+                  @media (min-width: 640px) {
+                    .barbers-grid { gap: 20px; }
                   }
                 `}</style>
                 <h2 style={{
@@ -1253,7 +1256,7 @@ function BookingContent() {
                                 margin: "0 auto 10px", overflow: "hidden",
                                 boxShadow: "0 0 16px rgba(212,175,55,0.2)",
                               }}>
-                                <Image src="/images/diodis.jpg" alt="Barbier disponible" width={80} height={80} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 10%" }} />
+                                <Image src="/images/chair-barbier.jpg" alt="Barbier disponible" width={80} height={80} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 10%" }} />
                               </div>
                               <p style={{ color: "#D4AF37", fontSize: "13px", letterSpacing: "3px", textTransform: "uppercase", fontWeight: 600 }}>Barbier dispo</p>
                             </div>

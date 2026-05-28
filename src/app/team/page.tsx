@@ -217,7 +217,7 @@ export default function TeamPage() {
                 <div className="avatar-ring">
                   <div className="avatar-inner" style={{ overflow: "hidden" }}>
                     <Image
-                      src={member.id === "melynda" ? "/images/melynda.jpg" : "/images/diodis.jpg"}
+                      src={member.id === "melynda" ? "/images/melynda.jpg" : "/images/chair-barbier.jpg"}
                       alt={member.name}
                       width={154}
                       height={154}
