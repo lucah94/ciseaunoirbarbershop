@@ -206,10 +206,11 @@ export default function AdminPage() {
   return (
     <div style={{ background: "#111318", minHeight: "100vh", display: "flex" }}>
       <style>{`
+        html, body { overflow-x: hidden; }
         @media (max-width: 768px) {
-          main { padding: 16px !important; margin-left: 0 !important; }
+          main { padding: 16px !important; margin-left: 0 !important; max-width: 100vw; overflow-x: hidden; }
           main > div { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
-          main > div > div { padding: 12px !important; }
+          main > div > div { padding: 12px !important; min-width: 0 !important; }
         }
         @media (max-width: 480px) {
           main > div { gap: 6px !important; }
