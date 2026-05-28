@@ -91,6 +91,8 @@ export default function AgendaPage() {
   const [blockForm, setBlockForm] = useState({ barber: "Melynda", date: localDateStr(), start_time: "09:00", end_time: "11:00", reason: "" });
   const [blockSaving, setBlockSaving] = useState(false);
   const [blocks, setBlocks] = useState<Block[]>([]);
+  const [barbers, setBarbers] = useState<{ name: string; schedule: Record<string, { open: string; close: string } | null> }[]>([]);
+  const [overrides, setOverrides] = useState<{ barber: string; date: string; open: string; close: string }[]>([]);
 
   // Edit mode state
   const [editing, setEditing] = useState(false);
@@ -172,6 +174,26 @@ export default function AgendaPage() {
       .then(r => r.json())
       .then(data => setBlocks(Array.isArray(data) ? data : []))
       .catch(() => {});
+  }, []);
+
+  // Charger barbers + day_overrides pour validation horaire
+  useEffect(() => {
+    const loadBarbersOverrides = () => {
+      fetch(`/api/barbers?_=${Date.now()}`, { cache: "no-store" })
+        .then(r => r.json())
+        .then(data => Array.isArray(data) && setBarbers(data))
+        .catch(() => {});
+      fetch(`/api/admin/day-overrides?_=${Date.now()}`, { cache: "no-store" })
+        .then(r => r.json())
+        .then(data => Array.isArray(data) && setOverrides(data))
+        .catch(() => {});
+    };
+    loadBarbersOverrides();
+    const channel = supabase.channel("agenda-barbers-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "barbers" }, loadBarbersOverrides)
+      .on("postgres_changes", { event: "*", schema: "public", table: "barber_day_overrides" }, loadBarbersOverrides)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   useEffect(() => {
@@ -517,6 +539,39 @@ export default function AgendaPage() {
     if (!newRDV.barber || !newRDV.date || !newRDV.time) return null;
     const [sh, sm] = newRDV.time.split(":").map(Number);
     const slotMin = sh * 60 + sm;
+
+    // 1. Vérifier que le barbier travaille selon son horaire ce jour
+    const dayKeys = ["sun","mon","tue","wed","thu","fri","sat"];
+    const dayKey = dayKeys[new Date(newRDV.date + "T12:00:00").getDay()];
+    const selectedBarber = barbers.find(b => b.name === newRDV.barber);
+    if (selectedBarber) {
+      // Day override prend priorité
+      const override = (overrides as { barber: string; date: string; open: string; close: string }[]).find(
+        o => o.barber.toLowerCase() === newRDV.barber.toLowerCase() && o.date === newRDV.date
+      );
+      let openMin: number | null = null;
+      let closeMin: number | null = null;
+      if (override) {
+        const [oh, om] = override.open.split(":").map(Number);
+        const [ch, cm] = override.close.split(":").map(Number);
+        openMin = oh * 60 + om;
+        closeMin = ch * 60 + cm;
+      } else if (selectedBarber.schedule && selectedBarber.schedule[dayKey]) {
+        const sch = selectedBarber.schedule[dayKey] as { open: string; close: string };
+        const [oh, om] = sch.open.split(":").map(Number);
+        const [ch, cm] = sch.close.split(":").map(Number);
+        openMin = oh * 60 + om;
+        closeMin = ch * 60 + cm;
+      } else {
+        // Pas dispo ce jour
+        return `${newRDV.barber} ne travaille pas le ${["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"][new Date(newRDV.date + "T12:00:00").getDay()]}`;
+      }
+      if (openMin !== null && closeMin !== null && (slotMin < openMin || slotMin >= closeMin)) {
+        return `${newRDV.barber} travaille de ${selectedBarber.schedule?.[dayKey] ? (selectedBarber.schedule[dayKey] as {open:string}).open : ""} à ${selectedBarber.schedule?.[dayKey] ? (selectedBarber.schedule[dayKey] as {close:string}).close : ""} ce jour-là`;
+      }
+    }
+
+    // 2. Vérifier overlap avec RDV existants
     const barberBookings = (bookings as (Booking & { end_time?: string })[]).filter(
       b => b.barber === newRDV.barber && b.date === newRDV.date && b.status !== "cancelled"
     );
@@ -529,7 +584,7 @@ export default function AgendaPage() {
       }
     }
     return null;
-  }, [bookings, newRDV.barber, newRDV.date, newRDV.time]);
+  }, [bookings, newRDV.barber, newRDV.date, newRDV.time, barbers, overrides]);
 
   // Shared input style
   const inputStyle: React.CSSProperties = {
