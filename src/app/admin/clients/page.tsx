@@ -200,6 +200,44 @@ export default function ClientsPage() {
             onFocus={(e) => (e.currentTarget.style.borderColor = "#C9A84C")}
             onBlur={(e) => (e.currentTarget.style.borderColor = "#222")}
           />
+          <button
+            onClick={() => {
+              const csv = [
+                ["Nom", "Téléphone", "Email", "Visites", "Total ($)", "Dernière visite", "No-shows", "Fidélité"].join(","),
+                ...filtered.map(c => [
+                  `"${c.name.replace(/"/g, '""')}"`,
+                  `"${c.phone}"`,
+                  `"${c.email}"`,
+                  c.totalVisits,
+                  c.totalSpent.toFixed(2),
+                  c.lastVisit || "",
+                  c.noShowCount,
+                  `${c.loyaltyProgress}/10`,
+                ].join(","))
+              ].join("\n");
+              const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `clients-ciseau-noir-${new Date().toISOString().split("T")[0]}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            style={{
+              marginTop: "12px",
+              background: "transparent",
+              border: "1px solid rgba(212,175,55,0.3)",
+              color: "#C9A84C",
+              padding: "10px 20px",
+              fontSize: "11px",
+              letterSpacing: "2px",
+              textTransform: "uppercase",
+              cursor: "pointer",
+              borderRadius: "4px",
+            }}
+          >
+            📥 Exporter CSV ({filtered.length} clients)
+          </button>
         </div>
 
         {/* Stats summary */}

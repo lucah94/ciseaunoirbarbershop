@@ -50,6 +50,15 @@ export default function SocialPage() {
   const [replyText, setReplyText] = useState<Record<string, string>>({});
   const [replyLoading, setReplyLoading] = useState<string | null>(null);
 
+  // ESC ferme modal/selection
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedPost(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   useEffect(() => {
     if (tab === "comments") {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -374,7 +383,8 @@ export default function SocialPage() {
 
         {/* COMMENTS TAB */}
         {tab === "comments" && (
-          <div style={{ display: "grid", gridTemplateColumns: selectedPost ? "1fr 1fr" : "1fr", gap: "24px" }}>
+          <div className="social-comments-grid" style={{ display: "grid", gridTemplateColumns: selectedPost ? "1fr 1fr" : "1fr", gap: "24px" }}>
+            <style>{`@media (max-width: 768px) { .social-comments-grid { grid-template-columns: 1fr !important; } }`}</style>
             {/* Posts list */}
             <div>
               <p style={{ color: "#555", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "16px" }}>Publications récentes</p>

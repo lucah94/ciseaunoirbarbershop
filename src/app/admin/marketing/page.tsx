@@ -83,8 +83,10 @@ export default function MarketingPage() {
               <p style={{ color: "#5a5", fontSize: "13px", marginBottom: "16px" }}>{smsCount} numéros uniques dans la base</p>
             )}
             <textarea value={smsMsg} onChange={e => setSmsMsg(e.target.value)} placeholder="Votre message SMS... (max 160 car.)"
-              maxLength={160} rows={3} style={{ ...inputStyle, resize: "vertical", marginBottom: "8px" }} />
-            <p style={{ color: "#555", fontSize: "11px", textAlign: "right", marginBottom: "16px" }}>{smsMsg.length}/160</p>
+              maxLength={480} rows={3} style={{ ...inputStyle, resize: "vertical", marginBottom: "8px" }} />
+            <p style={{ color: smsMsg.length > 160 ? "#f90" : "#555", fontSize: "11px", textAlign: "right", marginBottom: "16px" }}>
+              {smsMsg.length} caractères · {Math.max(1, Math.ceil((smsMsg.length || 1) / 160))} SMS ({smsMsg.length <= 160 ? "1 SMS" : smsMsg.length <= 320 ? "2 SMS" : "3 SMS"} = facturation multipliée)
+            </p>
             <button onClick={sendSms} disabled={smsSending || !smsMsg.trim()}
               style={{ background: smsSending ? "#111" : "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.3)", color: "#D4AF37", padding: "12px 32px", fontSize: "12px", letterSpacing: "2px", cursor: "pointer", borderRadius: "8px", fontWeight: 600 }}>
               {smsSending ? "Envoi en cours..." : "Envoyer le SMS"}
