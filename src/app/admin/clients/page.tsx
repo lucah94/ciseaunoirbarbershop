@@ -81,7 +81,7 @@ export default function ClientsPage() {
         totalSpent: verified.reduce((sum, b) => sum + (b.price || 0), 0),
         lastVisit: lastVerified,
         noShowCount: noShows.length,
-        loyaltyProgress: verified.length % 10,
+        loyaltyProgress: verified.length === 0 ? 0 : ((verified.length % 10) || 10),
       });
     }
     return stats;

@@ -60,13 +60,21 @@ export default function PayePage() {
 
   async function addCut(e: React.FormEvent) {
     e.preventDefault();
+    // Validation: prix >= 0, tip >= 0, discount entre 0-100
+    const price = parseFloat(form.price);
+    const tip = parseFloat(form.tip) || 0;
+    const discount = parseFloat(form.discount_percent) || 0;
+    if (isNaN(price) || price < 0) { alert("Prix invalide"); return; }
+    if (tip < 0) { alert("Tip invalide"); return; }
+    if (discount < 0 || discount > 100) { alert("Rabais doit être entre 0 et 100%"); return; }
+
     setSaving(true);
     const body = {
       barber: form.barber,
       service_name: form.service_name,
-      price: parseFloat(form.price),
-      tip: parseFloat(form.tip) || 0,
-      discount_percent: parseFloat(form.discount_percent) || 0,
+      price,
+      tip,
+      discount_percent: discount,
       date: form.date,
     };
     const res = await fetch("/api/cuts", {
@@ -137,6 +145,9 @@ export default function PayePage() {
                 ) : (
                   <input type={type} placeholder={placeholder} value={form[key as keyof typeof form]}
                     onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} required={key === "price"}
+                    min={type === "number" ? "0" : undefined}
+                    max={key === "discount_percent" ? "100" : undefined}
+                    step={type === "number" ? "0.01" : undefined}
                     style={{ background: "#0A0A0A", border: "1px solid #2A2A2A", color: "#F5F5F5", padding: "10px 12px", fontSize: "13px", width: "100%", outline: "none", colorScheme: "dark" }} />
                 )}
               </div>

@@ -245,7 +245,7 @@ export default function ComptabilitePage() {
                     <div style={{ flex: 1, display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: "8px", alignItems: "center" }}>
                       <input value={p.description} onChange={e => setPending(prev => prev.map((x, j) => j === i ? { ...x, description: e.target.value } : x))}
                         placeholder="Description" style={inputStyle} />
-                      <input type="number" value={p.amount} onChange={e => setPending(prev => prev.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))}
+                      <input type="number" min="0" step="0.01" value={p.amount} onChange={e => setPending(prev => prev.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))}
                         placeholder="Montant" style={inputStyle} />
                       <select value={p.category} onChange={e => setPending(prev => prev.map((x, j) => j === i ? { ...x, category: e.target.value } : x))}
                         style={{ ...inputStyle, cursor: "pointer" }}>

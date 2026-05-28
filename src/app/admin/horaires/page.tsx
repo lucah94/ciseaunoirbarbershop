@@ -139,7 +139,9 @@ export default function HorairesPage() {
   }
 
   async function addBarber() {
-    if (!newBarber.name) return;
+    const name = newBarber.name.trim();
+    if (!name) { alert("Nom du barbier requis"); return; }
+    if (name.length < 2) { alert("Nom trop court (min 2 caractères)"); return; }
     setSaving(true);
     const res = await fetch("/api/barbers", {
       method: "POST",

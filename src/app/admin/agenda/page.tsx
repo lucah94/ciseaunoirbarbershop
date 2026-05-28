@@ -1303,10 +1303,10 @@ export default function AgendaPage() {
                   <span style={{ color: "#D4AF37", fontSize: "18px", fontWeight: 600 }}>{newRDV.price}$</span>
                 </div>
 
-                {/* Submit */}
+                {/* Submit — disable si client manquant ou conflit horaire (pas de force submit avec erreur visible) */}
                 <button
                   onClick={submitNewRDV}
-                  disabled={submitting || !newRDV.client_name.trim()}
+                  disabled={submitting || !newRDV.client_name.trim() || (currentSlotConflict !== null && !currentSlotConflict.includes("a déjà un RDV"))}
                   style={{
                     background: submitting || !newRDV.client_name.trim()
                       ? "#333"

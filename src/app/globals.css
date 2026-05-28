@@ -161,6 +161,26 @@ body {
 @media (max-width: 768px) {
   .hidden-mobile { display: none !important; }
   .show-mobile { display: block !important; }
+
+  /* ── ADMIN DASHBOARD MOBILE — force responsive everywhere ── */
+  body { overflow-x: hidden; }
+  main[style*="margin-left"] { margin-left: 0 !important; padding: 16px !important; max-width: 100vw; overflow-x: hidden; }
+  main[style*="marginLeft"] { margin-left: 0 !important; padding: 16px !important; max-width: 100vw; overflow-x: hidden; }
+  /* Grids 3+ cols → 2 cols mobile */
+  main [style*="grid-template-columns: 1fr 1fr 1fr"],
+  main [style*="gridTemplateColumns: 1fr 1fr 1fr"],
+  main [style*="repeat(3"],
+  main [style*="1fr 380px"] { grid-template-columns: 1fr !important; }
+  /* Padding cards trop large → réduire */
+  main div[style*="padding: 28px"],
+  main div[style*="padding: 24px 32px"],
+  main div[style*="padding: 40px"] { padding: 16px !important; }
+  /* Tables wider than viewport → horizontal scroll seulement sur container */
+  main table { min-width: 0 !important; }
+  /* Inputs full width */
+  main input, main textarea, main select { max-width: 100% !important; box-sizing: border-box; }
+  /* Bottom-nav clearance */
+  main { padding-bottom: 100px !important; }
 }
 
 @media (min-width: 769px) {
