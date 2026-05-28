@@ -365,6 +365,18 @@ export default function AgendaPage() {
 
   async function saveEdit() {
     if (!selected) return;
+
+    // Validation: end_time doit être après time
+    if (editForm.end_time && editForm.time) {
+      const [sh, sm] = editForm.time.split(":").map(Number);
+      const [eh, em] = editForm.end_time.split(":").map(Number);
+      if (eh * 60 + em <= sh * 60 + sm) {
+        alert("L'heure de fin doit être après l'heure de début");
+        return;
+      }
+    }
+    if (editForm.price < 0) { alert("Prix invalide"); return; }
+
     setEditSaving(true);
     const updates: Record<string, string | number> = {};
     if (editForm.service !== selected.service) updates.service = editForm.service;

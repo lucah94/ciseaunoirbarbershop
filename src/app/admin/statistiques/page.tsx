@@ -38,13 +38,16 @@ export default function StatistiquesPage() {
       }
       setMonthlyData(Object.entries(months).map(([month, d]) => ({ month, ...d })));
 
-      // Top clients
+      // Top clients — revenue uniquement sur RDV completed (vrai revenu)
       const clientMap: Record<string, { count: number; revenue: number }> = {};
       for (const b of bookings) {
-        if (b.status === "cancelled" || !b.client_name) continue;
+        if (b.status === "cancelled" || b.status === "no_show" || !b.client_name) continue;
         if (!clientMap[b.client_name]) clientMap[b.client_name] = { count: 0, revenue: 0 };
         clientMap[b.client_name].count++;
-        clientMap[b.client_name].revenue += b.price || 0;
+        // Revenue seulement si completed (les confirmed futurs ne comptent pas)
+        if (b.status === "completed") {
+          clientMap[b.client_name].revenue += b.price || 0;
+        }
       }
       setTopClients(
         Object.entries(clientMap)
