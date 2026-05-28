@@ -51,7 +51,7 @@ const SERVICES = [
   { label: "Coupe (enfants,étudiants,bébés)", price: 30 },
 ];
 
-const BARBERS_LIST = ["Melynda"];
+const BARBERS_LIST = ["Melynda", "Barbier disponible"];
 
 const TIME_SLOTS: string[] = [];
 for (let h = 8; h < 21; h++) {
