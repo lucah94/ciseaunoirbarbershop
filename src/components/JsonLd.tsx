@@ -43,6 +43,13 @@ export default function JsonLd() {
       },
     ],
     priceRange: "$$",
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: "5.0",
+      reviewCount: "46",
+      bestRating: "5",
+      worstRating: "1",
+    },
     image: "https://ciseaunoirbarbershop.com/images/melynda.jpg",
     employee: [
       {
