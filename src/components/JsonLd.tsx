@@ -4,13 +4,13 @@ export default function JsonLd() {
     "@type": "BarberShop",
     name: "Ciseau Noir Barbershop",
     description:
-      "Salon de barbier premium a Quebec. Coupes, rasages et soins professionnels.",
+      "Salon de barbier premium à Beauport, Québec. Coupes homme, rasage à la lame et taille de barbe. Réservez en ligne.",
     url: "https://ciseaunoirbarbershop.com",
     telephone: "+1-418-665-5703",
     address: {
       "@type": "PostalAddress",
       streetAddress: "375 Boul. des Chutes",
-      addressLocality: "Quebec",
+      addressLocality: "Beauport",
       addressRegion: "QC",
       postalCode: "G1E 2J1",
       addressCountry: "CA",
@@ -20,22 +20,42 @@ export default function JsonLd() {
       latitude: 46.8565,
       longitude: -71.1732,
     },
+    areaServed: ["Beauport", "Québec", "Ville de Québec"],
+    sameAs: ["https://www.facebook.com/profile.php?id=61575695811602"],
     openingHoursSpecification: [
       {
         "@type": "OpeningHoursSpecification",
-        dayOfWeek: ["Tuesday", "Wednesday", "Thursday", "Friday"],
-        opens: "09:00",
-        closes: "18:00",
+        dayOfWeek: ["Tuesday", "Wednesday"],
+        opens: "08:30",
+        closes: "16:30",
+      },
+      {
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: ["Thursday", "Friday"],
+        opens: "08:30",
+        closes: "20:30",
       },
       {
         "@type": "OpeningHoursSpecification",
         dayOfWeek: "Saturday",
         opens: "09:00",
-        closes: "16:00",
+        closes: "16:30",
       },
     ],
     priceRange: "$$",
-    image: "https://ciseaunoirbarbershop.com/favicon.ico",
+    image: "https://ciseaunoirbarbershop.com/images/melynda.jpg",
+    employee: [
+      {
+        "@type": "Person",
+        name: "Melynda",
+        jobTitle: "Barbière & Co-fondatrice",
+      },
+      {
+        "@type": "Person",
+        name: "Stéphanie",
+        jobTitle: "Barbière",
+      },
+    ],
     hasOfferCatalog: {
       "@type": "OfferCatalog",
       name: "Services de barbier",
