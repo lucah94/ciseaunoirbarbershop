@@ -184,7 +184,7 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
   // ── get_revenue ──────────────────────────────────────────────────────────────
   if (name === "get_revenue") {
     const period = (input.period as string) || "this_week";
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayQC();
     let startDate: string, endDate: string, label: string;
 
     if (period === "today") { startDate = endDate = today; label = "aujourd'hui"; }
@@ -249,7 +249,7 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
     const description = input.description as string;
     const amount = Number(input.amount);
     const category = (input.category as string) || "Autre";
-    const date = (input.date as string) || new Date().toISOString().slice(0, 10);
+    const date = (input.date as string) || todayQC();
 
     const validCategories = ["Fournitures", "Équipement", "Loyer", "Marketing", "Employés", "Services", "Autre"];
     const finalCategory = validCategories.includes(category) ? category : "Autre";
@@ -309,7 +309,7 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
     const barber = input.barber as string | undefined;
     let query = supabaseAdmin
       .from("barber_blocks").select("barber, date, reason")
-      .gte("date", new Date().toISOString().slice(0, 10))
+      .gte("date", todayQC())
       .order("date").limit(10);
     if (barber) query = query.ilike("barber", `%${barber}%`);
     const { data } = await query;
