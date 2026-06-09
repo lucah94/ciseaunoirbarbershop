@@ -27,11 +27,11 @@ const TEAM = [
     specialties: ["Coupes classiques", "Rasage traditionnel", "Dégradés précis", "Coiffage & finitions"],
   },
   {
-    name: "Barbier disponible",
-    id: "available",
-    role: "Place disponible",
-    exp: "Rejoignez l'équipe",
-    bio: "Un nouveau talent rejoindra bientôt notre équipe. Restez à l'affût — Ciseau Noir grandit et nous avons hâte de vous présenter le prochain membre de la famille.",
+    name: "Stéphanie",
+    id: "stephanie",
+    role: "Barbière",
+    exp: "Ciseau Noir",
+    bio: "Stéphanie est la nouvelle barbière de l'équipe Ciseau Noir. Passionnée par son métier, elle apporte son énergie et son talent pour offrir à chaque client une expérience unique.",
     specialties: ["Coupes", "Dégradés", "Barbe", "Styles modernes"],
   },
 ];

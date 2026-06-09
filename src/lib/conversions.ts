@@ -84,26 +84,54 @@ async function fireMetaCAPI(booking: {
 async function fireGoogleAdsConversion(booking: {
   id: string; price: number; created_at?: string;
 }): Promise<void> {
-  // Google Ads Offline Conversion via gtag/measurement protocol GA4
-  const measurementId = process.env.NEXT_PUBLIC_GA_ID; // ex: G-XXXXXXX
+  // GA4 Measurement Protocol — imported into Google Ads via GA4 link
+  const measurementId = process.env.NEXT_PUBLIC_GA_ID;
   const apiSecret = process.env.GA4_API_SECRET;
-  if (!measurementId || !apiSecret) return;
+  if (measurementId && apiSecret) {
+    try {
+      await fetch(`https://www.google-analytics.com/mp/collect?measurement_id=${measurementId}&api_secret=${apiSecret}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: booking.id.slice(0, 16),
+          events: [{
+            name: "purchase",
+            params: {
+              transaction_id: booking.id,
+              value: booking.price || 0,
+              currency: "CAD",
+              items: [{ item_name: "Coupe", item_category: "barbershop", price: booking.price || 0, quantity: 1 }],
+            },
+          }],
+        }),
+      });
+    } catch {}
+  }
 
+  // Google Ads Conversion API (direct) — requires AW conversion ID + label
+  const conversionId = process.env.GOOGLE_ADS_CONVERSION_ID;
+  const conversionLabel = process.env.GOOGLE_ADS_CONVERSION_LABEL;
+  const googleAdsApiSecret = process.env.GOOGLE_ADS_API_SECRET;
+  if (!conversionId || !conversionLabel || !googleAdsApiSecret) return;
+
+  const customerId = conversionId.replace("AW-", "");
   try {
-    await fetch(`https://www.google-analytics.com/mp/collect?measurement_id=${measurementId}&api_secret=${apiSecret}`, {
+    await fetch(`https://googleads.googleapis.com/v16/customers/${customerId}:uploadClickConversions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${googleAdsApiSecret}`,
+        "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN || "",
+      },
       body: JSON.stringify({
-        client_id: booking.id.slice(0, 16),
-        events: [{
-          name: "purchase",
-          params: {
-            transaction_id: booking.id,
-            value: booking.price || 0,
-            currency: "CAD",
-            items: [{ item_name: "Coupe", item_category: "barbershop", price: booking.price || 0, quantity: 1 }],
-          },
+        conversions: [{
+          conversionAction: `customers/${customerId}/conversionActions/${conversionLabel}`,
+          conversionDateTime: new Date(booking.created_at || Date.now()).toISOString().replace("T", " ").replace("Z", "+00:00"),
+          conversionValue: booking.price || 0,
+          currencyCode: "CAD",
+          orderId: booking.id,
         }],
+        partialFailure: true,
       }),
     });
   } catch {}

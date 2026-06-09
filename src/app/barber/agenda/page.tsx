@@ -56,14 +56,21 @@ export default function BarberAgendaPage() {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
   };
 
+  const getBarberName = (): string => {
+    if (typeof document === "undefined") return "melynda";
+    const match = document.cookie.match(/(?:^|;\s*)barber_name=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : "melynda";
+  };
+
   const fetchBookings = useCallback((silent = false) => {
     if (!silent) setLoading(true);
+    const barberName = getBarberName();
     // cache: no-store + cache-buster pour forcer un rechargement frais sur mobile
     fetch(`/api/bookings?start=${getStartDate()}&_=${Date.now()}`, { cache: "no-store" })
       .then(r => r.json())
       .then(data => {
         const list = (Array.isArray(data) ? data : []).filter((b: Booking) =>
-          b.barber?.toLowerCase() === "melynda"
+          b.barber?.toLowerCase() === barberName || b.barber?.toLowerCase() === barberName.normalize("NFD").replace(/[̀-ͯ]/g, "")
         );
         setBookings(list);
         setLoading(false);

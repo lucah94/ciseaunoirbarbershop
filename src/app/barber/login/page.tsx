@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function BarberLoginPage() {
+  const [barber, setBarber] = useState<"melynda" | "stephanie">("melynda");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -15,7 +16,7 @@ export default function BarberLoginPage() {
     const res = await fetch("/api/auth/barber-login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ barber, password }),
     });
     if (res.ok) {
       router.push("/barber/agenda");
@@ -36,6 +37,29 @@ export default function BarberLoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div>
+            <label style={{ display: "block", color: "#555", fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase", marginBottom: "10px" }}>
+              Barbière
+            </label>
+            <div style={{ display: "flex", gap: "10px" }}>
+              {(["melynda", "stephanie"] as const).map(b => (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => setBarber(b)}
+                  style={{
+                    flex: 1, padding: "12px", fontSize: "13px", letterSpacing: "1px",
+                    background: barber === b ? "rgba(212,175,55,0.15)" : "#111",
+                    border: `1px solid ${barber === b ? "#D4AF37" : "#2A2A2A"}`,
+                    color: barber === b ? "#D4AF37" : "#555",
+                    cursor: "pointer", textTransform: "capitalize",
+                  }}
+                >
+                  {b === "melynda" ? "Melynda" : "Stéphanie"}
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <label style={{ display: "block", color: "#555", fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase", marginBottom: "10px" }}>
               Mot de passe

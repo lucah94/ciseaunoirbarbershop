@@ -40,7 +40,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const BARBER_COLORS: Record<string, string> = {
   Melynda: "#D4AF37",
-  "Barbier disponible": "#4A9EDB",
+  "Stéphanie": "#4A9EDB",
 };
 
 const SERVICES = [
@@ -52,7 +52,7 @@ const SERVICES = [
   { label: "Coupe (enfants,étudiants,bébés)", price: 30 },
 ];
 
-const BARBERS_LIST = ["Melynda", "Barbier disponible"];
+const BARBERS_LIST = ["Melynda", "Stéphanie"];
 
 const TIME_SLOTS: string[] = [];
 for (let h = 8; h < 21; h++) {
@@ -68,7 +68,7 @@ export default function AgendaPage() {
   const [loadError, setLoadError] = useState(false);
   const retryRef = useRef(0);
   const [selected, setSelected] = useState<Booking | null>(null);
-  const [filter, setFilter] = useState<"all" | "Melynda" | "Barbier disponible">("all");
+  const [filter, setFilter] = useState<"all" | "Melynda" | "Stéphanie">("all");
   const calendarRef = useRef<FullCalendar>(null);
   const [visitCounts, setVisitCounts] = useState<Record<string, number>>({});
   const [isMobile, setIsMobile] = useState(false);
@@ -649,7 +649,7 @@ export default function AgendaPage() {
             {[
               { key: "all" as const, label: "Tous", color: "#D4AF37" },
               { key: "Melynda" as const, label: "Melynda", color: "#D4AF37" },
-              { key: "Barbier disponible" as const, label: "2e barbier", color: "#B8860B" },
+              { key: "Stéphanie" as const, label: "Stéphanie", color: "#4A9EDB" },
             ].map(f => (
               <button
                 key={f.key}

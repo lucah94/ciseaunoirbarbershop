@@ -18,25 +18,36 @@ function formatDate(dateStr: string) {
 
 function todayStr() { return new Date().toISOString().split("T")[0]; }
 
+function getBarberNameFromCookie(): string {
+  if (typeof document === "undefined") return "melynda";
+  const match = document.cookie.match(/(?:^|;\s*)barber_name=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : "melynda";
+}
+
 export default function BarberHorairesPage() {
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [blocks, setBlocks] = useState<{ id: string; date: string; reason: string | null }[]>([]);
   const [overrides, setOverrides] = useState<{ id: string; date: string; open: string; close: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [barberName, setBarberName] = useState("melynda");
 
   useEffect(() => {
+    const name = getBarberNameFromCookie();
+    setBarberName(name);
     Promise.all([
       fetch("/api/barbers").then(r => r.json()),
-      fetch("/api/admin/blocks?barber=melynda").then(r => r.json()).catch(() => []),
-      fetch("/api/admin/day-overrides?barber=melynda").then(r => r.json()).catch(() => []),
+      fetch(`/api/admin/blocks?barber=${name}`).then(r => r.json()).catch(() => []),
+      fetch(`/api/admin/day-overrides?barber=${name}`).then(r => r.json()).catch(() => []),
     ]).then(([barbers, bl, ov]) => {
-      const melynda = Array.isArray(barbers) ? barbers.find((b: { name: string; schedule: Schedule }) => b.name?.toLowerCase() === "melynda") : null;
-      setSchedule(melynda?.schedule ?? {});
+      const barber = Array.isArray(barbers) ? barbers.find((b: { name: string; schedule: Schedule }) => b.name?.toLowerCase() === name || b.name?.toLowerCase() === "barbier disponible") : null;
+      setSchedule(barber?.schedule ?? {});
       setBlocks(Array.isArray(bl) ? bl.filter((b: { date: string }) => b.date >= todayStr()) : []);
       setOverrides(Array.isArray(ov) ? ov.filter((o: { date: string }) => o.date >= todayStr()) : []);
       setLoading(false);
     });
   }, []);
+
+  const displayName = barberName === "stephanie" ? "Stéphanie" : "Melynda";
 
   return (
     <div style={{ background: "#0A0A0A", minHeight: "100vh", display: "flex" }}>
@@ -45,7 +56,7 @@ export default function BarberHorairesPage() {
 
         <div style={{ marginBottom: "40px" }}>
           <h1 style={{ fontSize: "24px", fontWeight: 300, letterSpacing: "3px", color: "#F5F5F5", marginBottom: "6px" }}>Mes Horaires</h1>
-          <p style={{ color: "#555", fontSize: "13px" }}>Tes disponibilités — Melynda</p>
+          <p style={{ color: "#555", fontSize: "13px" }}>Tes disponibilités — {displayName}</p>
         </div>
 
         {loading ? (

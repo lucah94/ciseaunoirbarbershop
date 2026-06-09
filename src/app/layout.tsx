@@ -8,6 +8,7 @@ import "@/lib/env";
 import "./globals.css";
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+const AW_ID = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -99,11 +100,12 @@ export default function RootLayout({
         {GA_ID && (
           <>
             <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} strategy="afterInteractive" />
-            <Script id="ga4-init" strategy="afterInteractive">{`
+            <Script id="gtag-init" strategy="afterInteractive">{`
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
               gtag('config', '${GA_ID}');
+              ${AW_ID ? `gtag('config', '${AW_ID}');` : ""}
             `}</Script>
           </>
         )}

@@ -20,7 +20,7 @@ const SERVICES = [
 
 const BARBERS = [
   { id: "melynda", name: "Melynda", role: "Barbière & Co-fondatrice", exp: "18+ ans d'expérience" },
-  { id: "barbier-disponible", name: "Barbier disponible", role: "Place disponible", exp: "Temps partiel" },
+  { id: "stephanie", name: "Stéphanie", role: "Barbière", exp: "Ciseau Noir" },
 ];
 
 // Horaires selon le jour : 0=dim, 1=lun, 2=mar, 3=mer, 4=jeu, 5=ven, 6=sam
@@ -1241,16 +1241,16 @@ function BookingContent() {
                         )}
                       </div>
 
-                      {/* Colonne Barbier disponible — affiché uniquement si schedule défini ou day_override actif pour la date */}
+                      {/* Colonne Stéphanie — affiché uniquement si schedule défini ou day_override actif pour la date */}
                       {(() => {
-                        const dispoSchedule = barberSchedules["barbier disponible"];
+                        const dispoSchedule = barberSchedules["stéphanie"] || barberSchedules["stephanie"] || barberSchedules["barbier disponible"];
                         const dayKey = DAY_KEYS[new Date(selected.date + "T12:00:00").getDay()];
                         const hasSchedule = dispoSchedule && dispoSchedule[dayKey];
                         const hasOverride = dayOverrides.some(o => o.date === selected.date);
                         // Si pas de dispo pour ce jour → ne pas afficher le 2e barbier
                         if (!hasSchedule && !hasOverride) return null;
                         const serviceDur = getServiceDuration(SERVICES.find(s => s.id === selected.service)?.name || "");
-                        const dispoSlots = getTimesForBarberAndDate("barbier-disponible", selected.date, dayOverrides, dispoSchedule);
+                        const dispoSlots = getTimesForBarberAndDate("stephanie", selected.date, dayOverrides, dispoSchedule);
                         return (
                           <div>
                             <div style={{ textAlign: "center", marginBottom: "16px" }}>
@@ -1260,9 +1260,9 @@ function BookingContent() {
                                 margin: "0 auto 10px", overflow: "hidden",
                                 boxShadow: "0 0 16px rgba(212,175,55,0.2)",
                               }}>
-                                <Image src="/images/chair-barbier.jpg" alt="Barbier disponible" width={80} height={80} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 10%" }} />
+                                <Image src="/images/chair-barbier.jpg" alt="Stéphanie" width={80} height={80} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 10%" }} />
                               </div>
-                              <p style={{ color: "#D4AF37", fontSize: "13px", letterSpacing: "3px", textTransform: "uppercase", fontWeight: 600 }}>Barbier dispo</p>
+                              <p style={{ color: "#D4AF37", fontSize: "13px", letterSpacing: "3px", textTransform: "uppercase", fontWeight: 600 }}>Stéphanie</p>
                             </div>
                             {dispoSlots.length > 0 ? (
                               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -1271,12 +1271,12 @@ function BookingContent() {
                                   const [tH, tM] = t.split(":").map(Number);
                                   if (selected.date === today && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()))) return false;
                                   // Filtrer pour garder QUE les RDV du 2e barbier
-                                  const dispoBooked = bookedSlots.filter(b => b.barber && b.barber.toLowerCase().includes("disponible"));
+                                  const dispoBooked = bookedSlots.filter(b => b.barber && (b.barber.toLowerCase().includes("stéphanie") || b.barber.toLowerCase().includes("stephanie") || b.barber.toLowerCase().includes("disponible")));
                                   return !isSlotOccupied(t, dispoBooked, blockedRanges, selected.date, serviceDur);
                                 }).map(t => (
                                   <button
                                     key={t}
-                                    onClick={() => { setSelected({ ...selected, barber: "barbier-disponible", time: t }); setStep(3); }}
+                                    onClick={() => { setSelected({ ...selected, barber: "Stéphanie", time: t }); setStep(3); }}
                                     style={{
                                       background: "transparent",
                                       border: "1px solid rgba(212,175,55,0.25)",

@@ -535,8 +535,8 @@ RDV aujourd'hui: ${rdvCount} confirmés
 LE SALON:
 — Services: Coupe 35$ | Coupe+Barbe 50$ | Barbe 20$ | Coupe Enfant/Étudiant 25$ | Coupe+Rasage Lame 50$
 — Melynda: Mar/Mer/Sam 8h30-16h30 | Jeu/Ven 8h30-20h30
-— Barbier disponible: temps partiel (horaire variable — utilise get_bookings pour vérifier sa dispo)
-— Il y a DEUX barbiers : Melynda ET Barbier disponible
+— Stéphanie: barbière (horaire variable — utilise get_bookings pour vérifier sa dispo)
+— Il y a DEUX barbières : Melynda ET Stéphanie
 — Fermé dimanche + lundi
 — Tel: (418) 665-5703
 
@@ -561,7 +561,7 @@ OUTILS DISPONIBLES (utilise-les — jamais de chiffres inventés):
 • send_email — envoyer un email personnalisé à un client (adresse email requise)
 
 RÈGLES:
-→ Pour créer un RDV: besoin de nom+service+barbier+date+heure. Demande ce qui manque. Barbier = "Melynda" ou "Barbier disponible".
+→ Pour créer un RDV: besoin de nom+service+barbier+date+heure. Demande ce qui manque. Barbier = "Melynda" ou "Stéphanie".
 → Pour annuler/déplacer: cherche d'abord avec search_client puis confirme avec l'humain.
 → Reminders: convertis "dans 2h", "à 15h", "demain matin" en datetime exact (QC timezone).
 → Toujours vérifier avec get_bookings avant de créer — évite les doublons.
@@ -605,7 +605,7 @@ RÈGLES:
         client_phone: { type: "string" },
         client_email: { type: "string" },
         service: { type: "string", description: "Coupe / Coupe+Barbe / Barbe / Coupe Enfant / Coupe+Rasage" },
-        barber: { type: "string", enum: ["Melynda", "Barbier disponible"] },
+        barber: { type: "string", enum: ["Melynda", "Stéphanie"] },
         date: { type: "string", description: "YYYY-MM-DD" },
         time: { type: "string", description: "HH:MM" },
         price: { type: "number" },
@@ -641,7 +641,7 @@ RÈGLES:
       name: "block_barber_day",
       description: "Bloque une journée (empêche les réservations)",
       input_schema: { type: "object" as const, properties: {
-        barber: { type: "string", enum: ["Melynda", "Barbier disponible"] },
+        barber: { type: "string", enum: ["Melynda", "Stéphanie"] },
         date: { type: "string", description: "YYYY-MM-DD" },
         reason: { type: "string" },
       }, required: ["barber", "date"] },
@@ -696,7 +696,7 @@ RÈGLES:
       input_schema: { type: "object" as const, properties: {
         id: { type: "string", description: "UUID ou 8 premiers chars du RDV" },
         service: { type: "string" },
-        barber: { type: "string", enum: ["Melynda", "Barbier disponible"] },
+        barber: { type: "string", enum: ["Melynda", "Stéphanie"] },
         price: { type: "number" },
         note: { type: "string" },
         client_name: { type: "string" },
@@ -949,9 +949,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           `<b>📅 Agenda</b>\n` +
           `• "RDV de demain"\n` +
           `• "Agenda Melynda cette semaine"\n` +
-          `• "Agenda Barbier disponible samedi"\n` +
+          `• "Agenda Stéphanie samedi"\n` +
           `• "Book Marie samedi 10h Melynda coupe"\n` +
-          `• "Book Carlos jeudi 14h Barbier disponible coupe"\n` +
+          `• "Book Carlos jeudi 14h Stéphanie coupe"\n` +
           `• "Déplace le RDV de Tremblay à lundi 14h"\n` +
           `• "Annule le RDV de Jean"\n\n` +
           `<b>💰 Finance</b>\n` +
@@ -966,7 +966,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           `• "Email à jean@email.com: offre spéciale 20% vendredi"\n\n` +
           `<b>🔒 Disponibilités</b>\n` +
           `• "Bloque Melynda vendredi 23 mai — vacances"\n` +
-          `• "Bloque Barbier disponible lundi — pas là"\n` +
+          `• "Bloque Stéphanie lundi — pas là"\n` +
           `• "Journées bloquées à venir?"\n\n` +
           `<b>⏰ Rappels</b>\n` +
           `• "Rappelle-moi à 15h d'appeler le fournisseur"\n\n` +
