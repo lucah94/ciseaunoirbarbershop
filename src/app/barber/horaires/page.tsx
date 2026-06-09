@@ -39,7 +39,8 @@ export default function BarberHorairesPage() {
       fetch(`/api/admin/blocks?barber=${name}`).then(r => r.json()).catch(() => []),
       fetch(`/api/admin/day-overrides?barber=${name}`).then(r => r.json()).catch(() => []),
     ]).then(([barbers, bl, ov]) => {
-      const barber = Array.isArray(barbers) ? barbers.find((b: { name: string; schedule: Schedule }) => b.name?.toLowerCase() === name || b.name?.toLowerCase() === "barbier disponible") : null;
+      const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+      const barber = Array.isArray(barbers) ? barbers.find((b: { name: string; schedule: Schedule }) => norm(b.name || "") === norm(name) || norm(b.name || "") === "barbier disponible") : null;
       setSchedule(barber?.schedule ?? {});
       setBlocks(Array.isArray(bl) ? bl.filter((b: { date: string }) => b.date >= todayStr()) : []);
       setOverrides(Array.isArray(ov) ? ov.filter((o: { date: string }) => o.date >= todayStr()) : []);
