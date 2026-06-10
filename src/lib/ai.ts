@@ -1,27 +1,25 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-// OpenRouter si dispo, sinon Anthropic direct
-const useOpenRouter = !!process.env.OPENROUTER_API_KEY;
+// TOUJOURS via OpenRouter — jamais d'appel direct à Anthropic (évite les charges surprises).
+// Même si OPENROUTER_API_KEY manque, on garde le baseURL OpenRouter : au pire un appel échoue
+// avec une erreur d'auth OpenRouter, mais on ne facture JAMAIS Anthropic en douce.
+export const aiClient = new Anthropic({
+  apiKey: process.env.OPENROUTER_API_KEY ?? "missing-openrouter-key",
+  baseURL: "https://openrouter.ai/api/v1",
+  defaultHeaders: {
+    "HTTP-Referer": "https://ciseaunoirbarbershop.com",
+    "X-Title": "Ciseau Noir",
+  },
+});
 
-export const aiClient = useOpenRouter
-  ? new Anthropic({
-      apiKey: process.env.OPENROUTER_API_KEY!,
-      baseURL: "https://openrouter.ai/api/v1",
-      defaultHeaders: {
-        "HTTP-Referer": "https://ciseaunoirbarbershop.com",
-        "X-Title": "Ciseau Noir",
-      },
-    })
-  : new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? "placeholder-anthropic-key" });
-
-// Dernier modèle pour chaque niveau — 1 seul endroit à changer
+// Dernier modèle pour chaque niveau — 1 seul endroit à changer. Tout passe par OpenRouter.
 export const MODELS = {
   // Tâches simples: classification, réponses courtes (~0.14$/MTok via DeepSeek)
-  FAST: useOpenRouter ? "deepseek/deepseek-chat" : "claude-haiku-4-5-20251001",
+  FAST: "deepseek/deepseek-chat",
 
   // Tâches moyennes: conversations clients, analyse emails (~0.14$/MTok via DeepSeek)
-  BALANCED: useOpenRouter ? "deepseek/deepseek-chat" : "claude-sonnet-4-6",
+  BALANCED: "deepseek/deepseek-chat",
 
-  // Tâches complexes: Figaro, raisonnement profond (~3$/MTok Claude Sonnet via OpenRouter)
-  SMART: useOpenRouter ? "anthropic/claude-sonnet-4-6" : "claude-sonnet-4-6",
+  // Tâches complexes: Figaro, raisonnement profond (Claude Sonnet routé via OpenRouter)
+  SMART: "anthropic/claude-sonnet-4-6",
 } as const;

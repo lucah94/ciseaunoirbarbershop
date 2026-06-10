@@ -60,9 +60,10 @@ async function checkTwilio(): Promise<Check> {
 async function checkClaude(): Promise<Check> {
   const start = Date.now();
   try {
-    if (!process.env.ANTHROPIC_API_KEY) return { status: "error", latency: 0, message: "Clé API manquante" };
-    const res = await fetch("https://api.anthropic.com/v1/models", {
-      headers: { "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+    // On vérifie OpenRouter (la vraie route AI), pas Anthropic direct.
+    if (!process.env.OPENROUTER_API_KEY) return { status: "error", latency: 0, message: "Clé OpenRouter manquante" };
+    const res = await fetch("https://openrouter.ai/api/v1/models", {
+      headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}` },
       signal: AbortSignal.timeout(TIMEOUT),
     });
     const latency = Date.now() - start;

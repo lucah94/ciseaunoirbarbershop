@@ -16,7 +16,7 @@ function hash(value: string | undefined | null): string {
   return crypto.createHash("sha256").update(value.trim().toLowerCase()).digest("hex");
 }
 
-function normalizePhoneE164(phone: string | null | undefined): string {
+export function normalizePhoneE164(phone: string | null | undefined): string {
   if (!phone) return "";
   const digits = phone.replace(/\D/g, "");
   if (digits.length === 10) return `+1${digits}`;
