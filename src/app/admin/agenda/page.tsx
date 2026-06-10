@@ -485,7 +485,7 @@ export default function AgendaPage() {
 
     return {
       id: b.id,
-      title: `${b.source && b.source !== "direct" ? (b.source === "google" ? "🔍 " : b.source === "facebook" ? "📘 " : b.source === "instagram" ? "📸 " : "") : ""}${b.client_name}${visitCounts[b.client_email] ? ` (${visitCounts[b.client_email]}e)` : ""} — ${b.service}`,
+      title: `${b.source && b.source !== "direct" ? (b.source === "google" ? "🔍 " : b.source === "facebook" ? "📘 " : b.source === "instagram" ? "📸 " : "") : ""}${b.client_name}${visitCounts[b.client_email] ? ` (${visitCounts[b.client_email]}e)` : ""} — ${b.service} · ${b.barber}`,
       start: startStr,
       end: endStr,
       backgroundColor: b.status === "cancelled" ? "#333" : (BARBER_COLORS[b.barber] || "#D4AF37"),
