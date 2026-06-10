@@ -46,6 +46,10 @@ export default function BarberAgendaPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [barberSlug, setBarberSlug] = useState("melynda");
+
+  // Nom canonique du barbier (avec accent) pour écrire dans bookings + afficher
+  const canonicalBarber = barberSlug === "stephanie" ? "Stéphanie" : "Melynda";
 
   const todayStr = localDateStr();
 
@@ -64,13 +68,14 @@ export default function BarberAgendaPage() {
 
   const fetchBookings = useCallback((silent = false) => {
     if (!silent) setLoading(true);
-    const barberName = getBarberName();
+    const norm = (s: string) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    const barberName = norm(getBarberName());
     // cache: no-store + cache-buster pour forcer un rechargement frais sur mobile
     fetch(`/api/bookings?start=${getStartDate()}&_=${Date.now()}`, { cache: "no-store" })
       .then(r => r.json())
       .then(data => {
         const list = (Array.isArray(data) ? data : []).filter((b: Booking) =>
-          b.barber?.toLowerCase() === barberName || b.barber?.toLowerCase() === barberName.normalize("NFD").replace(/[̀-ͯ]/g, "")
+          norm(b.barber) === barberName
         );
         setBookings(list);
         setLoading(false);
@@ -81,6 +86,7 @@ export default function BarberAgendaPage() {
   // Chargement initial + Supabase Realtime (push live WebSocket)
   // + filet de sécurité polling 5 min au cas où WebSocket déconnecte
   useEffect(() => {
+    setBarberSlug(getBarberName());
     fetchBookings();
 
     const channel = supabase
@@ -118,7 +124,7 @@ export default function BarberAgendaPage() {
       const res = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...newRDV, barber: "Melynda", status: "confirmed", force: true }),
+        body: JSON.stringify({ ...newRDV, barber: canonicalBarber, status: "confirmed", force: true }),
       });
       const resData = await res.json().catch(() => ({}));
       if (res.ok && resData?.id) {
@@ -181,7 +187,7 @@ export default function BarberAgendaPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "40px" }}>
           <div>
             <h1 style={{ fontSize: "24px", fontWeight: 300, letterSpacing: "3px", color: "#F5F5F5", marginBottom: "6px" }}>Mon Agenda</h1>
-            <p style={{ color: "#555", fontSize: "13px" }}>Mes rendez-vous — Melynda</p>
+            <p style={{ color: "#555", fontSize: "13px" }}>Mes rendez-vous — {canonicalBarber}</p>
           </div>
           <button onClick={() => setShowNew(true)}
             style={{ background: "linear-gradient(135deg, #D4AF37, #B8860B)", color: "#080808", border: "none", padding: "10px 22px", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", fontWeight: 700, cursor: "pointer", borderRadius: "8px" }}>
