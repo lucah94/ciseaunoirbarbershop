@@ -352,7 +352,7 @@ async function handleToolCall(toolName: string, toolInput: Record<string, unknow
   return "Outil inconnu.";
 }
 
-async function sendMessengerMessage(recipientId: string, text: string) {
+export async function sendMessengerMessage(recipientId: string, text: string) {
   // Check if the reply contains the booking URL
   const bookingUrl = "https://ciseaunoirbarbershop.com/booking";
   const hasBookingLink = text.includes(bookingUrl);
@@ -402,7 +402,7 @@ async function sendMessengerMessage(recipientId: string, text: string) {
   }
 }
 
-async function processMessageWithClaude(senderId: string, userMessage: string): Promise<string> {
+export async function processMessageWithClaude(senderId: string, userMessage: string): Promise<string> {
   // Load or create conversation
   const { data: conv } = await supabase
     .from("messenger_conversations")
