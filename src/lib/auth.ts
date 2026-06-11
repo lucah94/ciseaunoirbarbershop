@@ -42,3 +42,29 @@ export function requireBarber(req: NextRequest): NextResponse | null {
   }
   return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 }
+
+const normName = (s: string) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+
+/** Jeton UNIQUE par barbier — lie le jeton au nom (empêche un barbier de se faire passer pour un autre). */
+export function generateBarberToken(name: string): string {
+  return crypto.createHmac("sha256", getSecret()).update("barber:" + normName(name)).digest("hex");
+}
+
+/**
+ * Retourne le NOM du barbier connecté SI son jeton correspond à son nom, sinon null.
+ * Sécurise les actions scopées (chaque barbier ne touche qu'à ses affaires).
+ * Compat transitoire: accepte aussi l'ancien jeton partagé jusqu'à reconnexion de tous.
+ */
+export function getAuthedBarber(req: NextRequest): string | null {
+  const auth = req.cookies.get("barber_auth")?.value;
+  const name = req.cookies.get("barber_name")?.value;
+  if (!auth || !name) return null;
+  const expected = generateBarberToken(name);
+  try {
+    if (auth.length === expected.length && crypto.timingSafeEqual(Buffer.from(auth), Buffer.from(expected))) {
+      return name;
+    }
+  } catch { /* ignore */ }
+  if (verifyToken("barber", auth)) return name; // fallback ancien jeton
+  return null;
+}

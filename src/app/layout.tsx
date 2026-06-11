@@ -58,10 +58,10 @@ export const metadata: Metadata = {
     url: "https://ciseaunoirbarbershop.com",
     images: [
       {
-        url: "/images/melynda.jpg",
+        url: "/images/chair-barbier.jpg",
         width: 1200,
         height: 630,
-        alt: "Ciseau Noir Barbershop — Melynda à Beauport, Québec",
+        alt: "Ciseau Noir Barbershop — Beauport, Québec",
       },
     ],
   },
@@ -70,7 +70,7 @@ export const metadata: Metadata = {
     title: "Ciseau Noir | Barbershop Beauport Québec",
     description:
       "Barbier à Beauport, Québec. Réservez en ligne.",
-    images: ["/images/melynda.jpg"],
+    images: ["/images/chair-barbier.jpg"],
   },
   alternates: {
     canonical: "https://ciseaunoirbarbershop.com",

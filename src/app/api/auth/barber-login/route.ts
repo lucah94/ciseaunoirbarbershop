@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
-import { generateToken } from "@/lib/auth";
+import { generateBarberToken } from "@/lib/auth";
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   }
 
   const res = NextResponse.json({ ok: true, barber: barberName });
-  res.cookies.set("barber_auth", generateToken("barber"), {
+  res.cookies.set("barber_auth", generateBarberToken(barberName), {
     httpOnly: true, secure: true, sameSite: "lax",
     maxAge: 60 * 60 * 24 * 7, path: "/",
   });

@@ -23,7 +23,10 @@ const norm = (s: string) =>
 
 // Image par barbier : Melynda a sa photo, les autres le fauteuil générique
 function barberImage(name: string): string {
-  return norm(name).includes("melynda") ? "/images/melynda.jpg" : "/images/chair-barbier.jpg";
+  const n = norm(name);
+  if (n.includes("melynda")) return "/images/melynda.jpg";
+  if (n.includes("stephanie")) return "/images/stephanie.jpg";
+  return "/images/chair-barbier.jpg"; // Barbier dispo / autres
 }
 
 // Horaires selon le jour : 0=dim, 1=lun, 2=mar, 3=mer, 4=jeu, 5=ven, 6=sam
