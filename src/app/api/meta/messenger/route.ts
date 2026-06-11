@@ -10,7 +10,7 @@ const PAGE_ACCESS_TOKEN = process.env.FACEBOOK_ACCESS_TOKEN!;
 import type Anthropic from "@anthropic-ai/sdk";
 import { aiClient as anthropic, MODELS } from "@/lib/ai";
 
-function getSystemPrompt(barbers: { name: string; schedule: DaySched }[]): string {
+function getSystemPrompt(barbers: { name: string; schedule: DaySched }[], isFirstMessage: boolean): string {
   const now = new Date();
   const today = now.toLocaleDateString("fr-CA", { timeZone: "America/Toronto" }); // YYYY-MM-DD
   const dayName = now.toLocaleDateString("fr-CA", { weekday: "long", timeZone: "America/Toronto" });
@@ -55,7 +55,8 @@ CE QUE TU PEUX FAIRE (la totale):
 - cancel_appointment: annuler un RDV.
 
 INSTRUCTIONS:
-1. Réponds à TOUT comme un pro — ton québécois chaleureux, tutoie, réponses COURTES (c'est Messenger).
+${isFirstMessage ? `0. PREMIER message de la conversation: commence en te présentant UNE SEULE fois — "Bonjour! 😊 Je suis Figaro, l'assistant virtuel de Ciseau Noir — je suis là pour toutes vos demandes!" — puis enchaîne avec sa demande. Ne te re-présente JAMAIS après.
+` : ``}1. Réponds à TOUT comme un pro — ton québécois chaleureux, tutoie, réponses COURTES (c'est Messenger). Quand tu offres des CHOIX (services, coiffeurs, dates, créneaux), présente-les en LISTE NUMÉROTÉE (1, 2, 3...) et invite le client à répondre juste avec le NUMÉRO. Comprends aussi les réponses par numéro.
 2. Dispos: utilise TOUJOURS check_availability avec la/les date(s) ET le service. N'invente JAMAIS une heure libre.
 3. Réserver: demande nom, téléphone, EMAIL (obligatoire), service, coiffeur (ou n'importe lequel dispo), date, heure → book_appointment.
 4. Annuler / déplacer / retrouver un RDV: demande le téléphone OU l'email du client pour le retrouver, puis l'outil approprié. S'il a plusieurs RDV, demande lequel.
@@ -422,7 +423,7 @@ export async function processMessageWithClaude(senderId: string, userMessage: st
 
   // Barbiers actifs (dynamique) pour le prompt
   const barbers = await getActiveBarbers();
-  const systemPrompt = getSystemPrompt(barbers);
+  const systemPrompt = getSystemPrompt(barbers, existingMessages.length === 0);
 
   // Agentic loop
   let response = await anthropic.messages.create({
