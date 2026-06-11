@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import twilio from "twilio";
 import crypto from "crypto";
+import { notifyBookingCancelled, notifyBookingRescheduled } from "@/lib/telegram";
 export const dynamic = 'force-dynamic';
 
 const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN!;
@@ -41,14 +42,27 @@ Fermé dimanche et lundi.
 COORDONNÉES: 375 Boul. des Chutes, Québec | (418) 665-5703
 RÉSERVATION EN LIGNE: https://ciseaunoirbarbershop.com/booking
 
+INFOS UTILES:
+- Cartes-cadeaux disponibles (sur le site: https://ciseaunoirbarbershop.com/cartes-cadeaux).
+- On parle français et anglais. Fermé dimanche et lundi.
+
+CE QUE TU PEUX FAIRE (la totale):
+- Répondre à TOUTE question (services, prix, durées, horaires, coiffeurs, adresse, téléphone, cartes-cadeaux...).
+- check_availability: vérifier les vraies dispos.
+- book_appointment: réserver.
+- find_appointments: retrouver les RDV d'un client ("c'est quand mon rdv?").
+- reschedule_appointment: déplacer un RDV.
+- cancel_appointment: annuler un RDV.
+
 INSTRUCTIONS:
-1. Réponds à TOUTES les questions (services, prix, horaires, coiffeurs, localisation) comme un pro. Ton québécois chaleureux, tutoie le client, garde tes réponses COURTES (c'est Messenger).
-2. Pour les disponibilités, utilise TOUJOURS check_availability avec la/les date(s) ET le service choisi (les créneaux dépendent de la durée du service). Propose les vraies heures libres seulement.
-3. Le client peut réserver directement dans le chat: demande nom, téléphone, EMAIL (obligatoire), service, coiffeur (ou n'importe lequel de dispo), date et heure, PUIS utilise book_appointment.
-4. Sinon offre le lien: "Tu peux aussi réserver directement ici 👉 https://ciseaunoirbarbershop.com/booking"
-5. Si pas de préférence de date, vérifie les 3 prochains jours ouvrables.
-6. Si le client est frustré ou cas complexe → send_sms_alert à l'équipe.
-7. N'invente JAMAIS une disponibilité — base-toi uniquement sur check_availability.`;
+1. Réponds à TOUT comme un pro — ton québécois chaleureux, tutoie, réponses COURTES (c'est Messenger).
+2. Dispos: utilise TOUJOURS check_availability avec la/les date(s) ET le service. N'invente JAMAIS une heure libre.
+3. Réserver: demande nom, téléphone, EMAIL (obligatoire), service, coiffeur (ou n'importe lequel dispo), date, heure → book_appointment.
+4. Annuler / déplacer / retrouver un RDV: demande le téléphone OU l'email du client pour le retrouver, puis l'outil approprié. S'il a plusieurs RDV, demande lequel.
+5. Tu peux aussi offrir le lien: "Réserve directement ici 👉 https://ciseaunoirbarbershop.com/booking"
+6. Si pas de préférence de date, vérifie les 3 prochains jours ouvrables.
+7. Si tu NE connais PAS une réponse (ex: stationnement, paiement), sois honnête, propose d'appeler le (418) 665-5703 ou utilise send_sms_alert. N'invente RIEN.
+8. Client frustré ou cas complexe → send_sms_alert à l'équipe.`;
 }
 
 const CLAUDE_TOOLS: Anthropic.Tool[] = [
@@ -80,6 +94,48 @@ const CLAUDE_TOOLS: Anthropic.Tool[] = [
         time: { type: "string", description: "Heure au format HH:MM" },
       },
       required: ["name", "phone", "email", "service", "barber", "date", "time"],
+    },
+  },
+  {
+    name: "cancel_appointment",
+    description: "Annuler un rendez-vous existant. Demande au client son téléphone OU son email pour retrouver le RDV. S'il a plusieurs RDV à venir, demande la date précise.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        phone: { type: "string", description: "Numéro de téléphone du client" },
+        email: { type: "string", description: "Email du client" },
+        date: { type: "string", description: "Date du RDV à annuler YYYY-MM-DD (optionnel)" },
+        time: { type: "string", description: "Heure du RDV HH:MM (optionnel)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "find_appointments",
+    description: "Retrouver les rendez-vous à venir d'un client (quand il demande 'c'est quand mon rdv?'). Demande son téléphone OU son email.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        phone: { type: "string", description: "Téléphone du client" },
+        email: { type: "string", description: "Email du client" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "reschedule_appointment",
+    description: "Déplacer un rendez-vous existant à une nouvelle date/heure. Demande téléphone OU email pour le retrouver, plus la nouvelle date et heure.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        phone: { type: "string", description: "Téléphone du client" },
+        email: { type: "string", description: "Email du client" },
+        old_date: { type: "string", description: "Date actuelle du RDV YYYY-MM-DD (optionnel)" },
+        old_time: { type: "string", description: "Heure actuelle HH:MM (optionnel)" },
+        new_date: { type: "string", description: "Nouvelle date souhaitée YYYY-MM-DD" },
+        new_time: { type: "string", description: "Nouvelle heure souhaitée HH:MM" },
+      },
+      required: ["new_date", "new_time"],
     },
   },
   {
@@ -124,6 +180,39 @@ function genSlots(open: string, close: string, durationMin: number): string[] {
 async function getActiveBarbers(): Promise<{ name: string; schedule: DaySched }[]> {
   const { data } = await supabase.from("barbers").select("name, schedule, active").eq("active", true).order("created_at", { ascending: true });
   return (data || []) as { name: string; schedule: DaySched }[];
+}
+
+type Bk = { id: string; client_name: string; service: string; barber: string; date: string; time: string; client_phone: string; client_email: string; end_time?: string };
+
+function torontoToday(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" }); // YYYY-MM-DD
+}
+
+// Retrouve les RDV à venir (non annulés) d'un client par téléphone OU email.
+async function findUpcomingBookings(phone?: string, email?: string): Promise<Bk[]> {
+  const { data } = await supabase
+    .from("bookings")
+    .select("id, client_name, service, barber, date, time, client_phone, client_email, end_time")
+    .neq("status", "cancelled").gte("date", torontoToday()).order("date").order("time");
+  const digits = (phone || "").replace(/\D/g, "");
+  return ((data || []) as Bk[]).filter(r => {
+    const pMatch = digits.length >= 7 && (r.client_phone || "").replace(/\D/g, "").includes(digits.slice(-7));
+    const eMatch = !!email && (r.client_email || "").toLowerCase() === email.toLowerCase();
+    return pMatch || eMatch;
+  });
+}
+
+// Vérifie qu'un créneau est libre pour un barbier (évite le double-booking lors d'un déplacement).
+async function isSlotFree(barber: string, date: string, time: string, durationMin: number, excludeId?: string): Promise<boolean> {
+  const { data } = await supabase.from("bookings").select("id, time, end_time, service, barber").eq("date", date).neq("status", "cancelled");
+  const start = minutesOf(time), end = start + durationMin;
+  return !((data || []) as Bk[]).some(x => {
+    if (excludeId && x.id === excludeId) return false;
+    if (norm(x.barber || "") !== norm(barber)) return false;
+    const bStart = minutesOf(x.time || "0:0");
+    const bEnd = x.end_time ? minutesOf(x.end_time) : bStart + serviceDuration(x.service || "");
+    return start < bEnd && end > bStart;
+  });
 }
 
 function getDayName(dateStr: string): string {
@@ -196,6 +285,50 @@ async function handleToolCall(toolName: string, toolInput: Record<string, unknow
     } catch (e) {
       return `Erreur lors de la réservation: ${String(e)}`;
     }
+  }
+
+  if (toolName === "cancel_appointment") {
+    const { phone, email, date, time } = toolInput as Record<string, string>;
+    if (!phone && !email) return "J'ai besoin de ton numéro de téléphone ou ton email pour retrouver ton rendez-vous.";
+    let matches = await findUpcomingBookings(phone, email);
+    if (date) matches = matches.filter(r => r.date === date);
+    if (time) matches = matches.filter(r => minutesOf(r.time) === minutesOf(time));
+    if (matches.length === 0) return "Je trouve aucun rendez-vous à venir avec ces infos. Vérifie ton numéro/email, ou appelle au (418) 665-5703.";
+    if (matches.length > 1) return `Tu as ${matches.length} rendez-vous à venir:\n${matches.map(m => `• ${m.date} à ${m.time} — ${m.service} avec ${m.barber}`).join("\n")}\nLequel veux-tu annuler? Donne-moi la date et l'heure.`;
+    const m = matches[0];
+    const { error } = await supabase.from("bookings").update({ status: "cancelled" }).eq("id", m.id);
+    if (error) return `Erreur à l'annulation: ${error.message}`;
+    try { await notifyBookingCancelled({ client_name: m.client_name, service: m.service, barber: m.barber, date: m.date, time: m.time }); } catch { /* notif non bloquante */ }
+    return `C'est annulé ✓ — ${m.service} avec ${m.barber} le ${m.date} à ${m.time}. Au plaisir de te revoir!`;
+  }
+
+  if (toolName === "find_appointments") {
+    const { phone, email } = toolInput as Record<string, string>;
+    if (!phone && !email) return "Donne-moi ton téléphone ou ton email pour retrouver tes rendez-vous.";
+    const matches = await findUpcomingBookings(phone, email);
+    if (matches.length === 0) return "Aucun rendez-vous à venir trouvé avec ces infos.";
+    return `Tes rendez-vous à venir:\n${matches.map(m => `• ${m.date} à ${m.time} — ${m.service} avec ${m.barber}`).join("\n")}`;
+  }
+
+  if (toolName === "reschedule_appointment") {
+    const { phone, email, old_date, old_time, new_date, new_time } = toolInput as Record<string, string>;
+    if (!phone && !email) return "J'ai besoin de ton téléphone ou ton email pour retrouver ton rendez-vous.";
+    if (!new_date || !new_time) return "Dis-moi la nouvelle date et la nouvelle heure souhaitées.";
+    let matches = await findUpcomingBookings(phone, email);
+    if (old_date) matches = matches.filter(r => r.date === old_date);
+    if (old_time) matches = matches.filter(r => minutesOf(r.time) === minutesOf(old_time));
+    if (matches.length === 0) return "Je trouve pas le rendez-vous à déplacer. Vérifie tes infos ou appelle au (418) 665-5703.";
+    if (matches.length > 1) return `Tu as plusieurs rendez-vous:\n${matches.map(m => `• ${m.date} à ${m.time} — ${m.service}`).join("\n")}\nLequel veux-tu déplacer? Donne-moi la date et l'heure actuelles.`;
+    const m = matches[0];
+    const dur = serviceDuration(m.service);
+    const free = await isSlotFree(m.barber, new_date, new_time, dur, m.id);
+    if (!free) return `Le ${new_date} à ${new_time} est déjà pris avec ${m.barber}. Veux-tu que je vérifie les créneaux libres?`;
+    const endMin = minutesOf(new_time) + dur;
+    const newEnd = `${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(endMin % 60).padStart(2, "0")}`;
+    const { error } = await supabase.from("bookings").update({ date: new_date, time: new_time, end_time: newEnd }).eq("id", m.id);
+    if (error) return `Erreur lors du déplacement: ${error.message}`;
+    try { await notifyBookingRescheduled({ client_name: m.client_name, service: m.service, barber: m.barber, old_date: m.date, old_time: m.time, new_date, new_time }); } catch { /* notif non bloquante */ }
+    return `Parfait, c'est déplacé ✓ — ${m.service} avec ${m.barber}, maintenant le ${new_date} à ${new_time}.`;
   }
 
   if (toolName === "send_sms_alert") {

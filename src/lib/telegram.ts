@@ -58,7 +58,7 @@ export async function notifyNewBooking(booking: {
   price: number;
   source?: string;
 }) {
-  const sourceIcon = booking.source === "google" ? "🔍" : booking.source === "facebook" ? "📘" : booking.source === "instagram" ? "📸" : "🌐";
+  const sourceIcon = booking.source === "google" ? "🔍" : booking.source === "facebook" ? "📘" : booking.source === "instagram" ? "📸" : booking.source === "messenger" ? "💬" : "🌐";
   await sendMessage(
     `✂️ <b>Nouveau RDV</b> ${sourceIcon}\n\n` +
     `👤 ${booking.client_name}\n` +

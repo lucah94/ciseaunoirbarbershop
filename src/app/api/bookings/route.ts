@@ -203,7 +203,16 @@ export async function POST(req: NextRequest) {
         date: data.date,
         time: data.time,
       }).catch(e => console.error("Barber SMS error:", e)),
-      Promise.resolve(), // Telegram new booking notifications disabled
+      notifyNewBooking({
+        client_name: data.client_name,
+        client_phone: data.client_phone || "",
+        service: data.service,
+        barber: data.barber,
+        date: data.date,
+        time: data.time,
+        price: data.price || 0,
+        source: data.source,
+      }).catch(e => console.error("Telegram error:", e)),
     ]);
   } catch (emailErr) {
     console.error("Email error:", emailErr);
