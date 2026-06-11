@@ -5,7 +5,9 @@ import Anthropic from "@anthropic-ai/sdk";
 // avec une erreur d'auth OpenRouter, mais on ne facture JAMAIS Anthropic en douce.
 export const aiClient = new Anthropic({
   apiKey: process.env.OPENROUTER_API_KEY ?? "missing-openrouter-key",
-  baseURL: "https://openrouter.ai/api/v1",
+  // ⚠️ baseURL = ".../api" (PAS ".../api/v1") : le SDK Anthropic ajoute déjà "/v1/messages".
+  // Avec "/api/v1" on obtenait "/api/v1/v1/messages" → 404 → toute l'IA cassée.
+  baseURL: "https://openrouter.ai/api",
   defaultHeaders: {
     "HTTP-Referer": "https://ciseaunoirbarbershop.com",
     "X-Title": "Ciseau Noir",
