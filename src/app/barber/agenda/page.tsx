@@ -47,6 +47,8 @@ export default function BarberAgendaPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [barberSlug, setBarberSlug] = useState("melynda");
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ date: "", time: "", service: "" });
 
   // Nom canonique du barbier (avec accent) pour écrire dans bookings + afficher
   const canonicalBarber = barberSlug === "stephanie" ? "Stéphanie" : "Melynda";
@@ -114,6 +116,26 @@ export default function BarberAgendaPage() {
     });
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
     if (selected?.id === id) setSelected(prev => prev ? { ...prev, status } : null);
+  }
+
+  function startEdit() {
+    if (!selected) return;
+    setEditForm({ date: selected.date, time: selected.time, service: selected.service });
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    if (!selected) return;
+    const res = await fetch("/api/barber/manage", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "editBooking", id: selected.id, date: editForm.date, time: editForm.time, service: editForm.service }),
+    });
+    const data = await res.json().catch(() => ({ error: "Erreur" }));
+    if (data.error) { alert("Erreur: " + data.error); return; }
+    setBookings(prev => prev.map(b => b.id === selected.id ? { ...b, ...editForm } : b));
+    setSelected(prev => prev ? { ...prev, ...editForm } : null);
+    setEditing(false);
+    fetchBookings(true);
   }
 
   async function submitNewRDV() {
@@ -341,8 +363,31 @@ export default function BarberAgendaPage() {
                 ))}
               </div>
 
-              {selected.status === "confirmed" && (
+              {editing ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <label style={{ color: "#888", fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase" }}>Date</label>
+                  <input type="date" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))}
+                    style={{ background: "#1A1A1A", border: "1px solid #2A2A2A", color: "#F0F0F0", padding: "10px 12px", borderRadius: "6px", colorScheme: "dark", fontSize: "14px" }} />
+                  <label style={{ color: "#888", fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase" }}>Heure</label>
+                  <input type="time" value={editForm.time} onChange={e => setEditForm(f => ({ ...f, time: e.target.value }))}
+                    style={{ background: "#1A1A1A", border: "1px solid #2A2A2A", color: "#F0F0F0", padding: "10px 12px", borderRadius: "6px", colorScheme: "dark", fontSize: "14px" }} />
+                  <label style={{ color: "#888", fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase" }}>Service</label>
+                  <select value={editForm.service} onChange={e => setEditForm(f => ({ ...f, service: e.target.value }))}
+                    style={{ background: "#1A1A1A", border: "1px solid #2A2A2A", color: "#F0F0F0", padding: "10px 12px", borderRadius: "6px", fontSize: "14px" }}>
+                    {!SERVICES.some(s => s.label === editForm.service) && <option value={editForm.service}>{editForm.service}</option>}
+                    {SERVICES.map(s => <option key={s.label} value={s.label}>{s.label} — {s.price}$</option>)}
+                  </select>
+                  <div style={{ display: "flex", gap: "8px", marginTop: "6px" }}>
+                    <button onClick={() => setEditing(false)} style={{ flex: 1, background: "none", border: "1px solid #2A2A2A", color: "#888", padding: "11px", borderRadius: "8px", cursor: "pointer", fontSize: "13px" }}>Annuler</button>
+                    <button onClick={saveEdit} style={{ flex: 1, background: "linear-gradient(135deg,#D4AF37,#B8860B)", color: "#080808", border: "none", padding: "11px", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: 700 }}>Sauvegarder</button>
+                  </div>
+                </div>
+              ) : selected.status === "confirmed" && (
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <button onClick={startEdit}
+                    style={{ flexBasis: "100%", background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.3)", color: "#D4AF37", padding: "11px", cursor: "pointer", borderRadius: "8px", fontSize: "13px", fontWeight: 600 }}>
+                    ✏️ Modifier (date / heure / service)
+                  </button>
                   <button onClick={() => updateStatus(selected.id, "completed")}
                     style={{ flex: 1, background: "rgba(85,170,85,0.1)", border: "1px solid rgba(85,170,85,0.3)", color: "#5a5", padding: "10px", cursor: "pointer", borderRadius: "8px", fontSize: "12px", fontWeight: 600 }}>
                     ✓ Complété

@@ -60,5 +60,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  // Modifier UN de SES rendez-vous (heure, date, service) — scopé: seulement ses propres RDV
+  if (action === "editBooking") {
+    if (!body.id) return NextResponse.json({ error: "id requis" }, { status: 400 });
+    const { data: bk } = await supabaseAdmin.from("bookings").select("barber").eq("id", body.id).single();
+    if (!bk || norm((bk as { barber: string }).barber) !== slug) return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+    const updates: Record<string, unknown> = {};
+    if (body.date) updates.date = body.date;
+    if (body.time) updates.time = body.time;
+    if (body.service) updates.service = body.service;
+    if (body.end_time) updates.end_time = body.end_time;
+    if (Object.keys(updates).length === 0) return NextResponse.json({ error: "Rien à modifier" }, { status: 400 });
+    const { error } = await supabaseAdmin.from("bookings").update(updates).eq("id", body.id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
   return NextResponse.json({ error: "Action inconnue" }, { status: 400 });
 }

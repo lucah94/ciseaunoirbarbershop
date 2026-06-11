@@ -18,7 +18,7 @@
     },
     {
       "path": "/api/cron/auto-post",
-      "schedule": "0 15 * * 2-6"
+      "schedule": "30 12 */2 * *"
     },
     {
       "path": "/api/cron/auto-complete",

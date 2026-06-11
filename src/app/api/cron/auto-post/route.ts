@@ -16,12 +16,13 @@ const TOKEN = process.env.FACEBOOK_ACCESS_TOKEN!;
 
 
 // Day of week → content type rotation
+// Contenu varié — PAS toujours des promos. Promo seulement le samedi.
 const CONTENT_TYPES: Record<number, string[]> = {
-  2: ["promotion", "service_highlight"],       // Tuesday
-  3: ["tip", "client_appreciation"],            // Wednesday
-  4: ["promotion", "tip"],                      // Thursday
-  5: ["service_highlight", "client_appreciation"], // Friday
-  6: ["promotion", "inspirational"],            // Saturday
+  2: ["tip"],                  // Mardi — conseil
+  3: ["service_highlight"],    // Mercredi — un service
+  4: ["product"],              // Jeudi — produits en salon
+  5: ["client_appreciation"],  // Vendredi — merci aux clients
+  6: ["promotion"],            // Samedi — promo
 };
 
 function getContentTypeForDay(dayOfWeek: number, postIndex: number): string {
@@ -48,6 +49,8 @@ Utilise des emojis. 2-3 phrases. En français.`,
 
   inspirational: `Génère un message inspirationnel ou motivant lié à la confiance en soi, l'apparence et le style pour Ciseau Noir Barbershop.
 Relie cela aux services du salon. Utilise des emojis. 2-3 phrases. En français.`,
+
+  product: `Génère une publication Facebook qui parle des produits de soin disponibles EN SALON chez Ciseau Noir (ex: pommades, huiles à barbe, soins capillaires). N'invente AUCUN prix, rabais ni produit précis non confirmé — reste général. Invite à venir voir/demander en salon. Emojis. 2-3 phrases. En français.`,
 };
 
 async function generatePostContent(contentType: string, dayOfWeek: number): Promise<string> {
