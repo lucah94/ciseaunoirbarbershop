@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { aiClient as anthropic, MODELS } from "@/lib/ai";
 import type Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "@/lib/supabase";
+import { notifySystemAlert } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -73,6 +74,40 @@ async function postReply(commentId: string, message: string): Promise<boolean> {
   return res.ok;
 }
 
+// Classe un commentaire. Conservateur : en cas de doute → NORMAL (on ne supprime jamais par erreur).
+async function classifyComment(comment: FBComment): Promise<"HATE" | "NEGATIVE" | "NORMAL"> {
+  const message = (comment.message || "").trim();
+  if (!message) return "NORMAL";
+  const prompt = `Classe ce commentaire Facebook sur la page d'un barbershop. Réponds par UN SEUL mot:
+- HATE = haineux, insultes, vulgarité, racisme, menaces, harcèlement, spam, arnaque, liens douteux
+- NEGATIVE = plainte ou mécontentement légitime d'un client (mauvaise expérience), mais PAS haineux
+- NORMAL = positif, neutre, question, tag d'ami, compliment
+
+Dans le doute, réponds NORMAL.
+Commentaire: "${message}"
+Réponds uniquement: HATE, NEGATIVE ou NORMAL.`;
+  try {
+    const response = await anthropic.messages.create({
+      model: MODELS.FAST,
+      max_tokens: 8,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const text = (response.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text || "").toUpperCase();
+    if (text.includes("HATE")) return "HATE";
+    if (text.includes("NEGATIVE")) return "NEGATIVE";
+    return "NORMAL";
+  } catch {
+    return "NORMAL";
+  }
+}
+
+async function deleteComment(commentId: string): Promise<boolean> {
+  const TOKEN = process.env.FACEBOOK_ACCESS_TOKEN;
+  if (!TOKEN) return false;
+  const res = await fetch(`https://graph.facebook.com/v19.0/${commentId}?access_token=${TOKEN}`, { method: "DELETE" });
+  return res.ok;
+}
+
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -99,19 +134,34 @@ export async function GET(req: NextRequest) {
 
   for (const comment of externalComments.slice(0, 20)) {
     if (repliedSet.has(comment.id)) continue;
+    const author = comment.from?.name || "?";
+    const msg = comment.message || "";
     try {
+      const category = await classifyComment(comment);
+
+      // Haineux / spam / arnaque → on supprime + on avertit l'équipe
+      if (category === "HATE") {
+        const deleted = await deleteComment(comment.id);
+        await notifySystemAlert(`🚫 Commentaire ${deleted ? "SUPPRIMÉ" : "à supprimer (échec)"} (haineux/spam)\n👤 ${author}\n💬 "${msg.slice(0, 200)}"`);
+        await supabaseAdmin.from("sms_log").insert([{ phone: comment.id, message_type: "fb-reply", message_preview: `[SUPPRIMÉ] ${msg.slice(0, 80)}` }]);
+        results.push({ author, replied: false, preview: `[supprimé] ${msg.slice(0, 60)}` });
+        continue;
+      }
+
+      // Plainte légitime → on NE supprime PAS, on avertit l'équipe (pis on répond poliment)
+      if (category === "NEGATIVE") {
+        await notifySystemAlert(`⚠️ Commentaire négatif à surveiller (PAS supprimé)\n👤 ${author}\n💬 "${msg.slice(0, 200)}"`);
+      }
+
       const reply = await generateReply(comment);
       const success = await postReply(comment.id, reply);
-      if (success) {
-        await supabaseAdmin.from("sms_log").insert([{
-          phone: comment.id,
-          message_type: "fb-reply",
-          message_preview: reply.slice(0, 100),
-        }]);
+      if (success || category === "NEGATIVE") {
+        // on log aussi les négatifs même si la réponse échoue → évite de ré-alerter
+        await supabaseAdmin.from("sms_log").insert([{ phone: comment.id, message_type: "fb-reply", message_preview: `${category === "NEGATIVE" ? "[NÉGATIF] " : ""}${(success ? reply : msg).slice(0, 90)}` }]);
       }
-      results.push({ author: comment.from?.name || "?", replied: success, preview: reply.slice(0, 80) });
+      results.push({ author, replied: success, preview: `${category === "NEGATIVE" ? "[négatif] " : ""}${reply.slice(0, 70)}` });
     } catch (e) {
-      results.push({ author: comment.from?.name || "?", replied: false, preview: String(e).slice(0, 80) });
+      results.push({ author, replied: false, preview: String(e).slice(0, 80) });
     }
   }
 
