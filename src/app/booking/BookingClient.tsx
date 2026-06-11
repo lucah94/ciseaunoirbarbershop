@@ -35,16 +35,18 @@ const TIMES_SHORT = ["8:30","8:45","9:00","9:15","9:30","9:45","10:00","10:15","
 const TIMES_LONG  = ["8:30","8:45","9:00","9:15","9:30","9:45","10:00","10:15","10:30","10:45","11:00","11:15","11:30","11:45","13:00","13:15","13:30","13:45","14:00","14:15","14:30","14:45","15:00","15:15","15:30","15:45","16:00","16:15","16:30","16:45","17:00","17:15","17:30","17:45","18:00","18:15","18:30","18:45","19:00","19:15","19:30","19:45","20:00","20:15"]; // jeu/ven
 
 
+// Tolérance : on accepte qu'un RDV finisse jusqu'à 15 min après la fermeture (Luca: "s'il reste que ça, ok").
+const CLOSING_GRACE = 15;
+
 // Génère les créneaux d'un barbier.
 //  - `step` = granularité des heures de départ (15 min → flexibilité, on ne perd aucun départ)
-//  - `fitMinutes` = durée réelle du RDV : aucun créneau ne dépasse l'heure de fermeture
-//    (le dernier départ doit laisser le temps complet du service avant `close`).
+//  - `fitMinutes` = durée réelle du RDV : le RDV doit finir au plus 15 min après la fermeture
 function generateTimesFromRange(open: string, close: string, step = 15, fitMinutes = step): string[] {
   const [oh, om] = open.split(":").map(Number);
   const [ch, cm] = close.split(":").map(Number);
   const times: string[] = [];
   let cur = oh * 60 + om;
-  const end = ch * 60 + cm - fitMinutes; // le RDV au complet doit finir avant la fermeture
+  const end = ch * 60 + cm - fitMinutes + CLOSING_GRACE; // RDV fini ≤ 15 min après la fermeture
   const inc = step > 0 ? step : 15;
   while (cur <= end) {
     const h = Math.floor(cur / 60);
