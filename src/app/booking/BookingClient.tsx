@@ -35,17 +35,21 @@ const TIMES_SHORT = ["8:30","8:45","9:00","9:15","9:30","9:45","10:00","10:15","
 const TIMES_LONG  = ["8:30","8:45","9:00","9:15","9:30","9:45","10:00","10:15","10:30","10:45","11:00","11:15","11:30","11:45","13:00","13:15","13:30","13:45","14:00","14:15","14:30","14:45","15:00","15:15","15:30","15:45","16:00","16:15","16:30","16:45","17:00","17:15","17:30","17:45","18:00","18:15","18:30","18:45","19:00","19:15","19:30","19:45","20:00","20:15"]; // jeu/ven
 
 
-function generateTimesFromRange(open: string, close: string): string[] {
+// Génère les créneaux d'un barbier. `step` = espacement en minutes (par défaut la durée du service)
+// → un RDV de 45 min donne des créneaux aux 45 min, pas aux 15 min. Plus propre, et aucun créneau
+// ne dépasse l'heure de fermeture (le dernier doit finir avant `close`).
+function generateTimesFromRange(open: string, close: string, step = 15): string[] {
   const [oh, om] = open.split(":").map(Number);
   const [ch, cm] = close.split(":").map(Number);
   const times: string[] = [];
   let cur = oh * 60 + om;
-  const end = ch * 60 + cm - 15; // last slot must end by close
+  const end = ch * 60 + cm - step; // le dernier créneau doit finir avant la fermeture
+  const inc = step > 0 ? step : 15;
   while (cur <= end) {
     const h = Math.floor(cur / 60);
     const m = cur % 60;
     times.push(`${h}:${String(m).padStart(2, "0")}`);
-    cur += 15;
+    cur += inc;
   }
   return times;
 }
@@ -68,16 +72,17 @@ function getTimesForBarberAndDate(
   barberId: string,
   dateStr: string,
   overrides?: { date: string; open: string; close: string }[],
-  schedule?: DaySchedule
+  schedule?: DaySchedule,
+  step = 15
 ): string[] {
   if (!dateStr) return [];
   const ov = overrides?.find(o => o.date === dateStr);
-  if (ov) return generateTimesFromRange(ov.open, ov.close);
+  if (ov) return generateTimesFromRange(ov.open, ov.close, step);
   if (schedule) {
     const day = new Date(dateStr + "T12:00:00").getDay();
     const daySchedule = schedule[DAY_KEYS[day]];
     if (!daySchedule) return [];
-    return generateTimesFromRange(daySchedule.open, daySchedule.close);
+    return generateTimesFromRange(daySchedule.open, daySchedule.close, step);
   }
   // Fallback hardcoded (Melynda schedule)
   const day = new Date(dateStr + "T12:00:00").getDay();
@@ -1216,7 +1221,7 @@ function BookingContent() {
                           // Garder QUE les RDV de CE barbier (comparaison sans accent).
                           // Les RDV sans barbier sont comptés sur Melynda (barbière principale) — évite un double-booking.
                           const barberBooked = bookedSlots.filter(x => norm(x.barber || "") === norm(b.name) || (isMelynda && !x.barber));
-                          const slots = getTimesForBarberAndDate(b.name, selected.date, b.overrides, b.schedule).filter(t => {
+                          const slots = getTimesForBarberAndDate(b.name, selected.date, b.overrides, b.schedule, serviceDur).filter(t => {
                             const now = new Date();
                             const [tH, tM] = t.split(":").map(Number);
                             if (selected.date === today && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()))) return false;
