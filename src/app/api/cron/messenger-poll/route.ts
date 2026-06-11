@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processMessageWithClaude, sendMessengerMessage } from "@/app/api/meta/messenger/route";
+import { supabaseAdmin as supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -11,7 +12,7 @@ const GRAPH = "https://graph.facebook.com/v19.0";
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 // Une passe : lit les conversations NON LUES, répond, marque comme lu (dédup via unread_count).
-async function pollOnce(): Promise<{ handled: number; errors: string[] }> {
+async function pollOnce(handledThisRun: Set<string>): Promise<{ handled: number; errors: string[] }> {
   const errors: string[] = [];
   let handled = 0;
 
@@ -29,11 +30,28 @@ async function pollOnce(): Promise<{ handled: number; errors: string[] }> {
     try {
       const msgRes = await fetch(`${GRAPH}/${conv.id}/messages?fields=id,from,message&limit=8&access_token=${TOKEN}`);
       const msgData = await msgRes.json();
-      const lastUserMsg = (msgData.data || []).find((m: { from?: { id: string }; message?: string }) => m.from?.id !== PAGE_ID && m.message);
-      if (!lastUserMsg?.message) continue;
+      const lastUserMsg = (msgData.data || []).find((m: { from?: { id: string }; message?: string; id?: string }) => m.from?.id !== PAGE_ID && m.message);
+      if (!lastUserMsg?.message || !lastUserMsg.id) continue;
+
+      // ANTI-DOUBLON 1 — déjà traité dans cette exécution (le loop 5s ne re-répond pas)
+      if (handledThisRun.has(lastUserMsg.id)) continue;
+
+      // ANTI-DOUBLON 2 — déjà traité dans une exécution précédente (persistant en DB)
+      const { data: row } = await supabase
+        .from("messenger_conversations")
+        .select("last_handled_mid")
+        .eq("sender_id", recipient.id)
+        .maybeSingle();
+      if (row?.last_handled_mid === lastUserMsg.id) {
+        handledThisRun.add(lastUserMsg.id);
+        continue;
+      }
 
       const reply = await processMessageWithClaude(recipient.id, lastUserMsg.message);
       await sendMessengerMessage(recipient.id, reply);
+
+      handledThisRun.add(lastUserMsg.id);
+      await supabase.from("messenger_conversations").update({ last_handled_mid: lastUserMsg.id }).eq("sender_id", recipient.id);
 
       await fetch(`${GRAPH}/${PAGE_ID}/messages?access_token=${TOKEN}`, {
         method: "POST",
@@ -59,8 +77,9 @@ export async function GET(req: NextRequest) {
   const deadline = Date.now() + 50000;
   let total = 0;
   const allErrors: string[] = [];
+  const handledThisRun = new Set<string>(); // anti-doublon partagé entre les passages de 5s
   for (;;) {
-    const { handled, errors } = await pollOnce();
+    const { handled, errors } = await pollOnce(handledThisRun);
     total += handled;
     allErrors.push(...errors);
     if (Date.now() + 5500 >= deadline) break;
