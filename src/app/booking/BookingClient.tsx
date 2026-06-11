@@ -127,12 +127,21 @@ function isDateAvailableForBarber(
   return true;
 }
 
+// Durée estimée d'un RDV existant à partir de son nom de service (utilisé pour les RDV déjà en DB).
+// Pour un NOUVEAU RDV, on prend plutôt la durée exacte du champ `duration` de SERVICES.
 function getServiceDuration(service: string): number {
   const s = service.toLowerCase();
   if (s.includes("premium") || s.includes("forfait")) return 75;
   if ((s.includes("barbe") || s.includes("rasage") || s.includes("lame")) && s.includes("coupe")) return 60;
-  if (s.includes("coupe") || s.includes("lavage") || s.includes("enfant") || s.includes("étudiant") || s.includes("etudiant") || s.includes("student")) return 45;
+  if (s.includes("enfant")) return 30; // enfant = 30 min (vérifié avant étudiant)
+  if (s.includes("coupe") || s.includes("lavage") || s.includes("étudiant") || s.includes("etudiant") || s.includes("student")) return 45;
   return 30;
+}
+
+// Durée EXACTE du service sélectionné (depuis sa fiche) — le bon chiffre pour le bon service.
+function selectedServiceDuration(serviceId: string): number {
+  const svc = SERVICES.find(s => s.id === serviceId);
+  return svc ? (parseInt(svc.duration) || 30) : 30;
 }
 
 function isSlotOccupied(
@@ -1234,7 +1243,8 @@ function BookingContent() {
                         .filter(b => isDateAvailableForBarber(b.name, selected.date, b.blockedDates, b.overrides.map(o => o.date), b.schedule))
                         .map(b => {
                           const isMelynda = norm(b.name).includes("melynda");
-                          const serviceDur = getServiceDuration(SERVICES.find(s => s.id === selected.service)?.name || "");
+                          // Durée EXACTE du service choisi → bon chiffre de places, bon ajustement des créneaux
+                          const serviceDur = selectedServiceDuration(selected.service);
                           // Garder QUE les RDV de CE barbier (comparaison sans accent).
                           // Les RDV sans barbier sont comptés sur Melynda (barbière principale) — évite un double-booking.
                           const barberBooked = bookedSlots.filter(x => norm(x.barber || "") === norm(b.name) || (isMelynda && !x.barber));
