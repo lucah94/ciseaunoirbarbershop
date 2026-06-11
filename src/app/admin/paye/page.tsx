@@ -9,7 +9,6 @@ type Cut = {
 };
 
 const SERVICES = ["Coupe + Lavage", "Coupe + Rasage Lame", "Service Premium", "Rasage / Barbe", "Tarif Étudiant", "Autre"];
-const BARBERS = ["Melynda", "Stéphanie", "Barbier disponible"];
 
 function getWeekDates(offset = 0) {
   const now = new Date();
@@ -32,7 +31,16 @@ export default function PayePage() {
   const [form, setForm] = useState({ barber: "Melynda", service_name: "Coupe + Lavage", price: "", tip: "", discount_percent: "0", date: new Date().toISOString().split("T")[0] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [barberNames, setBarberNames] = useState<string[]>([]);
   const week = getWeekDates(weekOffset);
+
+  // Liste des barbiers dynamique (depuis la table) — un nouveau barbier apparaît tout seul ici
+  useEffect(() => {
+    fetch(`/api/barbers?_=${Date.now()}`, { cache: "no-store" })
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setBarberNames(data.map((b: { name: string }) => b.name)); })
+      .catch(() => {});
+  }, []);
 
   const fetchCuts = useCallback(() => {
     fetch(`/api/cuts?_=${Date.now()}`, { cache: "no-store" })
@@ -50,7 +58,7 @@ export default function PayePage() {
     return c.price * (1 - c.discount_percent / 100) + c.tip;
   }
 
-  const summary = BARBERS.map(name => {
+  const summary = barberNames.map(name => {
     const bc = weekCuts.filter(c => c.barber === name);
     const totalCoupes = bc.reduce((s, c) => s + c.price * (1 - c.discount_percent / 100), 0);
     const totalTips = bc.reduce((s, c) => s + c.tip, 0);
@@ -128,7 +136,7 @@ export default function PayePage() {
           <p style={{ color: "#C9A84C", fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase", marginBottom: "20px" }}>Ajouter une coupe</p>
           <form onSubmit={addCut} style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "flex-end" }}>
             {[
-              { label: "Barbière", key: "barber", type: "select", options: BARBERS },
+              { label: "Barbière", key: "barber", type: "select", options: barberNames },
               { label: "Service", key: "service_name", type: "select", options: SERVICES },
               { label: "Prix ($)", key: "price", type: "number", placeholder: "35" },
               { label: "Tip ($)", key: "tip", type: "number", placeholder: "0" },

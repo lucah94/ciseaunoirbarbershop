@@ -38,11 +38,9 @@ const STATUS_LABELS: Record<string, string> = {
   no_show: "No-show",
 };
 
-const BARBER_COLORS: Record<string, string> = {
-  Melynda: "#D4AF37",
-  "Stéphanie": "#4A9EDB",
-  "Barbier disponible": "#4CAF50",
-};
+// Palette de couleurs assignée par ordre des barbiers (1er or, 2e bleu, 3e vert, 4e rose...).
+// Chaque barbier a une couleur distincte automatiquement — peu importe combien il y en a.
+const BARBER_PALETTE = ["#D4AF37", "#4A9EDB", "#4CAF50", "#E0699F", "#E58A4A", "#9B7EDE", "#52B9C4", "#C45252"];
 
 const SERVICES = [
   { label: "Coupe + Lavage", price: 35 },
@@ -53,7 +51,6 @@ const SERVICES = [
   { label: "Coupe (enfants,étudiants,bébés)", price: 30 },
 ];
 
-const BARBERS_LIST = ["Melynda", "Stéphanie", "Barbier disponible"];
 
 const TIME_SLOTS: string[] = [];
 for (let h = 8; h < 21; h++) {
@@ -69,7 +66,7 @@ export default function AgendaPage() {
   const [loadError, setLoadError] = useState(false);
   const retryRef = useRef(0);
   const [selected, setSelected] = useState<Booking | null>(null);
-  const [filter, setFilter] = useState<"all" | "Melynda" | "Stéphanie">("all");
+  const [filter, setFilter] = useState<string>("all");
   const calendarRef = useRef<FullCalendar>(null);
   const [visitCounts, setVisitCounts] = useState<Record<string, number>>({});
   const [isMobile, setIsMobile] = useState(false);
@@ -468,6 +465,13 @@ export default function AgendaPage() {
     return 30;
   }
 
+  // Liste + couleurs dynamiques : viennent de la table barbers (réactif en temps réel)
+  const barberNames = barbers.map(b => b.name);
+  const barberColor = (name: string) => {
+    const idx = barbers.findIndex(b => b.name === name);
+    return idx >= 0 ? BARBER_PALETTE[idx % BARBER_PALETTE.length] : "#D4AF37";
+  };
+
   const events = filtered.map(b => {
     const [h, m] = (b.time || "0:0").split(":").map(Number);
     const padded = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
@@ -489,8 +493,8 @@ export default function AgendaPage() {
       title: `${b.source && b.source !== "direct" ? (b.source === "google" ? "🔍 " : b.source === "facebook" ? "📘 " : b.source === "instagram" ? "📸 " : "") : ""}${b.client_name}${visitCounts[b.client_email] ? ` (${visitCounts[b.client_email]}e)` : ""} — ${b.service} · ${b.barber}`,
       start: startStr,
       end: endStr,
-      backgroundColor: b.status === "cancelled" ? "#333" : (BARBER_COLORS[b.barber] || "#D4AF37"),
-      borderColor: b.status === "cancelled" ? "#555" : (BARBER_COLORS[b.barber] || "#D4AF37"),
+      backgroundColor: b.status === "cancelled" ? "#333" : barberColor(b.barber),
+      borderColor: b.status === "cancelled" ? "#555" : barberColor(b.barber),
       textColor: b.status === "cancelled" ? "#888" : "#080808",
       extendedProps: { booking: b },
       classNames: b.status === "cancelled" ? ["event-cancelled"] : b.status === "no_show" ? ["event-noshow"] : [],
@@ -646,32 +650,54 @@ export default function AgendaPage() {
           </div>
 
           <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-            {/* Barber filters */}
+            {/* Filtres par barbier — pastille couleur = légende + nombre de RDV de chacun.
+                Clique un barbier pour le voir seul (clair), ou "Tous" pour tout voir. */}
             {[
-              { key: "all" as const, label: "Tous", color: "#D4AF37" },
-              { key: "Melynda" as const, label: "Melynda", color: "#D4AF37" },
-              { key: "Stéphanie" as const, label: "Stéphanie", color: "#4A9EDB" },
-            ].map(f => (
-              <button
-                key={f.key}
-                onClick={() => setFilter(f.key)}
-                style={{
-                  background: filter === f.key ? f.color : "#1C2129",
-                  border: `1px solid ${filter === f.key ? f.color : "rgba(255,255,255,0.12)"}`,
-                  color: filter === f.key ? "#080808" : "#8B949E",
-                  padding: isMobile ? "6px 14px" : "8px 20px",
-                  fontSize: isMobile ? "10px" : "11px",
-                  letterSpacing: "1px",
-                  textTransform: "uppercase",
-                  cursor: "pointer",
-                  borderRadius: "20px",
-                  transition: "all 0.2s ease",
-                  fontWeight: filter === f.key ? 600 : 400,
-                }}
-              >
-                {f.label}
-              </button>
-            ))}
+              { key: "all", label: "Tous", color: "#D4AF37" },
+              ...barberNames.map(name => ({ key: name, label: name, color: barberColor(name) })),
+            ].map(f => {
+              const active = filter === f.key;
+              const count = f.key === "all"
+                ? bookings.filter(b => b.status !== "cancelled").length
+                : bookings.filter(b => b.status !== "cancelled" && b.barber === f.key).length;
+              return (
+                <button
+                  key={f.key}
+                  onClick={() => setFilter(f.key)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "7px",
+                    background: active ? f.color : "#1C2129",
+                    border: `1px solid ${active ? f.color : "rgba(255,255,255,0.12)"}`,
+                    color: active ? "#080808" : "#C9D1D9",
+                    padding: isMobile ? "6px 12px" : "8px 16px",
+                    fontSize: isMobile ? "10px" : "12px",
+                    letterSpacing: "0.5px",
+                    cursor: "pointer",
+                    borderRadius: "20px",
+                    transition: "all 0.2s ease",
+                    fontWeight: active ? 700 : 500,
+                  }}
+                >
+                  {f.key !== "all" && (
+                    <span style={{
+                      width: "10px", height: "10px", borderRadius: "50%",
+                      background: f.color,
+                      border: active ? "1px solid rgba(0,0,0,0.3)" : "none",
+                      flexShrink: 0,
+                    }} />
+                  )}
+                  <span>{f.label}</span>
+                  <span style={{
+                    fontSize: isMobile ? "9px" : "10px",
+                    fontWeight: 700,
+                    opacity: active ? 0.7 : 0.55,
+                    background: active ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.06)",
+                    borderRadius: "10px",
+                    padding: "1px 6px",
+                  }}>{count}</span>
+                </button>
+              );
+            })}
 
             {/* New RDV button */}
             <button
@@ -1177,7 +1203,7 @@ export default function AgendaPage() {
                       onChange={e => setNewRDV(p => ({ ...p, barber: e.target.value }))}
                       style={{ ...inputStyle, cursor: "pointer", appearance: "auto" }}
                     >
-                      {BARBERS_LIST.map(b => (
+                      {barberNames.map(b => (
                         <option key={b} value={b}>{b}</option>
                       ))}
                     </select>
@@ -1366,7 +1392,7 @@ export default function AgendaPage() {
                 <p style={{ color: "#555", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>Barbière</p>
                 <select value={blockForm.barber} onChange={e => setBlockForm(f => ({ ...f, barber: e.target.value }))}
                   style={{ background: "#1C2129", border: "1px solid rgba(238,85,85,0.2)", color: "#F0F0F0", padding: "10px 14px", borderRadius: "8px", fontSize: "14px", width: "100%" }}>
-                  {BARBERS_LIST.map(b => <option key={b} value={b}>{b}</option>)}
+                  {barberNames.map(b => <option key={b} value={b}>{b}</option>)}
                 </select>
               </div>
               <div>
@@ -1513,7 +1539,7 @@ export default function AgendaPage() {
                 <p style={labelStyle}>Barbiere</p>
                 <select value={editForm.barber} onChange={e => setEditForm(f => ({ ...f, barber: e.target.value }))}
                   style={editInputStyle}>
-                  {BARBERS_LIST.map(b => <option key={b} value={b}>{b}</option>)}
+                  {barberNames.map(b => <option key={b} value={b}>{b}</option>)}
                 </select>
               </div>
               <div style={{ display: "flex", gap: "12px" }}>
@@ -1579,7 +1605,7 @@ export default function AgendaPage() {
               <div style={{ display: "flex", gap: "20px" }}>
                 <div>
                   <p style={labelStyle}>Barbiere</p>
-                  <p style={{ color: BARBER_COLORS[selected.barber] || "#F0F0F0", fontSize: "15px" }}>{selected.barber}</p>
+                  <p style={{ color: barberColor(selected.barber), fontSize: "15px" }}>{selected.barber}</p>
                 </div>
                 <div>
                   <p style={labelStyle}>Date & heure</p>
