@@ -3,7 +3,11 @@ import { postToGoogleMyBusiness } from "@/lib/google";
 import type Anthropic from "@anthropic-ai/sdk";
 import { aiClient as anthropic, MODELS } from "@/lib/ai";
 import { isComposioConfigured, composioFacebookPost, composioInstagramPost } from "@/lib/composio";
+import { notifySystemAlert } from "@/lib/telegram";
 export const dynamic = 'force-dynamic';
+
+// AUCUNE publication sans l'accord de Melynda. Le cron propose le texte sur Telegram, point.
+const REQUIRE_APPROVAL = true;
 
 export const maxDuration = 120;
 
@@ -27,12 +31,12 @@ function getContentTypeForDay(dayOfWeek: number, postIndex: number): string {
 
 const CONTENT_PROMPTS: Record<string, string> = {
   promotion: `Génère une publication Facebook promotionnelle pour Ciseau Noir Barbershop à Québec.
-Mentionne une offre spéciale, un service ou incite à réserver en ligne sur ciseaunoirbarbershop.com.
-Utilise des emojis appropriés. 2-4 phrases max. En français.`,
+La SEULE offre permise est le « forfait promo à 60$ ». N'invente JAMAIS d'autre rabais, cadeau, gratuité, concours ou prix — aucun argent donné, aucune réduction inventée.
+Incite à réserver en ligne sur ciseaunoirbarbershop.com. Emojis appropriés. 2-4 phrases max. En français.`,
 
-  service_highlight: `Génère une publication Facebook qui met en avant un service spécifique de Ciseau Noir Barbershop.
-Choisis aléatoirement parmi : Coupe adulte (35$), Coupe + Barbe (45$), Coupe enfant (25$), Barbe (20$), Coupe + Lavage (35$).
-Décris le service avec enthousiasme. Mentionne la barbière Melynda. Utilise des emojis. 3-4 phrases. En français.`,
+  service_highlight: `Génère une publication Facebook qui met en avant un service de Ciseau Noir Barbershop.
+Utilise UNIQUEMENT ces vrais prix : Coupe + Lavage 35$, Coupe + Barbe + Lavage 50$, Service Premium 75$, Rasage / Barbe 25$, Étudiant / Enfant 30$. N'invente AUCUN prix ni rabais.
+Décris le service avec enthousiasme. Emojis. 3-4 phrases. En français.`,
 
   tip: `Génère un conseil de coiffure ou de soin de barbe pour les clients de Ciseau Noir Barbershop.
 Partage un conseil professionnel utile. Mentionne que Melynda peut aider.
@@ -119,6 +123,13 @@ export async function GET(req: NextRequest) {
     const contentType = getContentTypeForDay(dayOfWeek, i);
     try {
       const content = await generatePostContent(contentType, dayOfWeek);
+
+      // ── APPROBATION OBLIGATOIRE : on propose le texte sur Telegram, on ne publie RIEN ─
+      if (REQUIRE_APPROVAL) {
+        await notifySystemAlert(`📢 <b>Proposition de publication (${contentType})</b>\n\n${content}\n\n⚠️ <i>Rien n'est publié automatiquement. Copie ce texte pour le publier toi-même si tu l'approuves.</i>`).catch(() => {});
+        results.push({ index: i + 1, contentType, ok: true, pendingApproval: true, preview: content.slice(0, 120) });
+        continue;
+      }
 
       // ── Publication Facebook : Composio en primaire, Graph API en fallback ─
       let fbOk = false;
