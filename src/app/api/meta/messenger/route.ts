@@ -34,6 +34,7 @@ SERVICES ET PRIX:
 - Rasage / Barbe: 25$ (30 min)
 - Tarif Étudiant (preuve requise): 30$ (45 min)
 - Étudiant / Enfant (12 ans et moins): 30$ (30 min)
+(Liste TOUJOURS les 6 services au complet — ne JAMAIS fusionner ni oublier "Tarif Étudiant" et "Étudiant / Enfant" : ce sont 2 services distincts.)
 
 COIFFEURS ET HORAIRES (à jour):
 ${barbersText}
