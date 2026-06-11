@@ -32,9 +32,8 @@ SERVICES ET PRIX:
 - Coupe + Barbe + Lavage (rasage lame & serviette chaude): 50$ (60 min)
 - Service Premium (coupe, rasage, serviette chaude & exfoliant): 75$ (75 min)
 - Rasage / Barbe: 25$ (30 min)
-- Tarif Étudiant (preuve requise): 30$ (45 min)
-- Étudiant / Enfant (12 ans et moins): 30$ (30 min)
-(Liste TOUJOURS les 6 services au complet — ne JAMAIS fusionner ni oublier "Tarif Étudiant" et "Étudiant / Enfant" : ce sont 2 services distincts.)
+- Étudiant / Enfant (12 ans et moins, preuve requise): 30$ (30 min)
+(Liste TOUJOURS les 5 services au complet.)
 
 COIFFEURS ET HORAIRES (à jour):
 ${barbersText}

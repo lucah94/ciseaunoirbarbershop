@@ -70,11 +70,17 @@ export async function sendBarberNotificationSMS(booking: {
   date: string;
   time: string;
 }) {
-  // Seulement Melynda reçoit les notifications SMS
-  if (!booking.barber.toLowerCase().includes("melynda")) return;
-  const barberPhoneEnv = process.env.MELYNDA_PHONE;
-
-  if (!barberPhoneEnv) return;
+  // Chaque barbier reçoit le SMS sur SON numéro (colonne phone de la table barbers).
+  // Si le barbier n'a pas de numéro (ex: Barbier dispo) → fallback sur Melynda (propriétaire).
+  let barberPhone: string | undefined;
+  try {
+    const norm = (s: string) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+    const { data: barbers } = await supabaseAdmin.from("barbers").select("name, phone");
+    const match = (barbers || []).find((b: { name: string; phone?: string | null }) => norm(b.name) === norm(booking.barber));
+    if (match?.phone) barberPhone = match.phone;
+  } catch { /* lookup non bloquant */ }
+  if (!barberPhone) barberPhone = process.env.MELYNDA_PHONE;
+  if (!barberPhone) return;
 
   const dateFormatted = new Date(booking.date + "T12:00:00").toLocaleDateString("fr-CA", {
     weekday: "long", month: "long", day: "numeric",
@@ -82,7 +88,7 @@ export async function sendBarberNotificationSMS(booking: {
 
   await getClient().messages.create({
     from: getFromNumber(),
-    to: formatPhone(barberPhoneEnv),
+    to: formatPhone(barberPhone),
     body: `✂️ Nouveau RDV !\n\n${booking.client_name} — ${booking.service}\n📅 ${dateFormatted} à ${booking.time}\n📞 ${booking.client_phone}`,
   });
 }
