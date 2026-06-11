@@ -230,6 +230,46 @@ export async function notifyNewContactMessage(opts: {
   );
 }
 
+/** Proposition de publication Facebook — boutons inline Telegram */
+export async function proposePostOnTelegram(opts: {
+  id: string;
+  content: string;
+  kind: string;
+}): Promise<boolean> {
+  if (!isConfigured()) return false;
+  try {
+    const preview =
+      opts.content.length > 600
+        ? opts.content.slice(0, 597) + "..."
+        : opts.content;
+
+    const text =
+      `📢 <b>Proposition de publication (${opts.kind}) — approuve, régénère ou rejette</b>\n\n` +
+      `${preview}`;
+
+    const res = await fetch(`${TELEGRAM_API}${getToken()}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: getChatId(),
+        text,
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "✅ Publier", callback_data: `post_pub:${opts.id}` },
+            { text: "🔄 Régénérer", callback_data: `post_regen:${opts.id}` },
+            { text: "❌ Rejeter", callback_data: `post_rej:${opts.id}` },
+          ]],
+        },
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Demande d'approbation pour un email important — boutons inline Telegram */
 export async function sendEmailApprovalRequest(draft: {
   id: string;

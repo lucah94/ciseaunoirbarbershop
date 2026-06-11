@@ -6,6 +6,8 @@ import { sendSMS, formatPhone } from "@/lib/sms";
 import { Resend } from "resend";
 import type Anthropic from "@anthropic-ai/sdk";
 import { aiClient as anthropic, MODELS } from "@/lib/ai";
+import { generatePost, publishPostToFacebook } from "@/lib/posts";
+import { proposePostOnTelegram } from "@/lib/telegram";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "");
 const FROM_EMAIL = process.env.FROM_EMAIL || "Ciseau Noir <noreply@ciseaunoirbarbershop.com>";
@@ -499,6 +501,25 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
     }
   }
 
+  // ── create_post ──────────────────────────────────────────────────────────────
+  if (name === "create_post") {
+    const topic = input.topic as string | undefined;
+    const kind = (input.kind as string | undefined) || "custom";
+    try {
+      const content = await generatePost(kind, topic);
+      const { data: row, error: insertError } = await supabaseAdmin
+        .from("pending_posts")
+        .insert({ content, kind, status: "pending" })
+        .select("id")
+        .single();
+      if (insertError || !row) return `❌ Erreur création: ${insertError?.message || "inconnu"}`;
+      await proposePostOnTelegram({ id: row.id as string, content, kind });
+      return "📢 Proposition envoyée, regarde plus haut pour approuver.";
+    } catch (e) {
+      return `❌ Erreur: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
+
   return "Outil inconnu.";
 }
 
@@ -559,6 +580,7 @@ OUTILS DISPONIBLES (utilise-les — jamais de chiffres inventés):
 • save_note / get_notes — mémoire persistante
 • send_sms — envoyer un SMS personnalisé à un client (numéro de téléphone requis)
 • send_email — envoyer un email personnalisé à un client (adresse email requise)
+• create_post — générer un post Facebook et l'envoyer sur Telegram pour approbation (kind: tip/service_highlight/product/client_appreciation/news_seasonal/promotion/custom; topic optionnel)
 
 RÈGLES:
 → Pour créer un RDV: besoin de nom+service+barbier+date+heure. Demande ce qui manque. Barbier = "Melynda" ou "Stéphanie".
@@ -721,6 +743,14 @@ RÈGLES:
         subject: { type: "string", description: "Sujet de l'email" },
         body: { type: "string", description: "Corps du message (texte simple)" },
       }, required: ["to_email", "subject", "body"] },
+    },
+    {
+      name: "create_post",
+      description: "Génère un post Facebook pour Ciseau Noir et l'envoie sur Telegram pour approbation. Utilise quand l'équipe demande de créer un post, une publication, ou un texte pour Facebook.",
+      input_schema: { type: "object" as const, properties: {
+        topic: { type: "string", description: "Sujet ou instructions spécifiques pour le post (ex: cartes-cadeaux, barbe d'été, promo VIP)" },
+        kind: { type: "string", enum: ["tip", "service_highlight", "product", "client_appreciation", "news_seasonal", "promotion", "custom"], description: "Type de publication" },
+      }, required: [] },
     },
   ];
 
@@ -897,6 +927,66 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       // Reminder buttons
       if (data && data.includes("_REMIND_")) {
         await handleReminderCallback(id, data, message.chat.id, message.message_id);
+        return NextResponse.json({ ok: true });
+      }
+
+      // ── Post Studio buttons (post_pub / post_regen / post_rej) ────────────────
+      if (data && (data.startsWith("post_pub:") || data.startsWith("post_regen:") || data.startsWith("post_rej:"))) {
+        await answerCallback(id);
+        const colonIdx = data.indexOf(":");
+        const action = data.slice(0, colonIdx);
+        const postId = data.slice(colonIdx + 1);
+
+        const { data: postRow, error: postErr } = await supabaseAdmin
+          .from("pending_posts")
+          .select("id, content, kind, status")
+          .eq("id", postId)
+          .single();
+
+        if (postErr || !postRow) {
+          await editMessage(message.chat.id, message.message_id, "❌ Publication introuvable (peut-être déjà traitée).");
+          return NextResponse.json({ ok: true });
+        }
+
+        if (action === "post_pub") {
+          const result = await publishPostToFacebook(postRow.content as string);
+          if (result.error) {
+            await editMessage(message.chat.id, message.message_id, `❌ Erreur Facebook : ${result.error}`);
+          } else {
+            const isPromo = (postRow.kind as string) === "promotion";
+            const expiresAt = isPromo
+              ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+              : null;
+            await supabaseAdmin
+              .from("pending_posts")
+              .update({
+                status: "posted",
+                fb_post_id: result.id ?? null,
+                ...(expiresAt ? { expires_at: expiresAt } : {}),
+              })
+              .eq("id", postId);
+            await editMessage(message.chat.id, message.message_id, `✅ Publié sur Facebook !`);
+          }
+        } else if (action === "post_regen") {
+          try {
+            const newContent = await generatePost(postRow.kind as string);
+            await supabaseAdmin
+              .from("pending_posts")
+              .update({ content: newContent })
+              .eq("id", postId);
+            await proposePostOnTelegram({ id: postId, content: newContent, kind: postRow.kind as string });
+            await editMessage(message.chat.id, message.message_id, "🔄 Nouvelle proposition envoyée ci-dessus.");
+          } catch (e) {
+            await editMessage(message.chat.id, message.message_id, `❌ Erreur régénération : ${e instanceof Error ? e.message : String(e)}`);
+          }
+        } else if (action === "post_rej") {
+          await supabaseAdmin
+            .from("pending_posts")
+            .update({ status: "rejected" })
+            .eq("id", postId);
+          await editMessage(message.chat.id, message.message_id, "❌ Rejeté, rien publié.");
+        }
+
         return NextResponse.json({ ok: true });
       }
 
