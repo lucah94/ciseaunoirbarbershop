@@ -293,7 +293,7 @@ async function processMessageWithClaude(senderId: string, userMessage: string): 
 
   // Agentic loop
   let response = await anthropic.messages.create({
-    model: MODELS.BALANCED,
+    model: MODELS.SMART,
     max_tokens: 1024,
     system: systemPrompt,
     tools: CLAUDE_TOOLS,
@@ -302,25 +302,26 @@ async function processMessageWithClaude(senderId: string, userMessage: string): 
 
   const loopMessages: Anthropic.MessageParam[] = [...messages];
 
-  while (response.stop_reason === "tool_use") {
-    const toolUseBlock = response.content.find(
+  // Boucle agentique robuste : gère PLUSIEURS actions par tour + garde-fou anti-boucle (max 6)
+  let guard = 0;
+  while (response.stop_reason === "tool_use" && guard < 6) {
+    guard++;
+    const toolUses = response.content.filter(
       (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
     );
-    if (!toolUseBlock) break;
+    if (toolUses.length === 0) break;
 
-    const toolResult = await handleToolCall(
-      toolUseBlock.name,
-      toolUseBlock.input as Record<string, string>
-    );
+    const toolResults: Anthropic.ToolResultBlockParam[] = [];
+    for (const tu of toolUses) {
+      const r = await handleToolCall(tu.name, tu.input as Record<string, unknown>);
+      toolResults.push({ type: "tool_result", tool_use_id: tu.id, content: r });
+    }
 
     loopMessages.push({ role: "assistant", content: response.content });
-    loopMessages.push({
-      role: "user",
-      content: [{ type: "tool_result", tool_use_id: toolUseBlock.id, content: toolResult }],
-    });
+    loopMessages.push({ role: "user", content: toolResults });
 
     response = await anthropic.messages.create({
-      model: MODELS.BALANCED,
+      model: MODELS.SMART,
       max_tokens: 1024,
       system: systemPrompt,
       tools: CLAUDE_TOOLS,
