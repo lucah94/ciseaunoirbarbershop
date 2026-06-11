@@ -41,6 +41,7 @@ const STATUS_LABELS: Record<string, string> = {
 const BARBER_COLORS: Record<string, string> = {
   Melynda: "#D4AF37",
   "Stéphanie": "#4A9EDB",
+  "Barbier disponible": "#4CAF50",
 };
 
 const SERVICES = [
@@ -52,7 +53,7 @@ const SERVICES = [
   { label: "Coupe (enfants,étudiants,bébés)", price: 30 },
 ];
 
-const BARBERS_LIST = ["Melynda", "Stéphanie"];
+const BARBERS_LIST = ["Melynda", "Stéphanie", "Barbier disponible"];
 
 const TIME_SLOTS: string[] = [];
 for (let h = 8; h < 21; h++) {
