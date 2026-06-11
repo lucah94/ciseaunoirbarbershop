@@ -9,46 +9,46 @@ const PAGE_ACCESS_TOKEN = process.env.FACEBOOK_ACCESS_TOKEN!;
 import type Anthropic from "@anthropic-ai/sdk";
 import { aiClient as anthropic, MODELS } from "@/lib/ai";
 
-function getSystemPrompt() {
+function getSystemPrompt(barbers: { name: string; schedule: DaySched }[]): string {
   const now = new Date();
   const today = now.toLocaleDateString("fr-CA", { timeZone: "America/Toronto" }); // YYYY-MM-DD
   const dayName = now.toLocaleDateString("fr-CA", { weekday: "long", timeZone: "America/Toronto" });
+
+  const LBL: Record<string, string> = { mon: "Lun", tue: "Mar", wed: "Mer", thu: "Jeu", fri: "Ven", sat: "Sam", sun: "Dim" };
+  const ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  const barbersText = barbers.length
+    ? barbers.map(b => {
+        const days = ORDER.filter(k => b.schedule?.[k]).map(k => `${LBL[k]} ${b.schedule![k]!.open}-${b.schedule![k]!.close}`);
+        return `- ${b.name}: ${days.length ? days.join(", ") : "horaire à confirmer"}`;
+      }).join("\n")
+    : "- (voir le site pour les disponibilités)";
 
   return `Tu es l'assistant virtuel de Ciseau Noir Barbershop à Québec. Tu parles français et anglais.
 Aujourd'hui: ${dayName} ${today}.
 
 SERVICES ET PRIX:
 - Coupe + Lavage: 35$ (45 min)
-- Coupe + Rasage Lame & Serviette Chaude: 50$ (60 min)
+- Coupe + Barbe + Lavage (rasage lame & serviette chaude): 50$ (60 min)
 - Service Premium (coupe, rasage, serviette chaude & exfoliant): 75$ (75 min)
 - Rasage / Barbe: 25$ (30 min)
 - Tarif Étudiant (preuve requise): 30$ (45 min)
+- Étudiant / Enfant (12 ans et moins): 30$ (30 min)
 
-HORAIRES:
-- Mardi-Mercredi: 8h30-16h30
-- Jeudi-Vendredi: 8h30-20h30
-- Samedi: 8h30-16h30
-- Dimanche-Lundi: Fermé
-
-COIFFEURS ET DISPONIBILITÉS:
-- Melynda: Mardi à Samedi. Mar/Mer/Sam: 8h30-16h30. Jeu/Ven: 8h30-20h30.
-- Melynda est la seule barbière disponible pour le moment.
+COIFFEURS ET HORAIRES (à jour):
+${barbersText}
+Fermé dimanche et lundi.
 
 COORDONNÉES: 375 Boul. des Chutes, Québec | (418) 665-5703
-RÉSERVATION EN LIGNE: ciseaunoirbarbershop.com
+RÉSERVATION EN LIGNE: https://ciseaunoirbarbershop.com/booking
 
-LIEN DE RÉSERVATION: https://ciseaunoirbarbershop.com/booking
-
-INSTRUCTIONS IMPORTANTES:
-1. Réponds aux questions sur les services, prix, horaires, coiffeurs.
-2. Quand un client veut un rendez-vous, vérifie les dispos avec check_availability.
-3. Propose le lien pour réserver en ligne: "Tu peux aussi réserver directement ici 👉 https://ciseaunoirbarbershop.com/booking"
-4. Si le client préfère réserver directement par le chat, c'est possible! Demande: nom, téléphone, email, service, coiffeur, date et heure. Puis utilise book_appointment.
-5. IMPORTANT: demande TOUJOURS l'email du client avant de réserver.
-6. Si le client n'a pas de préférence de date, vérifie les 3 prochains jours ouvrables.
-7. Si le client est frustré ou a un problème complexe → utilise send_sms_alert.
-8. Sois chaleureux, naturel et québécois dans ton ton. Tutoie le client.
-9. Garde tes réponses courtes et directes — c'est Messenger, pas un email.`;
+INSTRUCTIONS:
+1. Réponds à TOUTES les questions (services, prix, horaires, coiffeurs, localisation) comme un pro. Ton québécois chaleureux, tutoie le client, garde tes réponses COURTES (c'est Messenger).
+2. Pour les disponibilités, utilise TOUJOURS check_availability avec la/les date(s) ET le service choisi (les créneaux dépendent de la durée du service). Propose les vraies heures libres seulement.
+3. Le client peut réserver directement dans le chat: demande nom, téléphone, EMAIL (obligatoire), service, coiffeur (ou n'importe lequel de dispo), date et heure, PUIS utilise book_appointment.
+4. Sinon offre le lien: "Tu peux aussi réserver directement ici 👉 https://ciseaunoirbarbershop.com/booking"
+5. Si pas de préférence de date, vérifie les 3 prochains jours ouvrables.
+6. Si le client est frustré ou cas complexe → send_sms_alert à l'équipe.
+7. N'invente JAMAIS une disponibilité — base-toi uniquement sur check_availability.`;
 }
 
 const CLAUDE_TOOLS: Anthropic.Tool[] = [
@@ -59,7 +59,8 @@ const CLAUDE_TOOLS: Anthropic.Tool[] = [
       type: "object" as const,
       properties: {
         dates: { type: "array", items: { type: "string" }, description: "Dates au format YYYY-MM-DD (peut en vérifier plusieurs)" },
-        barber: { type: "string", description: "Nom du coiffeur — optionnel (Melynda par défaut)" },
+        barber: { type: "string", description: "Nom du coiffeur — optionnel (tous les coiffeurs si vide)" },
+        service: { type: "string", description: "Le service choisi (ex: 'Coupe + Lavage') — important, les créneaux dépendent de sa durée" },
       },
       required: ["dates"],
     },
@@ -94,14 +95,35 @@ const CLAUDE_TOOLS: Anthropic.Tool[] = [
   },
 ];
 
-// Schedule constants
-const MELYNDA_SHORT = ["8:30","9:00","9:30","10:00","10:30","11:00","11:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00"];
-const MELYNDA_LONG  = ["8:30","9:00","9:30","10:00","10:30","11:00","11:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00","18:30","19:00","19:30","20:00"];
-function getSlotsForBarber(_barber: string, dateStr: string): string[] {
-  const day = new Date(dateStr + "T12:00:00").getDay();
-  if ([0, 1].includes(day)) return []; // Fermé dim/lun
-  if (day === 4 || day === 5) return MELYNDA_LONG;
-  return MELYNDA_SHORT;
+// Barbiers + dispos DYNAMIQUES (depuis la table barbers) — pas de noms en dur.
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+type DaySched = Record<string, { open: string; close: string } | null>;
+
+const norm = (s: string) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+const minutesOf = (t: string) => { const [h, m] = (t || "0:0").split(":").map(Number); return h * 60 + (m || 0); };
+
+// Durée d'un service en minutes (pour calculer/empiler les créneaux)
+function serviceDuration(service: string): number {
+  const s = (service || "").toLowerCase();
+  if (s.includes("premium") || s.includes("forfait")) return 75;
+  if ((s.includes("barbe") || s.includes("rasage") || s.includes("lame")) && s.includes("coupe")) return 60;
+  if (s.includes("enfant")) return 30;
+  if (s.includes("coupe") || s.includes("lavage") || s.includes("étudiant") || s.includes("etudiant") || s.includes("student")) return 45;
+  return 30;
+}
+
+// Départs aux 15 min; le RDV (durationMin) doit finir au plus 15 min après la fermeture.
+function genSlots(open: string, close: string, durationMin: number): string[] {
+  const out: string[] = [];
+  let cur = minutesOf(open);
+  const end = minutesOf(close) - durationMin + 15;
+  while (cur <= end) { out.push(`${Math.floor(cur / 60)}:${String(cur % 60).padStart(2, "0")}`); cur += 15; }
+  return out;
+}
+
+async function getActiveBarbers(): Promise<{ name: string; schedule: DaySched }[]> {
+  const { data } = await supabase.from("barbers").select("name, schedule, active").eq("active", true).order("created_at", { ascending: true });
+  return (data || []) as { name: string; schedule: DaySched }[];
 }
 
 function getDayName(dateStr: string): string {
@@ -111,42 +133,39 @@ function getDayName(dateStr: string): string {
 async function handleToolCall(toolName: string, toolInput: Record<string, unknown>): Promise<string> {
   if (toolName === "check_availability") {
     const dates = toolInput.dates as string[];
-    const barberFilter = toolInput.barber as string | undefined;
+    const barberFilter = toolInput.barber ? norm(toolInput.barber as string) : undefined;
+    const dur = serviceDuration((toolInput.service as string) || "");
+    const barbers = await getActiveBarbers();
     const results: string[] = [];
 
     for (const date of dates) {
       const dayName = getDayName(date);
-      const day = new Date(date + "T12:00:00").getDay();
-
-      if ([0, 1].includes(day)) {
-        results.push(`${dayName} ${date}: FERMÉ (dimanche/lundi)`);
-        continue;
-      }
+      const dayKey = DAY_KEYS[new Date(date + "T12:00:00").getDay()];
 
       const { data: bookings } = await supabase
         .from("bookings")
-        .select("time, barber")
+        .select("time, end_time, barber, service")
         .eq("date", date)
-        .eq("status", "confirmed");
+        .neq("status", "cancelled");
 
-      const bookedSet = new Set((bookings || []).map((b: { time: string; barber: string }) => `${b.barber}-${b.time}`));
-      const barbers = barberFilter ? [barberFilter] : ["Melynda"];
-      const barberResults: string[] = [];
+      const lines: string[] = [];
+      for (const b of barbers) {
+        if (barberFilter && !norm(b.name).includes(barberFilter)) continue;
+        const day = b.schedule?.[dayKey];
+        if (!day) { lines.push(`${b.name}: ne travaille pas ce jour`); continue; }
 
-      for (const barber of barbers) {
-        const allSlots = getSlotsForBarber(barber, date);
-        if (allSlots.length === 0) {
-          barberResults.push(`${barber}: ne travaille pas ce jour`);
-          continue;
-        }
-        const available = allSlots.filter(t => !bookedSet.has(`${barber}-${t}`));
-        if (available.length === 0) {
-          barberResults.push(`${barber}: COMPLET`);
-        } else {
-          barberResults.push(`${barber}: ${available.join(", ")} (${available.length} créneaux libres)`);
-        }
+        const booked = (bookings || []).filter(x => norm(x.barber || "") === norm(b.name));
+        const free = genSlots(day.open, day.close, dur).filter(t => {
+          const start = minutesOf(t), slotEnd = start + dur;
+          return !booked.some(x => {
+            const bStart = minutesOf(x.time || "0:0");
+            const bEnd = x.end_time ? minutesOf(x.end_time) : bStart + serviceDuration(x.service || "");
+            return start < bEnd && slotEnd > bStart;
+          });
+        });
+        lines.push(free.length ? `${b.name}: ${free.join(", ")} (${free.length} libres)` : `${b.name}: COMPLET`);
       }
-      results.push(`${dayName} ${date}:\n${barberResults.join("\n")}`);
+      results.push(`${dayName} ${date}:\n${lines.join("\n") || "Aucun barbier ce jour"}`);
     }
     return results.join("\n\n");
   }
@@ -155,20 +174,28 @@ async function handleToolCall(toolName: string, toolInput: Record<string, unknow
     const { name, phone, email, service, barber, date, time } = toolInput as Record<string, string>;
     const prices: Record<string, number> = {
       "Coupe + Lavage": 35,
+      "Coupe + Barbe + Lavage": 50,
       "Coupe + Rasage Lame": 50,
       "Service Premium": 75,
       "Rasage / Barbe": 25,
       "Tarif Étudiant": 30,
+      "Étudiant / Enfant": 30,
     };
     const price = prices[service] || 35;
-
-    const { data, error } = await supabase
-      .from("bookings")
-      .insert([{ client_name: name, client_phone: phone, client_email: email, service, barber, date, time, price, status: "confirmed" }])
-      .select()
-      .single();
-    if (error) return `Erreur lors de la réservation: ${error.message}`;
-    return `Réservation confirmée! ${name}, ${service} avec ${barber} le ${date} à ${time}. ID: ${data.id}`;
+    // Passe par /api/bookings → déclenche email + SMS + Telegram (la totale), pas juste un insert
+    try {
+      const base = process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";
+      const res = await fetch(`${base}/api/bookings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_name: name, client_phone: phone, client_email: email, service, barber, date, time, price, source: "messenger" }),
+      });
+      const data = await res.json();
+      if (!res.ok) return `Erreur lors de la réservation: ${data.error || ("HTTP " + res.status)}`;
+      return `Réservation confirmée! ${name}, ${service} avec ${barber} le ${date} à ${time}.`;
+    } catch (e) {
+      return `Erreur lors de la réservation: ${String(e)}`;
+    }
   }
 
   if (toolName === "send_sms_alert") {
@@ -200,7 +227,7 @@ async function sendMessengerMessage(recipientId: string, text: string) {
   // Send the text (remove the URL from text if we'll send a button)
   const cleanText = hasBookingLink ? text.replace(bookingUrl, "").replace(/👉\s*$/, "").trim() : text;
 
-  await fetch(`https://graph.facebook.com/v19.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`, {
+  const sendRes = await fetch(`https://graph.facebook.com/v19.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -208,6 +235,11 @@ async function sendMessengerMessage(recipientId: string, text: string) {
       message: { text: cleanText },
     }),
   });
+  if (!sendRes.ok) {
+    const err = await sendRes.text().catch(() => "");
+    // Si ça échoue ici (souvent token Facebook expiré), on le verra dans les logs Vercel
+    console.error(`[Messenger] Échec envoi FB (HTTP ${sendRes.status}) — token expiré? →`, err.slice(0, 300));
+  }
 
   // Send a clickable button for booking
   if (hasBookingLink) {
@@ -255,11 +287,15 @@ async function processMessageWithClaude(senderId: string, userMessage: string): 
   }));
   messages.push({ role: "user", content: userMessage });
 
+  // Barbiers actifs (dynamique) pour le prompt
+  const barbers = await getActiveBarbers();
+  const systemPrompt = getSystemPrompt(barbers);
+
   // Agentic loop
   let response = await anthropic.messages.create({
     model: MODELS.BALANCED,
     max_tokens: 1024,
-    system: getSystemPrompt(),
+    system: systemPrompt,
     tools: CLAUDE_TOOLS,
     messages,
   });
@@ -286,7 +322,7 @@ async function processMessageWithClaude(senderId: string, userMessage: string): 
     response = await anthropic.messages.create({
       model: MODELS.BALANCED,
       max_tokens: 1024,
-      system: getSystemPrompt(),
+      system: systemPrompt,
       tools: CLAUDE_TOOLS,
       messages: loopMessages,
     });
