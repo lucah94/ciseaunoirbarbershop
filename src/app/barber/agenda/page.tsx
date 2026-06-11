@@ -22,7 +22,7 @@ const SERVICES = [
   { label: "Coupe + Rasage Lame & Serviette Chaude", price: 50 },
   { label: "Service Premium", price: 75 },
   { label: "Rasage / Barbe", price: 25 },
-  { label: "Tarif Etudiant", price: 30 },
+  { label: "Étudiant / Enfant", price: 30 },
 ];
 
 const MONTHS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];

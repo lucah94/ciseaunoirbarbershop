@@ -756,7 +756,7 @@ export default function HomeContent() {
             { service: "Coupe + Rasage Lame", price: "50$", desc: "Coupe, rasage lame & serviette chaude" },
             { service: "Service Premium", price: "75$", desc: "Coupe, rasage, serviette chaude & exfoliant" },
             { service: "Rasage / Barbe", price: "25$", desc: "Rasage lame, barbe & tondeuse" },
-            { service: "Tarif Étudiant", price: "30$", desc: "Coupe + lavage (preuve requise)" },
+            { service: "Étudiant / Enfant", price: "30$", desc: "Coupe enfant/étudiant (12 ans et moins, preuve requise)" },
           ].map((item, i) => (
             <motion.div key={item.service} variants={staggerItem}>
             <Card3D

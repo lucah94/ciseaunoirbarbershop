@@ -51,14 +51,6 @@ const SERVICES = [
     icon: "🧔",
   },
   {
-    name: "Tarif Étudiant",
-    price: "30$",
-    duration: "45 min",
-    desc: "Coupe + lavage au tarif étudiant. Preuve d'inscription requise.",
-    includes: ["Shampoing", "Coupe classique", "Preuve d'inscription requise"],
-    icon: "🎓",
-  },
-  {
     name: "Étudiant / Enfant",
     price: "30$",
     duration: "30 min",

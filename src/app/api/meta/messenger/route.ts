@@ -272,7 +272,6 @@ async function handleToolCall(toolName: string, toolInput: Record<string, unknow
       "Coupe + Rasage Lame": 50,
       "Service Premium": 75,
       "Rasage / Barbe": 25,
-      "Tarif Étudiant": 30,
       "Étudiant / Enfant": 30,
     };
     const price = prices[service] || 35;
