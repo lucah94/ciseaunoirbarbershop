@@ -949,8 +949,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         }
 
         if (action === "post_pub") {
+          // Claim atomique : seul le PREMIER tap/callback passe (Telegram renvoie parfois le signal → double post)
+          const { data: claimed } = await supabaseAdmin
+            .from("pending_posts")
+            .update({ status: "posting" })
+            .eq("id", postId)
+            .eq("status", "pending")
+            .select("id");
+          if (!claimed || claimed.length === 0) {
+            await editMessage(message.chat.id, message.message_id, "✅ Déjà publié (rien fait en double).");
+            return NextResponse.json({ ok: true });
+          }
           const result = await publishPostToFacebook(postRow.content as string);
           if (result.error) {
+            await supabaseAdmin.from("pending_posts").update({ status: "pending" }).eq("id", postId); // permet de réessayer
             await editMessage(message.chat.id, message.message_id, `❌ Erreur Facebook : ${result.error}`);
           } else {
             const isPromo = (postRow.kind as string) === "promotion";
