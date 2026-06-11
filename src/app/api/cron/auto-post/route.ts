@@ -31,7 +31,7 @@ function getContentTypeForDay(dayOfWeek: number, postIndex: number): string {
 
 const CONTENT_PROMPTS: Record<string, string> = {
   promotion: `Génère une publication Facebook promotionnelle pour Ciseau Noir Barbershop à Québec.
-La SEULE offre permise est le « forfait promo à 60$ ». N'invente JAMAIS d'autre rabais, cadeau, gratuité, concours ou prix — aucun argent donné, aucune réduction inventée.
+La SEULE offre permise : le forfait VIP (Service Premium — prix normal 75$) en PROMO à 65$. N'invente AUCUN autre rabais, cadeau, gratuité, concours ni prix. Le prix VIP normal est 75$, jamais 50$.
 Incite à réserver en ligne sur ciseaunoirbarbershop.com. Emojis appropriés. 2-4 phrases max. En français.`,
 
   service_highlight: `Génère une publication Facebook qui met en avant un service de Ciseau Noir Barbershop.
