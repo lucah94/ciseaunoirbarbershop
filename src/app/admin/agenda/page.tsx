@@ -472,6 +472,26 @@ export default function AgendaPage() {
     return idx >= 0 ? BARBER_PALETTE[idx % BARBER_PALETTE.length] : "#D4AF37";
   };
 
+  // Grille horaire collée aux vraies heures (min ouverture → max fermeture des barbiers),
+  // élargie au besoin pour ne jamais cacher un RDV hors-heures. Marge de 30 min de chaque bord.
+  const { gridMin, gridMax } = (() => {
+    let minM = 24 * 60, maxM = 0;
+    const consider = (hhmm?: string) => {
+      if (!hhmm) return;
+      const [h, m] = hhmm.split(":").map(Number);
+      if (isNaN(h)) return;
+      minM = Math.min(minM, h * 60 + (m || 0));
+      maxM = Math.max(maxM, h * 60 + (m || 0));
+    };
+    barbers.forEach(b => Object.values(b.schedule || {}).forEach(d => { if (d) { consider(d.open); consider(d.close); } }));
+    bookings.forEach(b => { if (b.status !== "cancelled") { consider(b.time); consider((b as Booking & { end_time?: string }).end_time); } });
+    if (minM >= maxM) return { gridMin: "08:00:00", gridMax: "21:00:00" };
+    minM = Math.max(0, minM - 30);
+    maxM = Math.min(24 * 60, maxM + 30);
+    const fmt = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}:00`;
+    return { gridMin: fmt(minM), gridMax: fmt(maxM) };
+  })();
+
   const events = filtered.map(b => {
     const [h, m] = (b.time || "0:0").split(":").map(Number);
     const padded = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
@@ -949,9 +969,9 @@ export default function AgendaPage() {
                 }}
                 locale="fr"
                 firstDay={1}
-                slotMinTime="08:00:00"
-                slotMaxTime="21:00:00"
-                slotDuration="00:15:00"
+                slotMinTime={gridMin}
+                slotMaxTime={gridMax}
+                slotDuration="00:30:00"
                 snapDuration="00:15:00"
                 allDaySlot={false}
                 nowIndicator={true}

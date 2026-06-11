@@ -35,15 +35,16 @@ const TIMES_SHORT = ["8:30","8:45","9:00","9:15","9:30","9:45","10:00","10:15","
 const TIMES_LONG  = ["8:30","8:45","9:00","9:15","9:30","9:45","10:00","10:15","10:30","10:45","11:00","11:15","11:30","11:45","13:00","13:15","13:30","13:45","14:00","14:15","14:30","14:45","15:00","15:15","15:30","15:45","16:00","16:15","16:30","16:45","17:00","17:15","17:30","17:45","18:00","18:15","18:30","18:45","19:00","19:15","19:30","19:45","20:00","20:15"]; // jeu/ven
 
 
-// Génère les créneaux d'un barbier. `step` = espacement en minutes (par défaut la durée du service)
-// → un RDV de 45 min donne des créneaux aux 45 min, pas aux 15 min. Plus propre, et aucun créneau
-// ne dépasse l'heure de fermeture (le dernier doit finir avant `close`).
-function generateTimesFromRange(open: string, close: string, step = 15): string[] {
+// Génère les créneaux d'un barbier.
+//  - `step` = granularité des heures de départ (15 min → flexibilité, on ne perd aucun départ)
+//  - `fitMinutes` = durée réelle du RDV : aucun créneau ne dépasse l'heure de fermeture
+//    (le dernier départ doit laisser le temps complet du service avant `close`).
+function generateTimesFromRange(open: string, close: string, step = 15, fitMinutes = step): string[] {
   const [oh, om] = open.split(":").map(Number);
   const [ch, cm] = close.split(":").map(Number);
   const times: string[] = [];
   let cur = oh * 60 + om;
-  const end = ch * 60 + cm - step; // le dernier créneau doit finir avant la fermeture
+  const end = ch * 60 + cm - fitMinutes; // le RDV au complet doit finir avant la fermeture
   const inc = step > 0 ? step : 15;
   while (cur <= end) {
     const h = Math.floor(cur / 60);
@@ -52,6 +53,19 @@ function generateTimesFromRange(open: string, close: string, step = 15): string[
     cur += inc;
   }
   return times;
+}
+
+// Nombre RÉEL de rendez-vous (de durée `durationMin`) qui rentrent dans une liste de
+// créneaux libres aux 15 min — en empilant sans chevauchement. Donne la vraie capacité.
+function realCapacity(freeSlots: string[], durationMin: number): number {
+  let count = 0;
+  let lastEnd = -1;
+  for (const t of freeSlots) {
+    const [h, m] = t.split(":").map(Number);
+    const start = h * 60 + m;
+    if (start >= lastEnd) { count++; lastEnd = start + durationMin; }
+  }
+  return count;
 }
 
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
@@ -73,16 +87,17 @@ function getTimesForBarberAndDate(
   dateStr: string,
   overrides?: { date: string; open: string; close: string }[],
   schedule?: DaySchedule,
-  step = 15
+  step = 15,
+  fitMinutes = step
 ): string[] {
   if (!dateStr) return [];
   const ov = overrides?.find(o => o.date === dateStr);
-  if (ov) return generateTimesFromRange(ov.open, ov.close, step);
+  if (ov) return generateTimesFromRange(ov.open, ov.close, step, fitMinutes);
   if (schedule) {
     const day = new Date(dateStr + "T12:00:00").getDay();
     const daySchedule = schedule[DAY_KEYS[day]];
     if (!daySchedule) return [];
-    return generateTimesFromRange(daySchedule.open, daySchedule.close, step);
+    return generateTimesFromRange(daySchedule.open, daySchedule.close, step, fitMinutes);
   }
   // Fallback hardcoded (Melynda schedule)
   const day = new Date(dateStr + "T12:00:00").getDay();
@@ -1221,12 +1236,15 @@ function BookingContent() {
                           // Garder QUE les RDV de CE barbier (comparaison sans accent).
                           // Les RDV sans barbier sont comptés sur Melynda (barbière principale) — évite un double-booking.
                           const barberBooked = bookedSlots.filter(x => norm(x.barber || "") === norm(b.name) || (isMelynda && !x.barber));
-                          const slots = getTimesForBarberAndDate(b.name, selected.date, b.overrides, b.schedule, serviceDur).filter(t => {
+                          // Départs aux 15 min (flexibilité), mais chaque créneau laisse le temps complet du service.
+                          const slots = getTimesForBarberAndDate(b.name, selected.date, b.overrides, b.schedule, 15, serviceDur).filter(t => {
                             const now = new Date();
                             const [tH, tM] = t.split(":").map(Number);
                             if (selected.date === today && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()))) return false;
                             return !isSlotOccupied(t, barberBooked, b.blockedRanges, selected.date, serviceDur);
                           });
+                          // Vraie capacité : combien de RDV de ce service rentrent encore (sans chevauchement)
+                          const capacity = realCapacity(slots, serviceDur);
                           return (
                             <div key={b.name}>
                               <div style={{ textAlign: "center", marginBottom: "16px" }}>
@@ -1239,6 +1257,11 @@ function BookingContent() {
                                   <Image src={barberImage(b.name)} alt={b.name} width={80} height={80} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 10%" }} />
                                 </div>
                                 <p style={{ color: "#D4AF37", fontSize: "13px", letterSpacing: "3px", textTransform: "uppercase", fontWeight: 600 }}>{b.name}</p>
+                                {capacity > 0 && (
+                                  <p style={{ color: "#7A8A5A", fontSize: "11px", letterSpacing: "1px", marginTop: "4px" }}>
+                                    {capacity} place{capacity > 1 ? "s" : ""} dispo
+                                  </p>
+                                )}
                               </div>
                               {slots.length > 0 ? (
                                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
