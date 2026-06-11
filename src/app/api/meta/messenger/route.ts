@@ -513,8 +513,9 @@ function verifyFacebookSignature(rawBody: string, signature: string | null): boo
 }
 
 // POST: Receive and handle incoming messages
-// BOT DÉSACTIVÉ — à réactiver quand le nouveau site est en ligne
-const BOT_ENABLED = true;
+// DÉSACTIVÉ exprès : la page est branchée sur Composio, c'est le cron messenger-poll qui répond.
+// Garder ce webhook actif causait des réponses EN DOUBLE (webhook + poll). On garde donc un seul chemin.
+const BOT_ENABLED = false;
 
 export async function POST(req: NextRequest) {
   if (!BOT_ENABLED) {

@@ -47,11 +47,12 @@ async function pollOnce(handledThisRun: Set<string>): Promise<{ handled: number;
         continue;
       }
 
-      const reply = await processMessageWithClaude(recipient.id, lastUserMsg.message);
-      await sendMessengerMessage(recipient.id, reply);
-
+      // RÉSERVER le message AVANT de répondre → une exécution parallèle verra qu'il est pris et n'y touchera pas
       handledThisRun.add(lastUserMsg.id);
       await supabase.from("messenger_conversations").update({ last_handled_mid: lastUserMsg.id }).eq("sender_id", recipient.id);
+
+      const reply = await processMessageWithClaude(recipient.id, lastUserMsg.message);
+      await sendMessengerMessage(recipient.id, reply);
 
       await fetch(`${GRAPH}/${PAGE_ID}/messages?access_token=${TOKEN}`, {
         method: "POST",
