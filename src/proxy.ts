@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth";
+import { verifyToken, generateBarberToken } from "@/lib/auth";
 
 const BAD_PATTERNS = [/\.\.\//,/<script/i,/union.*select/i,/\/etc\/passwd/i,/wp-admin/i,/\.php$/i];
 const BAD_UAS = [/sqlmap/i,/nikto/i,/nmap/i,/masscan/i];
@@ -20,7 +20,13 @@ export async function proxy(req: NextRequest) {
 
   if (pathname.startsWith("/barber") && !pathname.startsWith("/barber/login")) {
     const auth = req.cookies.get("barber_auth");
-    if (!auth || !verifyToken("barber", auth.value)) {
+    const name = req.cookies.get("barber_name");
+    // Accepte le NOUVEAU jeton par barbier OU l'ancien jeton partagé (compat)
+    const ok = !!auth && (
+      (!!name && auth.value === generateBarberToken(name.value)) ||
+      verifyToken("barber", auth.value)
+    );
+    if (!ok) {
       return NextResponse.redirect(new URL("/barber/login", req.url));
     }
   }
