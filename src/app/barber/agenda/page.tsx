@@ -207,9 +207,17 @@ export default function BarberAgendaPage() {
 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "40px" }}>
-          <div>
-            <h1 style={{ fontSize: "24px", fontWeight: 300, letterSpacing: "3px", color: "#F5F5F5", marginBottom: "6px" }}>Mon Agenda</h1>
-            <p style={{ color: "#555", fontSize: "13px" }}>Mes rendez-vous — {canonicalBarber}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={barberSlug === "stephanie" ? "/images/stephanie.jpg" : barberSlug === "melynda" ? "/images/melynda.jpg" : "/images/chair-barbier.jpg"}
+              alt={canonicalBarber}
+              style={{ width: "54px", height: "54px", borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(212,175,55,0.5)", flexShrink: 0 }}
+            />
+            <div>
+              <h1 style={{ fontSize: "24px", fontWeight: 300, letterSpacing: "3px", color: "#F5F5F5", marginBottom: "6px" }}>Bonjour {canonicalBarber} 👋</h1>
+              <p style={{ color: "#555", fontSize: "13px" }}>Ton agenda — {canonicalBarber}</p>
+            </div>
           </div>
           <button onClick={() => setShowNew(true)}
             style={{ background: "linear-gradient(135deg, #D4AF37, #B8860B)", color: "#080808", border: "none", padding: "10px 22px", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", fontWeight: 700, cursor: "pointer", borderRadius: "8px" }}>
