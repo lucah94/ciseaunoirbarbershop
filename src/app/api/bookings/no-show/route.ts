@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { sendNoShowAdminNotification } from "@/lib/email";
 import { sendNoShowSMS } from "@/lib/sms";
+import { notifyNoShow } from "@/lib/telegram";
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
@@ -61,6 +62,16 @@ export async function POST(req: NextRequest) {
       date: booking.date,
       time: booking.time,
     }).catch(e => console.error("No-show admin email error:", e));
+
+    // Notify Telegram (le 👻 — confirmé que le no-show a été enregistré)
+    await notifyNoShow({
+      client_name: booking.client_name,
+      client_phone: booking.client_phone || "",
+      service: booking.service,
+      barber: booking.barber,
+      date: booking.date,
+      time: booking.time,
+    }).catch(e => console.error("No-show Telegram error:", e));
 
     console.log(`No-show logged: ${booking.client_name} — ${booking.date} ${booking.time} — ${booking.barber}`);
 

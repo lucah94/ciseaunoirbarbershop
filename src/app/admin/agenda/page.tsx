@@ -445,12 +445,6 @@ export default function AgendaPage() {
     }
   }
 
-  const today = localDateStr();
-
-  function isPastBooking(b: Booking): boolean {
-    return b.date < today || (b.date === today && b.time < new Date().toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit", hour12: false }));
-  }
-
   const filtered = bookings.filter(b => {
     if (b.status === "cancelled") return false;
     if (filter !== "all" && b.barber !== filter) return false;
@@ -946,7 +940,8 @@ export default function AgendaPage() {
                   text-shadow: 0 0 8px rgba(212,175,55,0.4) !important;
                 }
                 .event-cancelled .fc-event-title { text-decoration: line-through !important; opacity: 0.5 !important; }
-                .event-noshow { opacity: 0.5 !important; border-left-color: #f90 !important; }
+                .event-noshow { background-color: rgba(255,153,0,0.28) !important; border-color: #f90 !important; border-left: 4px solid #f90 !important; opacity: 1 !important; }
+                .event-noshow .fc-event-title { color: #ffb84d !important; font-weight: 700 !important; }
                 ${isMobile ? `
                 .fc .fc-toolbar {
                   flex-direction: column !important;
@@ -1722,18 +1717,16 @@ export default function AgendaPage() {
                   >
                     &#10005; Annuler
                   </button>
-                  {isPastBooking(selected) && (
-                    <button
-                      onClick={() => markNoShow(selected.id)}
-                      style={{
-                        background: "rgba(255,153,0,0.08)", border: "1px solid rgba(255,153,0,0.2)",
-                        color: "#f90", padding: "10px 16px", fontSize: "12px",
-                        cursor: "pointer", borderRadius: "8px", letterSpacing: "0.5px",
-                      }}
-                    >
-                      &#8709; No-show
-                    </button>
-                  )}
+                  <button
+                    onClick={() => markNoShow(selected.id)}
+                    style={{
+                      background: "rgba(255,153,0,0.12)", border: "1px solid rgba(255,153,0,0.4)",
+                      color: "#f90", padding: "10px 16px", fontSize: "12px",
+                      cursor: "pointer", borderRadius: "8px", letterSpacing: "0.5px", fontWeight: 600,
+                    }}
+                  >
+                    &#8709; No-show (client absent)
+                  </button>
                 </div>
               )}
             </>

@@ -123,6 +123,26 @@ export async function notifyNoShow(booking: {
   );
 }
 
+/** Résumé quotidien : RDV passés encore non marqués (1 SEUL message, pas de spam) */
+export async function notifyNoShowDigest(bookings: {
+  client_name: string;
+  time: string;
+  barber: string;
+  service: string;
+}[]) {
+  if (!bookings.length) return;
+  const lines = bookings
+    .map(b => `• ${b.time} — ${b.client_name} (${b.barber}) · ${b.service}`)
+    .join("\n");
+  const n = bookings.length;
+  await sendMessage(
+    `🕐 <b>RDV à vérifier — no-show ?</b>\n\n` +
+    `${n} rendez-vous passé${n > 1 ? "s" : ""} pas encore marqué${n > 1 ? "s" : ""} :\n\n` +
+    `${lines}\n\n` +
+    `<i>Ouvre l'agenda et clique « No-show » si le client ne s'est pas présenté, sinon « Complété ».</i>`
+  );
+}
+
 /** Message client reçu — escalade (Figaro ne peut pas répondre seul) */
 export async function notifyEscalation(opts: {
   from_name: string;

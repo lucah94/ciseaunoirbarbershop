@@ -144,6 +144,23 @@ export default function BarberAgendaPage() {
     if (selected?.id === id) setSelected(prev => prev ? { ...prev, status } : null);
   }
 
+  // No-show passe par la route dédiée → SMS au client + email admin + Telegram (👻)
+  async function markNoShow(id: string) {
+    if (!confirm("Marquer comme no-show ? Le client recevra un SMS.")) return;
+    const res = await fetch("/api/bookings/no-show", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: "no_show" } : b));
+      if (selected?.id === id) setSelected(prev => prev ? { ...prev, status: "no_show" } : null);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(`Erreur: ${err.error || "impossible de marquer no-show"}`);
+    }
+  }
+
   function startEdit() {
     if (!selected) return;
     setEditForm({ date: selected.date, time: selected.time, service: selected.service });
@@ -450,7 +467,8 @@ export default function BarberAgendaPage() {
               .fc .fc-daygrid-day:hover .fc-daygrid-day-number {
                 color: #D4AF37 !important;
               }
-              .event-noshow { opacity: 0.6 !important; }
+              .event-noshow { background-color: rgba(255,153,0,0.28) !important; border-color: #f90 !important; border-left: 4px solid #f90 !important; opacity: 1 !important; }
+              .event-noshow .fc-event-title { color: #ffb84d !important; font-weight: 700 !important; }
               ${isMobile ? `
               .fc .fc-toolbar {
                 flex-direction: column !important;
@@ -590,7 +608,7 @@ export default function BarberAgendaPage() {
                     style={{ flex: 1, background: "rgba(85,170,85,0.1)", border: "1px solid rgba(85,170,85,0.3)", color: "#5a5", padding: "10px", cursor: "pointer", borderRadius: "8px", fontSize: "12px", fontWeight: 600 }}>
                     Complété
                   </button>
-                  <button onClick={() => updateStatus(selected.id, "no_show")}
+                  <button onClick={() => markNoShow(selected.id)}
                     style={{ flex: 1, background: "rgba(255,153,0,0.08)", border: "1px solid rgba(255,153,0,0.2)", color: "#f90", padding: "10px", cursor: "pointer", borderRadius: "8px", fontSize: "12px" }}>
                     No-show
                   </button>

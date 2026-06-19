@@ -4,7 +4,7 @@ import { sendConfirmationReminderEmail, sendReminderEmail, sendRebookingEmail, s
 import { sendConfirmationReminderSMS, sendReminderSMS } from "@/lib/sms";
 import twilio from "twilio";
 import { formatPhone, sendSMS } from "@/lib/sms";
-import { notifySystemAlert } from "@/lib/telegram";
+import { notifyNoShowDigest } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -185,11 +185,16 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // ── 4. No-show detection ──────────────────────────────────────────
+    // ── 4. No-show detection (heure de Montréal, 1 seul résumé) ───────
+    // BUG corrigé : avant, le seuil était calculé en heure SERVEUR (UTC) et
+    // comparé à booking.time stocké en heure de Montréal → faux no-show.
     const now = new Date();
-    const todayStr = now.toISOString().split("T")[0];
+    const TZ = "America/Montreal";
+    const todayStr = now.toLocaleDateString("en-CA", { timeZone: TZ }); // "YYYY-MM-DD" Montréal
     const noShowCutoff = new Date(now.getTime() - 45 * 60 * 1000);
-    const noShowCutoffTime = noShowCutoff.toTimeString().slice(0, 5); // "HH:MM"
+    const noShowCutoffTime = noShowCutoff.toLocaleTimeString("fr-CA", {
+      timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false,
+    }); // "HH:MM" Montréal
 
     const { data: possibleNoShows } = await supabase
       .from("bookings")
@@ -198,16 +203,18 @@ export async function GET(req: NextRequest) {
       .eq("status", "confirmed")
       .lt("time", noShowCutoffTime);
 
+    // Un SEUL message résumé (au lieu d'un message par RDV déguisé en alerte système)
     let noShowAlerts = 0;
-    for (const booking of possibleNoShows || []) {
-      try {
-        await notifySystemAlert(
-          `⚠️ No-show possible\n${booking.client_name} — ${booking.time} avec ${booking.barber}\nService: ${booking.service}\nMarquer comme no-show dans l'admin`
-        );
-        noShowAlerts++;
-      } catch (e) {
-        console.error(`No-show alert error for ${booking.id}:`, e);
-      }
+    if (possibleNoShows && possibleNoShows.length > 0) {
+      await notifyNoShowDigest(
+        possibleNoShows.map((b) => ({
+          client_name: b.client_name,
+          time: b.time,
+          barber: b.barber,
+          service: b.service,
+        }))
+      ).catch((e) => console.error("No-show digest error:", e));
+      noShowAlerts = possibleNoShows.length;
     }
 
     // ── 5. Google Review SMS ──────────────────────────────────────────
