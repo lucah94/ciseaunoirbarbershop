@@ -5,7 +5,7 @@ import { sendConfirmationReminderSMS, sendReminderSMS } from "@/lib/sms";
 import twilio from "twilio";
 import { formatPhone, sendSMS } from "@/lib/sms";
 import { notifyNoShowDigest } from "@/lib/telegram";
-import { montrealDateStr, montrealTimeStr } from "@/lib/utils";
+import { montrealDateStr } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -221,15 +221,17 @@ export async function GET(req: NextRequest) {
     }
 
     // ── 5. Google Review SMS ──────────────────────────────────────────
-    const reviewCutoff = new Date(now.getTime() - 90 * 60 * 1000);
-    const reviewCutoffTime = montrealTimeStr(reviewCutoff); // "HH:MM" Montréal
+    // Cible les RDV TERMINÉS la VEILLE (heure de Montréal). Le cron tourne 1x/jour,
+    // donc on regarde la journée complète d'hier → chaque RDV complété reçoit
+    // l'invitation UNE fois, le lendemain.
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const yesterdayStr = montrealDateStr(yesterday); // "YYYY-MM-DD" Montréal (hier)
 
     const { data: reviewCandidates } = await supabase
       .from("bookings")
       .select("*")
-      .eq("date", todayStr)
+      .eq("date", yesterdayStr)
       .eq("status", "completed")
-      .lt("time", reviewCutoffTime)
       .not("client_phone", "is", null);
 
     let reviewsSent = 0;

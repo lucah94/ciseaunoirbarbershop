@@ -3,8 +3,7 @@
  * Génération, publication et suppression de posts Facebook pour Ciseau Noir.
  */
 
-import type Anthropic from "@anthropic-ai/sdk";
-import { aiClient as anthropic, MODELS } from "@/lib/ai";
+import { generateText, MODELS } from "@/lib/ai";
 
 const FB_PAGE_ID = "577401682130596";
 
@@ -72,15 +71,14 @@ export async function generatePost(kind: string, instructions?: string): Promise
 
   const prompt = `${basePrompt}${instructionClause}${SALON_CONTEXT}`;
 
-  const response = await anthropic.messages.create({
+  const text = await generateText({
     model: MODELS.SMART,
     max_tokens: 500,
     messages: [{ role: "user", content: prompt }],
   });
 
-  const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === "text");
   return (
-    textBlock?.text?.trim() ||
+    text ||
     "✂️ Ciseau Noir Barbershop — votre barbier à Québec ! Réservez en ligne sur ciseaunoirbarbershop.com/booking ✨"
   );
 }

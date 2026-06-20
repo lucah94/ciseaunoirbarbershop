@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import type Anthropic from "@anthropic-ai/sdk";
 import { aiClient as anthropic, MODELS } from "@/lib/ai";
+
+// Appel IA AVEC outils (tool use) + FALLBACK Sonnet — comme generateText de @/lib/ai,
+// mais qui préserve les tools / stop_reason (generateText ne retourne qu'un string).
+async function createWithFallback(
+  params: Omit<Anthropic.MessageCreateParamsNonStreaming, "model"> & { model: string }
+): Promise<Anthropic.Message> {
+  try {
+    return await anthropic.messages.create(params);
+  } catch (e) {
+    console.error(`[check-emails] modèle "${params.model}" a échoué — fallback Sonnet:`, e);
+    if (params.model === MODELS.SMART) throw e;
+    return await anthropic.messages.create({ ...params, model: MODELS.SMART });
+  }
+}
 import { supabaseAdmin } from "@/lib/supabase";
 import { fetchUnreadEmails, markAsRead, sendGmailReply, archiveEmail, deleteEmail } from "@/lib/gmail";
 import { sendSMS } from "@/lib/sms";
@@ -316,10 +330,10 @@ Signe avec : Figaro ✂️ — Ciseau Noir`;
   let finalReply = "";
   let emailAction: "archive" | "delete" | "keep" = "archive";
 
-  // Agentic loop — max 5 tours
+  // Agentic loop — max 5 tours. Réponse CLIENT (email) → meilleur modèle (SMART) + fallback Sonnet
   for (let turn = 0; turn < 5; turn++) {
-    const response = await anthropic.messages.create({
-      model: MODELS.FAST,
+    const response = await createWithFallback({
+      model: MODELS.SMART,
       max_tokens: 1000,
       system: systemPrompt,
       tools,

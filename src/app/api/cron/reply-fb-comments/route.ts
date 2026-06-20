@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { aiClient as anthropic, MODELS } from "@/lib/ai";
-import type Anthropic from "@anthropic-ai/sdk";
+import { generateText, MODELS } from "@/lib/ai";
 import { supabaseAdmin } from "@/lib/supabase";
 import { notifySystemAlert, notifyFbComment } from "@/lib/telegram";
 
@@ -54,13 +53,12 @@ Selon le commentaire:
 Style: varie tes formulations, évite les clichés, 1 emoji max, pas de hashtags, pas de signature.
 Réponds uniquement le texte de la réponse, rien d'autre.`;
 
-  const response = await anthropic.messages.create({
+  const text = await generateText({
     model: MODELS.SMART,
     max_tokens: 200,
     messages: [{ role: "user", content: prompt }],
   });
-  const text = response.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text;
-  return text?.trim() || "Merci pour ton message! 🖤";
+  return text || "Merci pour ton message! 🖤";
 }
 
 async function postReply(commentId: string, message: string): Promise<boolean> {
@@ -88,12 +86,11 @@ Dans le doute entre QUESTION et NORMAL, réponds NORMAL. Dans le doute pour HATE
 Commentaire: "${message}"
 Réponds uniquement: HATE, NEGATIVE, QUESTION ou NORMAL.`;
   try {
-    const response = await anthropic.messages.create({
+    const text = (await generateText({
       model: MODELS.FAST,
       max_tokens: 8,
       messages: [{ role: "user", content: prompt }],
-    });
-    const text = (response.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text || "").toUpperCase();
+    })).toUpperCase();
     if (text.includes("HATE")) return "HATE";
     if (text.includes("NEGATIVE")) return "NEGATIVE";
     if (text.includes("QUESTION")) return "QUESTION";

@@ -147,6 +147,7 @@ export default function AdminPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [reviews, setReviews] = useState<ReviewData>(null);
+  const [integrations, setIntegrations] = useState<Record<string, boolean> | null>(null);
   const [loading, setLoading] = useState(true);
   const week = getWeekRange();
   const now = new Date();
@@ -160,12 +161,18 @@ export default function AdminPage() {
       fetch(`/api/expenses?_=${t}`, { cache: "no-store" }).then(r => r.json()),
       fetch(`/api/admin/stats?_=${t}`, { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch(`/api/reviews?_=${t}`, { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
-    ]).then(([b, c, e, s, rev]) => {
+      fetch(`/api/admin/integrations-status?_=${t}`, { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([b, c, e, s, rev, integ]) => {
       setBookings(Array.isArray(b) ? b : []);
       setCuts(Array.isArray(c) ? c : []);
       setExpenses(Array.isArray(e) ? e : []);
       setStats(s);
       setReviews(rev);
+      if (integ?.integrations) {
+        const map: Record<string, boolean> = {};
+        for (const i of integ.integrations) map[i.key] = !!i.configured;
+        setIntegrations(map);
+      }
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -400,33 +407,49 @@ export default function AdminPage() {
           </PremiumCard>
         </div>
 
-        {/* Agents IA — statut réel basé sur env vars (via integrations-status API) */}
+        {/* Agents IA — statut réel basé sur les intégrations configurées (env vars via integrations-status API) */}
         <PremiumCard delay={0.55}>
           <SectionTitle title="Agents Automatiques" />
+          {!integrations && (
+            <p style={{ color: "#7D8590", fontSize: "11px", marginBottom: "12px" }}>
+              Statut des intégrations indisponible — affichage neutre.
+            </p>
+          )}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
             {[
-              { title: "Rappels 24h", desc: "SMS + email J-2 / J-1 (cron 14h)", active: !!stats }, // basé sur Twilio actif
-              { title: "Confirmation RDV", desc: "Email + SMS instantané à chaque réservation", active: !!stats },
-              { title: "Avis Google auto", desc: "Email demande d'avis post-RDV (cron 22h)", active: !!stats },
-              { title: "Re-booking 3 sem.", desc: "SMS 3/6/9 sem après dernière visite (cron 14h)", active: !!stats },
-              { title: "Réponse emails auto", desc: "Figaro lit Gmail et répond (cron 10min)", active: !!stats },
-              { title: "Posts FB + IG auto", desc: "Composio + Google My Business (cron 15h mar-sam)", active: !!stats },
-              { title: "Rapport hebdo", desc: "Email récap revenus/RDV (cron lundi 0h)", active: !!stats },
-              { title: "Health check auto", desc: "Vérifie Supabase/Twilio/Claude (cron 9h)", active: !!stats },
-              { title: "Newsletter mensuelle", desc: "Email tous les clients (cron 1er mois 14h)", active: !!stats },
-              { title: "Promo rotation 12/an", desc: "Promo saisonnière FB+IG+GMB (1er mois 12h)", active: !!stats },
-              { title: "Win-back dormants", desc: "SMS clients 60+ jours sans visite (cron mar 15h)", active: !!stats },
-              { title: "Birthday promo -20%", desc: "Email + SMS anniversaire (cron 10h)", active: !!stats },
-            ].map((agent, i) => (
-              <motion.div key={agent.title} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 + i * 0.04 }}
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: "#0A0A0A", border: `1px solid ${agent.active ? "rgba(85,170,85,0.08)" : "rgba(150,150,150,0.08)"}`, borderRadius: "8px" }}>
-                <div>
-                  <p style={{ color: "#F0F0F0", fontSize: "13px", marginBottom: "2px" }}>{agent.title}</p>
-                  <p style={{ color: "#7D8590", fontSize: "11px" }}>{agent.desc}</p>
-                </div>
-                <span style={{ color: agent.active ? "#5a5" : "#888", fontSize: "9px", letterSpacing: "2px", background: agent.active ? "rgba(85,170,85,0.08)" : "rgba(150,150,150,0.05)", border: `1px solid ${agent.active ? "rgba(85,170,85,0.2)" : "rgba(150,150,150,0.15)"}`, padding: "4px 10px", borderRadius: "20px", whiteSpace: "nowrap" }}>{agent.active ? "ACTIF" : "INACTIF"}</span>
-              </motion.div>
-            ))}
+              // active = null tant que les intégrations ne sont pas chargées (statut neutre, pas de faux vert)
+              { title: "Rappels 24h", desc: "SMS + email J-2 / J-1 (cron 14h)", needs: ["TWILIO", "RESEND"] },
+              { title: "Confirmation RDV", desc: "Email + SMS instantané à chaque réservation", needs: ["TWILIO", "RESEND"] },
+              { title: "Avis Google auto", desc: "Email demande d'avis post-RDV (cron 22h)", needs: ["RESEND"] },
+              { title: "Re-booking 3 sem.", desc: "SMS 3/6/9 sem après dernière visite (cron 14h)", needs: ["TWILIO"] },
+              { title: "Réponse emails auto", desc: "Figaro lit Gmail et répond (cron 10min)", needs: ["ANTHROPIC", "OPENROUTER"] },
+              { title: "Posts FB + IG auto", desc: "Composio + Google My Business (cron 15h mar-sam)", needs: ["COMPOSIO", "GMB_POSTS"] },
+              { title: "Rapport hebdo", desc: "Email récap revenus/RDV (cron lundi 0h)", needs: ["RESEND"] },
+              { title: "Health check auto", desc: "Vérifie Supabase/Twilio/Claude (cron 9h)", needs: ["TELEGRAM"] },
+              { title: "Newsletter mensuelle", desc: "Email tous les clients (cron 1er mois 14h)", needs: ["RESEND"] },
+              { title: "Promo rotation 12/an", desc: "Promo saisonnière FB+IG+GMB (1er mois 12h)", needs: ["COMPOSIO", "GMB_POSTS"] },
+              { title: "Win-back dormants", desc: "SMS clients 60+ jours sans visite (cron mar 15h)", needs: ["TWILIO"] },
+              { title: "Birthday promo -20%", desc: "Email + SMS anniversaire (cron 10h)", needs: ["RESEND", "TWILIO"] },
+            ].map((agent, i) => {
+              // null = inconnu (intégrations pas chargées); sinon actif si au moins une dépendance requise est configurée
+              const active: boolean | null = integrations
+                ? agent.needs.some(k => integrations[k])
+                : null;
+              const statusLabel = active === null ? "—" : active ? "ACTIF" : "INACTIF";
+              const statusColor = active === null ? "#888" : active ? "#5a5" : "#e55";
+              const statusBg = active === null ? "rgba(150,150,150,0.05)" : active ? "rgba(85,170,85,0.08)" : "rgba(238,85,85,0.06)";
+              const statusBorder = active === null ? "rgba(150,150,150,0.15)" : active ? "rgba(85,170,85,0.2)" : "rgba(238,85,85,0.2)";
+              return (
+                <motion.div key={agent.title} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 + i * 0.04 }}
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: "#0A0A0A", border: `1px solid ${active ? "rgba(85,170,85,0.08)" : "rgba(150,150,150,0.08)"}`, borderRadius: "8px" }}>
+                  <div>
+                    <p style={{ color: "#F0F0F0", fontSize: "13px", marginBottom: "2px" }}>{agent.title}</p>
+                    <p style={{ color: "#7D8590", fontSize: "11px" }}>{agent.desc}</p>
+                  </div>
+                  <span style={{ color: statusColor, fontSize: "9px", letterSpacing: "2px", background: statusBg, border: `1px solid ${statusBorder}`, padding: "4px 10px", borderRadius: "20px", whiteSpace: "nowrap" }}>{statusLabel}</span>
+                </motion.div>
+              );
+            })}
           </div>
         </PremiumCard>
 

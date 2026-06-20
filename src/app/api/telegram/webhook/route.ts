@@ -5,7 +5,21 @@ import { getUpcomingHolidays, isHoliday } from "@/lib/holidays-qc";
 import { sendSMS, formatPhone } from "@/lib/sms";
 import { Resend } from "resend";
 import type Anthropic from "@anthropic-ai/sdk";
-import { aiClient as anthropic, MODELS } from "@/lib/ai";
+import { aiClient as anthropic, generateText, MODELS } from "@/lib/ai";
+
+// Appel IA AVEC outils (tool use) + FALLBACK Sonnet — comme generateText de @/lib/ai,
+// mais qui préserve les tools / stop_reason (generateText ne retourne qu'un string).
+async function createWithFallback(
+  params: Omit<Anthropic.MessageCreateParamsNonStreaming, "model"> & { model: string }
+): Promise<Anthropic.Message> {
+  try {
+    return await anthropic.messages.create(params);
+  } catch (e) {
+    console.error(`[telegram] modèle "${params.model}" a échoué — fallback Sonnet:`, e);
+    if (params.model === MODELS.SMART) throw e;
+    return await anthropic.messages.create({ ...params, model: MODELS.SMART });
+  }
+}
 import { generatePost, publishPostToFacebook } from "@/lib/posts";
 import { proposePostOnTelegram } from "@/lib/telegram";
 
@@ -766,7 +780,7 @@ RÈGLES:
     let reply = "";
 
     for (let turn = 0; turn < 6; turn++) {
-      const response = await anthropic.messages.create({
+      const response = await createWithFallback({
         model,
         max_tokens: 1024,
         system: systemPrompt,
@@ -818,9 +832,9 @@ async function handlePhotoReceipt(chatId: number, fileId: string, caption?: stri
     const base64 = Buffer.from(imgBuffer).toString("base64");
     const mimeType = fileData.result.file_path.endsWith(".png") ? "image/png" : "image/jpeg";
 
-    // 3. Claude Vision — extract expense data
-    const visionRes = await anthropic.messages.create({
-      model: MODELS.BALANCED,
+    // 3. Vision — extraction des données du reçu (sous-tâche interne) + fallback Sonnet
+    const rawText = await generateText({
+      model: MODELS.FAST,
       max_tokens: 400,
       messages: [{
         role: "user",
@@ -851,7 +865,6 @@ Date d'aujourd'hui si pas visible sur le reçu: ${new Date().toISOString().slice
       }],
     });
 
-    const rawText = visionRes.content[0].type === "text" ? visionRes.content[0].text.trim() : "";
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) { await sendTelegramMessage(chatId, "❌ Pas de reçu reconnu dans cette photo."); return; }
 

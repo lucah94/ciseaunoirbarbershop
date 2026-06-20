@@ -25,3 +25,38 @@ export const MODELS = {
   // Tâches complexes: Figaro, raisonnement profond (Claude Sonnet routé via OpenRouter)
   SMART: "anthropic/claude-sonnet-4-6",
 } as const;
+
+type GenParams = {
+  model: string;
+  max_tokens: number;
+  messages: Anthropic.MessageParam[];
+  system?: string;
+};
+
+/**
+ * Génère du texte via OpenRouter AVEC FALLBACK automatique sur Sonnet.
+ * Le meilleur modèle est choisi par l'appelant (params.model) ; si ce modèle
+ * échoue (modèle indisponible, erreur OpenRouter, rate limit…), on réessaie UNE
+ * fois avec MODELS.SMART (Claude Sonnet) pour ne JAMAIS laisser une tâche IA
+ * tomber complètement. Retourne le texte (string), déjà trimmé.
+ */
+export async function generateText(params: GenParams): Promise<string> {
+  const run = async (model: string): Promise<string> => {
+    const res = await aiClient.messages.create({
+      model,
+      max_tokens: params.max_tokens,
+      ...(params.system ? { system: params.system } : {}),
+      messages: params.messages,
+    });
+    const block = res.content.find((b): b is Anthropic.TextBlock => b.type === "text");
+    return (block?.text || "").trim();
+  };
+
+  try {
+    return await run(params.model);
+  } catch (e) {
+    console.error(`[ai] modèle "${params.model}" a échoué — fallback Sonnet:`, e);
+    if (params.model === MODELS.SMART) throw e; // déjà Sonnet : rien de mieux en réserve
+    return await run(MODELS.SMART); // si ça throw aussi, l'appelant gère
+  }
+}

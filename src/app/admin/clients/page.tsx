@@ -37,6 +37,14 @@ export default function ClientsPage() {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("totalVisits");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const fetchBookings = useCallback(() => {
     fetch(`/api/bookings?_=${Date.now()}`, { cache: "no-store" })
@@ -143,7 +151,7 @@ export default function ClientsPage() {
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#0A0A0A" }}>
       <AdminSidebar />
-      <main style={{ marginLeft: "260px", flex: 1, padding: "40px" }}>
+      <main style={{ marginLeft: isMobile ? 0 : "260px", flex: 1, padding: isMobile ? "24px 16px 88px" : "40px", minWidth: 0 }}>
         {/* Header */}
         <div style={{ marginBottom: "32px" }}>
           <p
@@ -307,7 +315,8 @@ export default function ClientsPage() {
               background: "#0D0D0D",
               border: "1px solid #1A1A1A",
               borderRadius: "4px",
-              overflow: "auto",
+              overflowX: "auto",
+              WebkitOverflowScrolling: "touch",
             }}
           >
             <table

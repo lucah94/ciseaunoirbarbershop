@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchGoogleReviews, replyToGoogleReview } from "@/lib/google";
-import { aiClient as anthropic, MODELS } from "@/lib/ai";
+import { generateText, MODELS } from "@/lib/ai";
 import { notifySystemAlert } from "@/lib/telegram";
-import type Anthropic from "@anthropic-ai/sdk";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -41,13 +40,12 @@ Règles:
 - Pas de guillemets autour de la réponse, pas de hashtags, pas de promotion
 - Réponds uniquement le texte de la réponse, rien d'autre`;
 
-  const response = await anthropic.messages.create({
+  const text = await generateText({
     model: MODELS.SMART,
     max_tokens: 300,
     messages: [{ role: "user", content: prompt }],
   });
-  const text = response.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text;
-  return text?.trim() || `Merci pour votre avis ! N'hésite pas à revenir nous voir au salon.\nMelynda ✂️`;
+  return text || `Merci pour votre avis ! N'hésite pas à revenir nous voir au salon.\nMelynda ✂️`;
 }
 
 export async function GET(req: NextRequest) {

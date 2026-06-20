@@ -7,6 +7,7 @@ import twilio from "twilio";
 import { Resend } from "resend";
 import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
+import { requireAdmin, requireBarber } from "@/lib/auth";
 export const dynamic = 'force-dynamic';
 
 const bookingSchema = z.object({
@@ -23,16 +24,28 @@ const bookingSchema = z.object({
   source: z.enum(["direct", "google", "facebook", "instagram", "referral", "messenger"]).optional().default("direct"),
 });
 
+// Champs PII retirés des réponses publiques en masse (?date= / liste).
+// L'occupation des créneaux n'en a pas besoin — utiliser /api/availability pour ça.
+type BookingRow = Record<string, unknown>;
+function stripPII(row: BookingRow): BookingRow {
+  const { client_name: _n, client_phone: _p, client_email: _e, note: _nt, ...safe } = row;
+  return safe;
+}
+
 export async function GET(req: NextRequest) {
-  // NOTE: GET reste PUBLIC — le booking client lit les dispos via ?date= et les pages
-  // /booking/rdv & /booking/cancel via ?id=. Protéger ici casserait la réservation publique.
-  // TODO sécurité: créer un endpoint /api/availability (occupation sans PII) + verrouiller ce GET à l'admin.
+  // GET reste PUBLIC mais filtre les PII pour les appels NON authentifiés :
+  //  - ?id= (UUID non-devinable) -> RDV complet, nécessaire à /booking/rdv & /booking/cancel.
+  //  - ?date= ou liste en masse, NON authentifié -> PII retirées (anti-fuite ~2000 clients).
+  //  - admin/barbier authentifié -> réponse complète inchangée (agenda, dashboards).
   try {
     const { searchParams } = new URL(req.url);
     const date = searchParams.get("date");
     const barber = searchParams.get("barber");
     const id = searchParams.get("id");
     const start = searchParams.get("start");
+
+    // Authentifié si jeton admin OU barbier valide (requireX renvoie null quand autorisé).
+    const isAuthed = requireAdmin(req) === null || requireBarber(req) === null;
 
     if (id) {
       const { data, error } = await supabase.from("bookings").select("*").eq("id", id).single();
@@ -59,7 +72,9 @@ export async function GET(req: NextRequest) {
       // Garde-fou: éviter boucle infinie
       if (from > 50000) break;
     }
-    return NextResponse.json(all);
+    // Non authentifié -> retirer les PII de chaque objet (le booking public n'en a pas besoin).
+    const out = isAuthed ? all : (all as BookingRow[]).map(stripPII);
+    return NextResponse.json(out);
   } catch (e) {
     console.error("Bookings GET error:", e);
     return NextResponse.json({ error: String(e) }, { status: 500 });

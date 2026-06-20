@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPromoOfTheMonth } from "@/lib/promo-rotator";
-import { aiClient as anthropic, MODELS } from "@/lib/ai";
-import type Anthropic from "@anthropic-ai/sdk";
+import { generateText, MODELS } from "@/lib/ai";
 import { isComposioConfigured, composioFacebookPost, composioInstagramPost } from "@/lib/composio";
 import { postToGoogleMyBusiness } from "@/lib/google";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -45,14 +44,13 @@ Rédige un post Facebook+Instagram au calibre des meilleurs barbershops, en fran
 - Termine par UN appel à l'action clair vers la réservation: "${promo.cta}"
 - N'inclus PAS d'URL (sera ajoutée auto)`;
 
-  const aiResponse = await anthropic.messages.create({
+  const aiText = await generateText({
     model: MODELS.SMART,
     max_tokens: 400,
     messages: [{ role: "user", content: prompt }],
   });
 
-  const aiText = aiResponse.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text || "";
-  const finalContent = `${aiText.trim()}\n\n📍 ciseaunoirbarbershop.com/booking`;
+  const finalContent = `${aiText}\n\n📍 ciseaunoirbarbershop.com/booking`;
 
   const results: Record<string, unknown> = {
     promo_key: promo.key,

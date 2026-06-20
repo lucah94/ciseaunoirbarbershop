@@ -18,11 +18,23 @@ function getMonthRange(offset = 0) {
   return { start, end, label };
 }
 
-function exportCSV(expenses: Expense[], label: string) {
+function exportCSV(expenses: Expense[], label: string, summary?: { revenue: number; expenses: number; net: number; tps: number; tvq: number; totalTaxes: number }) {
   const header = "Date,Description,Catégorie,Montant ($),Reçu\n";
   const rows = expenses.sort((a, b) => a.date.localeCompare(b.date))
     .map(e => `${e.date},"${e.description}",${e.category},${Number(e.amount).toFixed(2)},${e.receipt_url || ""}`).join("\n");
-  const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" });
+  let summaryBlock = "";
+  if (summary) {
+    summaryBlock = "\n\n" + [
+      `Sommaire,${label}`,
+      `Revenus ($),${summary.revenue.toFixed(2)}`,
+      `Dépenses ($),${summary.expenses.toFixed(2)}`,
+      `Net ($),${summary.net.toFixed(2)}`,
+      `TPS 5% incluse ($),${summary.tps.toFixed(2)}`,
+      `TVQ 9.975% incluse ($),${summary.tvq.toFixed(2)}`,
+      `Total taxes à remettre ($),${summary.totalTaxes.toFixed(2)}`,
+    ].join("\n");
+  }
+  const blob = new Blob([header + rows + summaryBlock], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a"); a.href = url;
   a.download = `depenses-${label.replace(/\s/g, "-")}.csv`; a.click();
@@ -62,6 +74,10 @@ export default function ComptabilitePage() {
   const totalExpenses = monthExpenses.reduce((s, e) => s + Number(e.amount), 0);
   const totalRevenue = monthCuts.reduce((s, c) => s + c.price * (1 - c.discount_percent / 100) + c.tip, 0);
   const net = totalRevenue - totalExpenses;
+  // Taxes Québec (TPS 5% + TVQ 9.975%) calculées sur les revenus de la période
+  const tps = totalRevenue * 0.05;
+  const tvq = totalRevenue * 0.09975;
+  const totalTaxes = tps + tvq;
   const byCategory = CATEGORIES.map(cat => ({
     cat,
     total: monthExpenses.filter(e => e.category === cat).reduce((s, e) => s + Number(e.amount), 0),
@@ -164,7 +180,7 @@ export default function ComptabilitePage() {
             </div>
           </div>
           {monthExpenses.length > 0 && (
-            <button onClick={() => exportCSV(monthExpenses, month.label)}
+            <button onClick={() => exportCSV(monthExpenses, month.label, { revenue: totalRevenue, expenses: totalExpenses, net, tps, tvq, totalTaxes })}
               style={{ background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.3)", color: "#C9A84C", padding: "10px 20px", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", cursor: "pointer", borderRadius: "8px", fontWeight: 600 }}>
               ↓ Exporter CSV
             </button>
@@ -182,6 +198,22 @@ export default function ComptabilitePage() {
               <p style={{ fontSize: "28px", color: s.color, fontWeight: 300 }}>{s.value}</p>
             </div>
           ))}
+        </div>
+
+        {/* Taxes Québec — TPS 5% + TVQ 9.975% sur les revenus de la période */}
+        <div style={{ background: "#111", border: "1px solid #1A1A1A", borderRadius: "8px", padding: "24px", marginBottom: "32px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
+            <p style={{ color: "#C9A84C", fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase" }}>Taxes Québec — sur revenus</p>
+            <p style={{ color: "#555", fontSize: "11px" }}>incluses dans les revenus · à remettre</p>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
+            {[{ label: "TPS (5%)", value: tps }, { label: "TVQ (9.975%)", value: tvq }, { label: "Total taxes à remettre", value: totalTaxes, accent: true }].map(t => (
+              <div key={t.label} style={{ background: "#0A0A0A", border: t.accent ? "1px solid rgba(212,175,55,0.25)" : "1px solid #1A1A1A", borderRadius: "8px", padding: "18px" }}>
+                <p style={{ color: "#555", fontSize: "10px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>{t.label}</p>
+                <p style={{ fontSize: "22px", color: t.accent ? "#C9A84C" : "#CCC", fontWeight: 300 }}>{t.value.toFixed(2)}$</p>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Zone upload photos */}

@@ -562,8 +562,8 @@ function BookingContent() {
     setSlotsError(false);
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 8000);
-    // Fetch TOUS les bookings de la date (sans filtre barber) — on séparera côté client
-    fetch(`/api/bookings?date=${date}&_=${Date.now()}`, { signal: ctrl.signal, cache: "no-store" })
+    // Fetch l'occupation de la date (sans PII) via /api/availability — on séparera côté client
+    fetch(`/api/availability?date=${date}&_=${Date.now()}`, { signal: ctrl.signal, cache: "no-store" })
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
       .then((allData) => {
       clearTimeout(timeout);

@@ -50,6 +50,22 @@ const PAGE_ACCESS_TOKEN = process.env.FACEBOOK_ACCESS_TOKEN!;
 import type Anthropic from "@anthropic-ai/sdk";
 import { aiClient as anthropic, MODELS } from "@/lib/ai";
 
+// Appel IA AVEC outils (tool use) + FALLBACK Sonnet — comme generateText de @/lib/ai,
+// mais qui préserve les tools / stop_reason (generateText ne retourne qu'un string).
+// Si le modèle choisi échoue, on réessaie UNE fois sur MODELS.SMART pour ne jamais
+// laisser une conversation client tomber.
+async function createWithFallback(
+  params: Omit<Anthropic.MessageCreateParamsNonStreaming, "model"> & { model: string }
+): Promise<Anthropic.Message> {
+  try {
+    return await anthropic.messages.create(params);
+  } catch (e) {
+    console.error(`[messenger] modèle "${params.model}" a échoué — fallback Sonnet:`, e);
+    if (params.model === MODELS.SMART) throw e;
+    return await anthropic.messages.create({ ...params, model: MODELS.SMART });
+  }
+}
+
 function getSystemPrompt(barbers: { name: string; schedule: DaySched }[], isFirstMessage: boolean): string {
   const now = new Date();
   const today = now.toLocaleDateString("fr-CA", { timeZone: "America/Toronto" }); // YYYY-MM-DD
@@ -475,8 +491,8 @@ export async function processMessageWithClaude(senderId: string, userMessage: st
   const barbers = await getActiveBarbers();
   const systemPrompt = getSystemPrompt(barbers, existingMessages.length === 0);
 
-  // Agentic loop
-  let response = await anthropic.messages.create({
+  // Agentic loop — conversation CLIENT: meilleur modèle (SMART) + fallback Sonnet si échec
+  let response = await createWithFallback({
     model: MODELS.SMART,
     max_tokens: 1024,
     system: systemPrompt,
@@ -504,7 +520,7 @@ export async function processMessageWithClaude(senderId: string, userMessage: st
     loopMessages.push({ role: "assistant", content: response.content });
     loopMessages.push({ role: "user", content: toolResults });
 
-    response = await anthropic.messages.create({
+    response = await createWithFallback({
       model: MODELS.SMART,
       max_tokens: 1024,
       system: systemPrompt,
