@@ -9,6 +9,11 @@ vi.mock("@/lib/supabase", () => ({
   supabaseAdmin: { from: vi.fn() },
 }));
 
+vi.mock("@/lib/auth", () => ({
+  requireAdmin: vi.fn(() => null),
+  requireBarber: vi.fn(() => null),
+}));
+
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { GET } from "@/app/api/clients/route";
 import { NextRequest } from "next/server";

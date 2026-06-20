@@ -3,6 +3,7 @@ import { supabaseAdmin as supabase } from "@/lib/supabase";
 import twilio from "twilio";
 import crypto from "crypto";
 import { notifyBookingCancelled, notifyBookingRescheduled, notifySystemAlert } from "@/lib/telegram";
+import { serviceDuration } from "@/lib/serviceDuration";
 export const dynamic = 'force-dynamic';
 
 // Détecte une erreur d'authentification Facebook (token expiré/invalide) dans une réponse Graph API.
@@ -221,16 +222,6 @@ const norm = (s: string) => (s || "").toLowerCase().normalize("NFD").replace(/[�
 const minutesOf = (t: string) => { const [h, m] = (t || "0:0").split(":").map(Number); return h * 60 + (m || 0); };
 
 // Durée d'un service en minutes (pour calculer/empiler les créneaux)
-function serviceDuration(service: string): number {
-  const s = (service || "").toLowerCase();
-  if (s.includes("premium") || s.includes("forfait")) return 75;
-  if (s.includes("shaver") && s.includes("coupe")) return 45; // Coupe + Barbe Shaver = 45 min
-  if ((s.includes("barbe") || s.includes("rasage") || s.includes("lame")) && s.includes("coupe")) return 60;
-  if (s.includes("enfant")) return 30;
-  if (s.includes("coupe") || s.includes("lavage") || s.includes("étudiant") || s.includes("etudiant") || s.includes("student")) return 45;
-  return 30;
-}
-
 // Départs aux 15 min; le RDV (durationMin) doit finir au plus 15 min après la fermeture.
 function genSlots(open: string, close: string, durationMin: number): string[] {
   const out: string[] = [];

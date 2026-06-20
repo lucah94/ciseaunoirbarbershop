@@ -16,86 +16,93 @@ vi.mock("@/lib/supabase", () => ({
 
 import { supabaseAdmin } from "@/lib/supabase";
 
-const mockChain = (data: unknown, error: unknown = null) => ({
-  select: vi.fn().mockReturnThis(),
-  eq: vi.fn().mockReturnThis(),
-  gte: vi.fn().mockResolvedValue({ data, error }),
-});
-
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
 });
 
+// The route now returns dynamic barbers: { barbers: [{ name, schedule, color,
+// role, blocks, overrides }] }. Blocks/overrides are fetched in bulk
+// (select("*").gte("date", today)) and grouped per barber server-side by name.
 function setupMocks({
   barbers = [{ name: "Melynda", schedule: {}, active: true }],
-  melBlocks = [],
-  melOverrides = [],
-  stepBlocks = [],
-  stepOverrides = [],
+  blocks = [] as Array<{ barber: string; date: string }>,
+  overrides = [] as Array<{ barber: string; date: string }>,
   error = null,
 } = {}) {
   vi.mocked(supabaseAdmin.from).mockImplementation((table: string) => {
-    if (table === "barbers") return mockChain(barbers, error) as never;
-    // barber_blocks and barber_day_overrides return different data per .eq("barber", ...)
+    if (table === "barbers") {
+      // select(...).eq("active", true).order(...) resolves
+      return {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockResolvedValue({ data: barbers, error }),
+      } as never;
+    }
+    // barber_blocks / barber_day_overrides: select("*").gte("date", today)
     return {
       select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockImplementation((_col: string, val: string) => ({
-        gte: vi.fn().mockResolvedValue({
-          data: table === "barber_blocks"
-            ? (val === "melynda" ? melBlocks : stepBlocks)
-            : (val === "melynda" ? melOverrides : stepOverrides),
-          error,
-        }),
-      })),
+      gte: vi.fn().mockResolvedValue({
+        data: table === "barber_blocks" ? blocks : overrides,
+        error,
+      }),
     } as never;
   });
 }
 
 describe("GET /api/booking/init", () => {
-  it("returns 200 with barbers, melynda, and stephanie objects", async () => {
+  it("returns 200 with a barbers array", async () => {
     setupMocks();
     const { GET } = await import("@/app/api/booking/init/route");
     const res = await GET();
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toHaveProperty("barbers");
-    expect(body).toHaveProperty("melynda");
-    expect(body).toHaveProperty("stephanie");
+    expect(Array.isArray(body.barbers)).toBe(true);
   });
 
-  it("melynda and stephanie objects each have blocks and overrides arrays", async () => {
-    setupMocks();
-    const { GET } = await import("@/app/api/booking/init/route");
-    const res = await GET();
-    const body = await res.json();
-    expect(Array.isArray(body.melynda.blocks)).toBe(true);
-    expect(Array.isArray(body.melynda.overrides)).toBe(true);
-    expect(Array.isArray(body.stephanie.blocks)).toBe(true);
-    expect(Array.isArray(body.stephanie.overrides)).toBe(true);
-  });
-
-  it("returns only active barbers", async () => {
+  it("each barber object has blocks and overrides arrays", async () => {
     setupMocks({
       barbers: [
         { name: "Melynda", schedule: {}, active: true },
-        { name: "Inactive", schedule: {}, active: false },
+        { name: "Stéphanie", schedule: {}, active: true },
       ],
+      blocks: [{ barber: "melynda", date: "2030-01-01" }],
+      overrides: [{ barber: "stephanie", date: "2030-01-01" }],
     });
     const { GET } = await import("@/app/api/booking/init/route");
     const res = await GET();
     const body = await res.json();
-    // The route filters via .eq("active", true)
-    expect(body.barbers.every((b: { active: boolean }) => b.active)).toBe(true);
+    for (const b of body.barbers) {
+      expect(Array.isArray(b.blocks)).toBe(true);
+      expect(Array.isArray(b.overrides)).toBe(true);
+    }
+    const mel = body.barbers.find((b: { name: string }) => b.name === "Melynda");
+    const step = body.barbers.find((b: { name: string }) => b.name === "Stéphanie");
+    // Blocks/overrides are grouped per barber by normalized name.
+    expect(mel.blocks).toHaveLength(1);
+    expect(step.overrides).toHaveLength(1);
   });
 
-  it("returns empty arrays when no blocks or overrides exist", async () => {
-    setupMocks({ melBlocks: [], melOverrides: [], stepBlocks: [], stepOverrides: [] });
+  it("returns the barbers from the active-filtered query", async () => {
+    setupMocks({
+      barbers: [{ name: "Melynda", schedule: {}, active: true }],
+    });
     const { GET } = await import("@/app/api/booking/init/route");
     const res = await GET();
     const body = await res.json();
-    expect(body.melynda.blocks).toHaveLength(0);
-    expect(body.stephanie.overrides).toHaveLength(0);
+    // The route filters via .eq("active", true); only those rows reach the response.
+    expect(body.barbers).toHaveLength(1);
+    expect(body.barbers[0].name).toBe("Melynda");
+  });
+
+  it("returns empty arrays when no blocks or overrides exist", async () => {
+    setupMocks({ barbers: [{ name: "Melynda", schedule: {}, active: true }], blocks: [], overrides: [] });
+    const { GET } = await import("@/app/api/booking/init/route");
+    const res = await GET();
+    const body = await res.json();
+    expect(body.barbers[0].blocks).toHaveLength(0);
+    expect(body.barbers[0].overrides).toHaveLength(0);
   });
 
   it.todo("returns blocks with dates >= today (future only)");

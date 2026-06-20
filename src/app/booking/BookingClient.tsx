@@ -8,6 +8,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { isPushSupported, subscribeAndSave } from "@/lib/push-notifications";
 import { supabase } from "@/lib/supabase";
+import { serviceDuration } from "@/lib/serviceDuration";
 
 // Type d'un service tel qu'utilisé partout dans le booking (price/duration en string pour l'affichage)
 type Service = { id: string; name: string; price: string; duration: string; desc: string; icon: string };
@@ -159,16 +160,6 @@ function isDateAvailableForBarber(
 
 // Durée estimée d'un RDV existant à partir de son nom de service (utilisé pour les RDV déjà en DB).
 // Pour un NOUVEAU RDV, on prend plutôt la durée exacte du champ `duration` de SERVICES.
-function getServiceDuration(service: string): number {
-  const s = service.toLowerCase();
-  if (s.includes("premium") || s.includes("forfait")) return 75;
-  if (s.includes("shaver") && s.includes("coupe")) return 45; // Coupe + Barbe Shaver = 45 min
-  if ((s.includes("barbe") || s.includes("rasage") || s.includes("lame")) && s.includes("coupe")) return 60;
-  if (s.includes("enfant")) return 30; // enfant = 30 min (vérifié avant étudiant)
-  if (s.includes("coupe") || s.includes("lavage") || s.includes("étudiant") || s.includes("etudiant") || s.includes("student")) return 45;
-  return 30;
-}
-
 // Durée EXACTE du service sélectionné (depuis sa fiche) — le bon chiffre pour le bon service.
 function selectedServiceDuration(serviceId: string, services: Service[]): number {
   const svc = services.find(s => s.id === serviceId);
@@ -190,7 +181,7 @@ function isSlotOccupied(
     const bookingStart = bh * 60 + bm;
     const bookingEnd = b.end_time
       ? (() => { const [eh, em] = b.end_time!.split(":").map(Number); return eh * 60 + em; })()
-      : bookingStart + getServiceDuration(b.service);
+      : bookingStart + serviceDuration(b.service);
     if (slotMin < bookingEnd && slotMin + dur > bookingStart) return true;
   }
   if (blockedRanges && date) {

@@ -21,7 +21,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { notifySystemAlert } from "@/lib/telegram";
 
 const mockFrom = vi.fn();
-(supabaseAdmin as ReturnType<typeof vi.fn>).from = mockFrom;
+(supabaseAdmin as unknown as { from: typeof mockFrom }).from = mockFrom;
 
 function makeRequest(secret = "test-secret") {
   return new Request("http://localhost/api/cron/morning-briefing", {

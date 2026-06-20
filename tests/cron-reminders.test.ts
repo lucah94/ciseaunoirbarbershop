@@ -35,7 +35,8 @@ vi.mock("twilio", () => ({
 }));
 
 import { supabaseAdmin as supabase } from "@/lib/supabase";
-import { sendReminderEmail, sendReminderSMS, sendRebookingEmail } from "@/lib/email";
+import { sendReminderEmail, sendRebookingEmail } from "@/lib/email";
+import { sendReminderSMS } from "@/lib/sms";
 
 function makeRequest(secret = "test-secret") {
   return new Request("http://localhost/api/cron/reminders", {
@@ -58,7 +59,7 @@ function makeSupabaseChain(data: unknown, error: unknown = null) {
   return chain;
 }
 
-const mockSupabase = supabase as ReturnType<typeof vi.fn>;
+const mockSupabase = supabase as unknown as { from: ReturnType<typeof vi.fn> };
 
 beforeEach(() => {
   vi.clearAllMocks();

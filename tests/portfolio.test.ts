@@ -56,7 +56,7 @@ describe("GET /api/portfolio", () => {
       { id: "2", url: "https://example.com/img2.jpg", caption: "Barbe" },
     ];
     setupSupabaseMock(items);
-    const chain = (supabase as ReturnType<typeof vi.fn>).from.mock.results[0]?.value;
+    const chain = (supabase as unknown as { from: ReturnType<typeof vi.fn> }).from.mock.results[0]?.value;
     if (chain) chain.order.mockResolvedValue({ data: items, error: null });
     const { GET } = await import("@/app/api/portfolio/route");
     const res = await GET();

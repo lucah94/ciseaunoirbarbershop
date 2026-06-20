@@ -102,7 +102,7 @@ describe("trackBookingConversion — Meta CAPI active", () => {
 
   it("fires fetch to Meta CAPI events endpoint", async () => {
     await trackBookingConversion(booking);
-    const call = fetchSpy.mock.calls.find(([url]) =>
+    const call = fetchSpy.mock.calls.find(([url]: [unknown, ...unknown[]]) =>
       String(url).includes("graph.facebook.com")
     );
     expect(call).toBeDefined();
@@ -110,7 +110,7 @@ describe("trackBookingConversion — Meta CAPI active", () => {
 
   it("sends event_name 'Schedule' to Meta CAPI", async () => {
     await trackBookingConversion(booking);
-    const call = fetchSpy.mock.calls.find(([url]) =>
+    const call = fetchSpy.mock.calls.find(([url]: [unknown, ...unknown[]]) =>
       String(url).includes("graph.facebook.com")
     );
     expect(call).toBeDefined();
@@ -120,7 +120,7 @@ describe("trackBookingConversion — Meta CAPI active", () => {
 
   it("hashes client_email before sending to Meta (not plain text)", async () => {
     await trackBookingConversion(booking);
-    const call = fetchSpy.mock.calls.find(([url]) =>
+    const call = fetchSpy.mock.calls.find(([url]: [unknown, ...unknown[]]) =>
       String(url).includes("graph.facebook.com")
     );
     const body = JSON.parse(call![1]?.body as string);
@@ -131,7 +131,7 @@ describe("trackBookingConversion — Meta CAPI active", () => {
 
   it("hashes client_phone (normalized to E.164) before sending to Meta", async () => {
     await trackBookingConversion(booking);
-    const call = fetchSpy.mock.calls.find(([url]) =>
+    const call = fetchSpy.mock.calls.find(([url]: [unknown, ...unknown[]]) =>
       String(url).includes("graph.facebook.com")
     );
     const body = JSON.parse(call![1]?.body as string);
@@ -147,7 +147,7 @@ describe("trackBookingConversion — Meta CAPI active", () => {
 
   it("skips client_email fields when client_email is null", async () => {
     await trackBookingConversion({ ...booking, client_email: null });
-    const call = fetchSpy.mock.calls.find(([url]) =>
+    const call = fetchSpy.mock.calls.find(([url]: [unknown, ...unknown[]]) =>
       String(url).includes("graph.facebook.com")
     );
     const body = JSON.parse(call![1]?.body as string);

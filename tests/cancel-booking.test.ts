@@ -33,7 +33,7 @@ beforeEach(() => vi.resetAllMocks());
 describe("GET /api/bookings/[id]/cancel", () => {
   it("returns text/html Content-Type in all responses", async () => {
     const chain = makeChain({ data: null, error: { message: "not found" } });
-    vi.mocked(supabaseAdmin.from).mockReturnValue(chain as ReturnType<typeof supabaseAdmin.from>);
+    vi.mocked(supabaseAdmin.from).mockReturnValue(chain as unknown as ReturnType<typeof supabaseAdmin.from>);
 
     const { GET } = await import("@/app/api/bookings/[id]/cancel/route");
     const res = await GET(makeRequest("unknown-id") as Parameters<typeof GET>[0], {
@@ -45,7 +45,7 @@ describe("GET /api/bookings/[id]/cancel", () => {
 
   it("returns 404 HTML page for unknown booking ID", async () => {
     const chain = makeChain({ data: null, error: { message: "not found" } });
-    vi.mocked(supabaseAdmin.from).mockReturnValue(chain as ReturnType<typeof supabaseAdmin.from>);
+    vi.mocked(supabaseAdmin.from).mockReturnValue(chain as unknown as ReturnType<typeof supabaseAdmin.from>);
 
     const { GET } = await import("@/app/api/bookings/[id]/cancel/route");
     const res = await GET(makeRequest("bad-id") as Parameters<typeof GET>[0], {
@@ -67,7 +67,7 @@ describe("GET /api/bookings/[id]/cancel", () => {
       status: "cancelled",
     };
     const chain = makeChain({ data: booking, error: null });
-    vi.mocked(supabaseAdmin.from).mockReturnValue(chain as ReturnType<typeof supabaseAdmin.from>);
+    vi.mocked(supabaseAdmin.from).mockReturnValue(chain as unknown as ReturnType<typeof supabaseAdmin.from>);
 
     const { GET } = await import("@/app/api/bookings/[id]/cancel/route");
     const res = await GET(makeRequest("abc") as Parameters<typeof GET>[0], {
@@ -90,7 +90,7 @@ describe("GET /api/bookings/[id]/cancel", () => {
       status: "confirmed",
     };
     const chain = makeChain({ data: booking, error: null });
-    vi.mocked(supabaseAdmin.from).mockReturnValue(chain as ReturnType<typeof supabaseAdmin.from>);
+    vi.mocked(supabaseAdmin.from).mockReturnValue(chain as unknown as ReturnType<typeof supabaseAdmin.from>);
 
     const { GET } = await import("@/app/api/bookings/[id]/cancel/route");
     const res = await GET(makeRequest("abc") as Parameters<typeof GET>[0], {
@@ -118,8 +118,8 @@ describe("GET /api/bookings/[id]/cancel", () => {
       eq: vi.fn().mockResolvedValue({ error: null }),
     };
     vi.mocked(supabaseAdmin.from)
-      .mockReturnValueOnce(selectChain as ReturnType<typeof supabaseAdmin.from>)
-      .mockReturnValue(updateChain as ReturnType<typeof supabaseAdmin.from>);
+      .mockReturnValueOnce(selectChain as unknown as ReturnType<typeof supabaseAdmin.from>)
+      .mockReturnValue(updateChain as unknown as ReturnType<typeof supabaseAdmin.from>);
 
     const { GET } = await import("@/app/api/bookings/[id]/cancel/route");
     const res = await GET(makeRequest("future-abc") as Parameters<typeof GET>[0], {
@@ -150,8 +150,8 @@ describe("GET /api/bookings/[id]/cancel", () => {
       eq: vi.fn().mockResolvedValue({ error: null }),
     };
     vi.mocked(supabaseAdmin.from)
-      .mockReturnValueOnce(selectChain as ReturnType<typeof supabaseAdmin.from>)
-      .mockReturnValue(updateChain as ReturnType<typeof supabaseAdmin.from>);
+      .mockReturnValueOnce(selectChain as unknown as ReturnType<typeof supabaseAdmin.from>)
+      .mockReturnValue(updateChain as unknown as ReturnType<typeof supabaseAdmin.from>);
 
     const { GET } = await import("@/app/api/bookings/[id]/cancel/route");
     const res = await GET(makeRequest("xyz") as Parameters<typeof GET>[0], {
@@ -180,8 +180,8 @@ describe("GET /api/bookings/[id]/cancel", () => {
       eq: vi.fn().mockResolvedValue({ error: null }),
     };
     vi.mocked(supabaseAdmin.from)
-      .mockReturnValueOnce(selectChain as ReturnType<typeof supabaseAdmin.from>)
-      .mockReturnValue(updateChain as ReturnType<typeof supabaseAdmin.from>);
+      .mockReturnValueOnce(selectChain as unknown as ReturnType<typeof supabaseAdmin.from>)
+      .mockReturnValue(updateChain as unknown as ReturnType<typeof supabaseAdmin.from>);
 
     const { GET } = await import("@/app/api/bookings/[id]/cancel/route");
     const res = await GET(makeRequest("idor-test") as Parameters<typeof GET>[0], {

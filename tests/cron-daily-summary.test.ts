@@ -156,7 +156,7 @@ describe("GET /api/cron/daily-summary — status counters", () => {
     expect(json.no_show).toBe(1);
   });
 
-  it("counts Melynda RDVs excluding cancelled", async () => {
+  it("counts RDVs per barber (byBarber) excluding cancelled", async () => {
     const bookings = [
       { status: "completed", price: 35, barber: "Melynda", no_show: false },
       { status: "cancelled", price: 0, barber: "Melynda", no_show: false },
@@ -170,7 +170,9 @@ describe("GET /api/cron/daily-summary — status counters", () => {
 
     const res = await GET(makeRequest("Bearer test-secret"));
     const json = await res.json();
-    expect(json.melynda).toBe(1); // only non-cancelled Melynda bookings
+    // byBarber is dynamic; cancelled bookings are excluded from the per-barber count.
+    expect(json.byBarber.Melynda).toBe(1);
+    expect(json.byBarber["Stéphanie"]).toBe(1);
   });
 });
 

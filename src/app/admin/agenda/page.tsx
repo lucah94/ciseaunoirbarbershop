@@ -148,18 +148,23 @@ export default function AgendaPage() {
         setLoadError(false);
         retryRef.current = 0;
 
-        // Fetch loyalty visit counts for unique client emails
+        // Fetch loyalty visit counts for unique client emails (batch, 1 seul appel réseau)
         const emails = [...new Set(list.map((b: Booking) => b.client_email).filter(Boolean))] as string[];
-        emails.forEach(email => {
-          fetch(`/api/loyalty?email=${encodeURIComponent(email)}&_=${Date.now()}`, { cache: "no-store" })
+        if (emails.length > 0) {
+          fetch(`/api/loyalty?_=${Date.now()}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ emails }),
+            cache: "no-store",
+          })
             .then(r => r.json())
-            .then(d => {
-              if (d && typeof d.visits === "number") {
-                setVisitCounts(prev => ({ ...prev, [email]: d.visits }));
+            .then((counts: Record<string, number>) => {
+              if (counts && typeof counts === "object") {
+                setVisitCounts(prev => ({ ...prev, ...counts }));
               }
             })
             .catch(() => {});
-        });
+        }
       })
       .catch(() => {
         clearTimeout(timeout);

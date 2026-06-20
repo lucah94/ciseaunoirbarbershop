@@ -115,7 +115,7 @@ describe("sendSMS — blacklist guard", () => {
     const { sendSMS } = await import("@/lib/sms");
 
     await sendSMS("4186655703", "Test message", "test");
-    expect(twilio as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+    expect(twilio as unknown as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
   it("calls Twilio send when phone is NOT in blacklist", async () => {
@@ -125,7 +125,7 @@ describe("sendSMS — blacklist guard", () => {
 
     await sendSMS("4186655703", "Test message", "test");
     // Twilio create should be called
-    const twilioInstance = (twilio as ReturnType<typeof vi.fn>).mock.results.at(-1)?.value;
+    const twilioInstance = (twilio as unknown as ReturnType<typeof vi.fn>).mock.results.at(-1)?.value;
     expect(twilioInstance?.messages.create).toHaveBeenCalledOnce();
   });
 
@@ -171,7 +171,7 @@ describe("sendSMS — 24h dedup guard", () => {
     const { sendSMS } = await import("@/lib/sms");
 
     await sendSMS("4186655703", "Test message", "winback-60d");
-    expect(twilio as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+    expect(twilio as unknown as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
   it("sends and logs when no recent SMS of that type exists", async () => {
@@ -180,7 +180,7 @@ describe("sendSMS — 24h dedup guard", () => {
     const { sendSMS } = await import("@/lib/sms");
 
     await sendSMS("4186655703", "Test message", "reminder");
-    const twilioInstance = (twilio as ReturnType<typeof vi.fn>).mock.results.at(-1)?.value;
+    const twilioInstance = (twilio as unknown as ReturnType<typeof vi.fn>).mock.results.at(-1)?.value;
     expect(twilioInstance?.messages.create).toHaveBeenCalledOnce();
   });
 });
@@ -208,24 +208,27 @@ describe("sendBarberNotificationSMS", () => {
 
   afterEach(() => vi.clearAllMocks());
 
-  it("skips send when barber name does not include 'melynda'", async () => {
+  it("falls back to MELYNDA_PHONE when the barber has no phone in the table", async () => {
     const { sendBarberNotificationSMS } = await import("@/lib/sms");
+    // No barbers row matches "Stéphanie" → fallback to MELYNDA_PHONE → still sends.
     await sendBarberNotificationSMS({ ...booking, barber: "Stéphanie" });
-    // Twilio constructor should never be called if message is skipped
-    expect(twilio as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+    const twilioInstance = (twilio as unknown as ReturnType<typeof vi.fn>).mock.results.at(-1)?.value;
+    expect(twilioInstance?.messages.create).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "+14181112222" })
+    );
   });
 
   it("skips send when MELYNDA_PHONE env var is missing", async () => {
     delete process.env.MELYNDA_PHONE;
     const { sendBarberNotificationSMS } = await import("@/lib/sms");
     await sendBarberNotificationSMS(booking);
-    expect(twilio as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+    expect(twilio as unknown as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
   it("sends to MELYNDA_PHONE when barber name includes 'melynda' (case-insensitive)", async () => {
     const { sendBarberNotificationSMS } = await import("@/lib/sms");
     await sendBarberNotificationSMS({ ...booking, barber: "MELYNDA" });
-    const twilioInstance = (twilio as ReturnType<typeof vi.fn>).mock.results.at(-1)?.value;
+    const twilioInstance = (twilio as unknown as ReturnType<typeof vi.fn>).mock.results.at(-1)?.value;
     expect(twilioInstance?.messages.create).toHaveBeenCalledWith(
       expect.objectContaining({ to: "+14181112222" })
     );
@@ -258,7 +261,7 @@ describe("sendBookingConfirmationSMS", () => {
   it("includes calendar link in body when booking_id is provided", async () => {
     const { sendBookingConfirmationSMS } = await import("@/lib/sms");
     await sendBookingConfirmationSMS({ ...baseBooking, booking_id: "uuid-booking-123" });
-    const twilioInstance = (twilio as ReturnType<typeof vi.fn>).mock.results.at(-1)?.value;
+    const twilioInstance = (twilio as unknown as ReturnType<typeof vi.fn>).mock.results.at(-1)?.value;
     const [opts] = twilioInstance?.messages.create.mock.calls[0] ?? [];
     expect(opts?.body).toContain("uuid-booking-123");
     expect(opts?.body).toContain("/api/calendar/booking/");
@@ -267,7 +270,7 @@ describe("sendBookingConfirmationSMS", () => {
   it("omits calendar link when booking_id is absent", async () => {
     const { sendBookingConfirmationSMS } = await import("@/lib/sms");
     await sendBookingConfirmationSMS(baseBooking);
-    const twilioInstance = (twilio as ReturnType<typeof vi.fn>).mock.results.at(-1)?.value;
+    const twilioInstance = (twilio as unknown as ReturnType<typeof vi.fn>).mock.results.at(-1)?.value;
     const [opts] = twilioInstance?.messages.create.mock.calls[0] ?? [];
     expect(opts?.body).not.toContain("/api/calendar/booking/");
   });
@@ -277,7 +280,7 @@ describe("sendBookingConfirmationSMS", () => {
     vi.resetModules();
     const { sendBookingConfirmationSMS } = await import("@/lib/sms");
     await sendBookingConfirmationSMS(baseBooking);
-    expect(twilio as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+    expect(twilio as unknown as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 });
 

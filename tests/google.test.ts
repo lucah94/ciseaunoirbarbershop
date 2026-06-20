@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 function makeFetch(...responses: Array<{ ok: boolean; status?: number; json?: object; text?: string }>) {
   let call = 0;
-  return vi.fn(async () => {
+  return vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => {
     const resp = responses[Math.min(call++, responses.length - 1)];
     return {
       ok: resp.ok,

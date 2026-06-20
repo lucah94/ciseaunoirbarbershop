@@ -20,11 +20,14 @@ function makeBookingsChain(result: { data: null | unknown; error: null | { messa
 }
 
 function makeReq() {
-  return new Request("https://ciseaunoirbarbershop.com/api/cron/keepalive");
+  return new Request("https://ciseaunoirbarbershop.com/api/cron/keepalive", {
+    headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+  });
 }
 
 beforeEach(() => {
   vi.resetAllMocks();
+  process.env.CRON_SECRET = "test-secret";
   delete process.env.SUPABASE_MANAGEMENT_TOKEN;
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
     json: vi.fn().mockResolvedValue({ status: "ok" }),
@@ -36,7 +39,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("GET /api/cron/keepalive", () => {
   it("returns 200 with status:ok when Supabase is reachable", async () => {
     const chain = makeBookingsChain({ data: [{ id: "1" }], error: null });
-    vi.mocked(supabaseAdmin.from).mockReturnValue(chain as ReturnType<typeof supabaseAdmin.from>);
+    vi.mocked(supabaseAdmin.from).mockReturnValue(chain as unknown as ReturnType<typeof supabaseAdmin.from>);
 
     const { GET } = await import("@/app/api/cron/keepalive/route");
     const res = await GET(makeReq() as Parameters<typeof GET>[0]);
@@ -50,7 +53,7 @@ describe("GET /api/cron/keepalive", () => {
 
   it("returns 500 when Supabase returns an error", async () => {
     const chain = makeBookingsChain({ data: null, error: { message: "DB unavailable" } });
-    vi.mocked(supabaseAdmin.from).mockReturnValue(chain as ReturnType<typeof supabaseAdmin.from>);
+    vi.mocked(supabaseAdmin.from).mockReturnValue(chain as unknown as ReturnType<typeof supabaseAdmin.from>);
 
     const { GET } = await import("@/app/api/cron/keepalive/route");
     const res = await GET(makeReq() as Parameters<typeof GET>[0]);
@@ -69,7 +72,7 @@ describe("GET /api/cron/keepalive", () => {
 
     const { supabaseAdmin: supabase2 } = await import("@/lib/supabase");
     const chain = makeBookingsChain({ data: null, error: { message: "paused" } });
-    vi.mocked(supabase2.from).mockReturnValue(chain as ReturnType<typeof supabase2.from>);
+    vi.mocked(supabase2.from).mockReturnValue(chain as unknown as ReturnType<typeof supabase2.from>);
 
     const { GET } = await import("@/app/api/cron/keepalive/route");
     const res = await GET(makeReq() as Parameters<typeof GET>[0]);
@@ -90,7 +93,7 @@ describe("GET /api/cron/keepalive", () => {
 
     const { supabaseAdmin: supabase2 } = await import("@/lib/supabase");
     const chain = makeBookingsChain({ data: null, error: { message: "paused" } });
-    vi.mocked(supabase2.from).mockReturnValue(chain as ReturnType<typeof supabase2.from>);
+    vi.mocked(supabase2.from).mockReturnValue(chain as unknown as ReturnType<typeof supabase2.from>);
 
     const { GET } = await import("@/app/api/cron/keepalive/route");
     const res = await GET(makeReq() as Parameters<typeof GET>[0]);
@@ -113,7 +116,7 @@ describe("GET /api/cron/keepalive", () => {
   // Security gap documented by audit 2026-06-10
   it("SECURITY: responds to unauthenticated requests (no auth check — CRITICAL gap)", async () => {
     const chain = makeBookingsChain({ data: [{}], error: null });
-    vi.mocked(supabaseAdmin.from).mockReturnValue(chain as ReturnType<typeof supabaseAdmin.from>);
+    vi.mocked(supabaseAdmin.from).mockReturnValue(chain as unknown as ReturnType<typeof supabaseAdmin.from>);
 
     const { GET } = await import("@/app/api/cron/keepalive/route");
     const req = makeReq(); // no Authorization header, no CRON_SECRET

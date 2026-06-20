@@ -7,19 +7,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-// Fluent mock that resolves to empty array at any point in the chain
-function makeFluentQuery(result = { data: [], error: null }) {
-  const q: Record<string, unknown> = {};
-  const methods = ["select", "eq", "neq", "not", "is", "order", "range", "single", "gte", "lte", "in", "limit"];
-  for (const m of methods) {
-    q[m] = vi.fn(() => Promise.resolve(result).then ? { ...q, then: undefined } : q);
-  }
-  // Make the query awaitable at any point
-  Object.defineProperty(q, Symbol.toStringTag, { value: "Promise" });
-  q.then = (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve);
-  return q;
-}
-
 vi.mock("@/lib/supabase", () => {
   const fluentChain: Record<string, unknown> = {};
   const methods = ["select", "eq", "neq", "not", "is", "order", "range", "gte", "lte", "in", "limit", "single", "maybeSingle"];
@@ -126,11 +113,16 @@ describe("POST /api/bookings — Zod schema validation", () => {
     expect(res.status).not.toBe(400);
   });
 
-  // ── barber enum ───────────────────────────────────────────────────────────────
+  // ── barber (free-form string, dynamic barbers) ────────────────────────────────
 
-  it("returns 400 when barber is not Melynda or Stéphanie", async () => {
-    const res = await POST(makePost({ ...validBody, barber: "Unknown" }));
+  it("returns 400 when barber is an empty string", async () => {
+    const res = await POST(makePost({ ...validBody, barber: "" }));
     expect(res.status).toBe(400);
+  });
+
+  it("accepts any non-empty barber name (dynamic barbers)", async () => {
+    const res = await POST(makePost({ ...validBody, barber: "Unknown" }));
+    expect(res.status).not.toBe(400);
   });
 
   it("accepts Stéphanie as barber", async () => {

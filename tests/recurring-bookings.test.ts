@@ -69,7 +69,7 @@ describe("POST /api/bookings/recurring", () => {
   it("creates recurrence_count bookings for weekly pattern", async () => {
     const insertedRows = Array.from({ length: 4 }, (_, i) => ({ id: `id-${i}`, date: "" }));
     const chain = makeInsertChain({ data: insertedRows, error: null });
-    vi.mocked(supabase.from).mockReturnValue(chain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(chain as unknown as ReturnType<typeof supabase.from>);
 
     const { POST } = await import("@/app/api/bookings/recurring/route");
     const res = await POST(makePostReq(validBody) as Parameters<typeof POST>[0]);
@@ -86,7 +86,7 @@ describe("POST /api/bookings/recurring", () => {
       insert: vi.fn((rows: unknown[]) => { captured = rows; return chain; }),
       select: vi.fn().mockResolvedValue({ data: [], error: null }),
     };
-    vi.mocked(supabase.from).mockReturnValue(chain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(chain as unknown as ReturnType<typeof supabase.from>);
 
     const { POST } = await import("@/app/api/bookings/recurring/route");
     await POST(makePostReq({ ...validBody, recurrence_count: 3 }) as Parameters<typeof POST>[0]);
@@ -103,7 +103,7 @@ describe("POST /api/bookings/recurring", () => {
       insert: vi.fn((rows: unknown[]) => { captured = rows; return chain; }),
       select: vi.fn().mockResolvedValue({ data: [{}], error: null }),
     };
-    vi.mocked(supabase.from).mockReturnValue(chain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(chain as unknown as ReturnType<typeof supabase.from>);
 
     const { POST } = await import("@/app/api/bookings/recurring/route");
     await POST(makePostReq({ ...validBody, recurrence_pattern: "biweekly", recurrence_count: 2 }) as Parameters<typeof POST>[0]);
@@ -118,7 +118,7 @@ describe("POST /api/bookings/recurring", () => {
       insert: vi.fn((rows: unknown[]) => { captured = rows; return chain; }),
       select: vi.fn().mockResolvedValue({ data: [{}], error: null }),
     };
-    vi.mocked(supabase.from).mockReturnValue(chain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(chain as unknown as ReturnType<typeof supabase.from>);
 
     const { POST } = await import("@/app/api/bookings/recurring/route");
     await POST(makePostReq(validBody) as Parameters<typeof POST>[0]);
@@ -129,7 +129,7 @@ describe("POST /api/bookings/recurring", () => {
 
   it("returns 500 on Supabase insert error", async () => {
     const chain = makeInsertChain({ data: null, error: { message: "DB error" } });
-    vi.mocked(supabase.from).mockReturnValue(chain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(chain as unknown as ReturnType<typeof supabase.from>);
 
     const { POST } = await import("@/app/api/bookings/recurring/route");
     const res = await POST(makePostReq(validBody) as Parameters<typeof POST>[0]);
@@ -155,7 +155,7 @@ describe("DELETE /api/bookings/recurring", () => {
 
   it("cancels only future confirmed bookings for the group", async () => {
     const chain = makeUpdateChain({ error: null });
-    vi.mocked(supabase.from).mockReturnValue(chain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(chain as unknown as ReturnType<typeof supabase.from>);
 
     const { DELETE } = await import("@/app/api/bookings/recurring/route");
     const res = await DELETE(makeDeleteReq("group-abc") as Parameters<typeof DELETE>[0]);
@@ -169,7 +169,7 @@ describe("DELETE /api/bookings/recurring", () => {
 
   it("returns 500 on Supabase error", async () => {
     const chain = makeUpdateChain({ error: { message: "DB error" } });
-    vi.mocked(supabase.from).mockReturnValue(chain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(chain as unknown as ReturnType<typeof supabase.from>);
 
     const { DELETE } = await import("@/app/api/bookings/recurring/route");
     const res = await DELETE(makeDeleteReq("group-xyz") as Parameters<typeof DELETE>[0]);

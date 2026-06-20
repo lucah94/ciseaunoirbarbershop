@@ -8,6 +8,7 @@ import { Resend } from "resend";
 import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
 import { requireAdmin, requireBarber } from "@/lib/auth";
+import { serviceDuration } from "@/lib/serviceDuration";
 export const dynamic = 'force-dynamic';
 
 const bookingSchema = z.object({
@@ -103,18 +104,9 @@ export async function POST(req: NextRequest) {
   const body = result.data;
 
   // ── Vérification chevauchement (ignoré si force=true) ───────────
-  function svcDuration(service: string): number {
-    const s = service.toLowerCase();
-    if (s.includes("premium") || s.includes("forfait")) return 75;
-    if (s.includes("shaver") && s.includes("coupe")) return 45; // Coupe + Barbe Shaver = 45 min
-    if ((s.includes("barbe") || s.includes("rasage") || s.includes("lame")) && s.includes("coupe")) return 60;
-    if (s.includes("enfant") && !s.includes("coupe")) return 30; // service Enfant seul = 30 min
-    if (s.includes("coupe") || s.includes("lavage") || s.includes("étudiant") || s.includes("etudiant") || s.includes("enfant")) return 45;
-    return 30;
-  }
   const [nh, nm] = body.time.split(":").map(Number);
   const newStart = nh * 60 + nm;
-  const newEnd = newStart + svcDuration(body.service);
+  const newEnd = newStart + serviceDuration(body.service);
 
   const [{ data: existing }, { data: blocks }] = await Promise.all([
     supabase.from("bookings").select("time, service, status, end_time")
@@ -129,7 +121,7 @@ export async function POST(req: NextRequest) {
       const bStart = bh * 60 + bm;
       const bEnd = b.end_time
         ? (() => { const [eh, em] = b.end_time.split(":").map(Number); return eh * 60 + em; })()
-        : bStart + svcDuration(b.service);
+        : bStart + serviceDuration(b.service);
       if (newStart < bEnd && newEnd > bStart) {
         return NextResponse.json({ error: "Ce créneau est déjà occupé — chevauchement détecté." }, { status: 409 });
       }
@@ -253,22 +245,13 @@ export async function PATCH(req: NextRequest) {
     if (!forceOverlap && (updates.time || updates.date || updates.barber)) {
       const { data: current } = await supabase.from("bookings").select("*").eq("id", id).single();
       if (current) {
-        function patchSvcDuration(service: string): number {
-          const s = service.toLowerCase();
-          if (s.includes("premium") || s.includes("forfait")) return 75;
-          if (s.includes("shaver") && s.includes("coupe")) return 45; // Coupe + Barbe Shaver = 45 min
-          if ((s.includes("barbe") || s.includes("rasage") || s.includes("lame")) && s.includes("coupe")) return 60;
-          if (s.includes("enfant") && !s.includes("coupe")) return 30; // service Enfant seul = 30 min
-          if (s.includes("coupe") || s.includes("lavage") || s.includes("étudiant") || s.includes("etudiant") || s.includes("enfant")) return 45;
-          return 30;
-        }
         const checkBarber = (updates.barber || current.barber) as string;
         const checkDate = (updates.date || current.date) as string;
         const checkTime = (updates.time || current.time) as string;
         const checkService = (updates.service || current.service) as string;
         const [nh, nm] = checkTime.split(":").map(Number);
         const newStart = nh * 60 + nm;
-        const newEnd = newStart + patchSvcDuration(checkService);
+        const newEnd = newStart + serviceDuration(checkService);
 
         const { data: existing } = await supabase.from("bookings")
           .select("id, time, service, end_time")
@@ -279,7 +262,7 @@ export async function PATCH(req: NextRequest) {
           const bStart = bh * 60 + bm;
           const bEnd = b.end_time
             ? (() => { const [eh, em] = (b.end_time as string).split(":").map(Number); return eh * 60 + em; })()
-            : bStart + patchSvcDuration(b.service);
+            : bStart + serviceDuration(b.service);
           if (newStart < bEnd && newEnd > bStart) {
             return NextResponse.json({ error: "Ce créneau est déjà occupé — chevauchement détecté." }, { status: 409 });
           }

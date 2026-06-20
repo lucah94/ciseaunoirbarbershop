@@ -27,15 +27,22 @@ function setupPing(error: unknown = null) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  process.env.CRON_SECRET = "test-secret";
   delete process.env.SUPABASE_MANAGEMENT_TOKEN;
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }));
 });
+
+function makeReq() {
+  return new Request("http://localhost/api/cron/keepalive", {
+    headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+  });
+}
 
 describe("GET /api/cron/keepalive — healthy", () => {
   it("returns status='ok' and latency when Supabase ping succeeds", async () => {
     setupPing(null);
     const { GET } = await import("@/app/api/cron/keepalive/route");
-    const req = new Request("http://localhost/api/cron/keepalive");
+    const req = makeReq();
     const res = await GET(req as never);
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -49,7 +56,7 @@ describe("GET /api/cron/keepalive — degraded", () => {
   it("returns 500 when Supabase query returns an error", async () => {
     setupPing({ message: "connection refused" });
     const { GET } = await import("@/app/api/cron/keepalive/route");
-    const req = new Request("http://localhost/api/cron/keepalive");
+    const req = makeReq();
     const res = await GET(req as never);
     expect(res.status).toBe(500);
     const json = await res.json();
@@ -59,7 +66,7 @@ describe("GET /api/cron/keepalive — degraded", () => {
   it("sets restore_triggered=false when SUPABASE_MANAGEMENT_TOKEN is absent", async () => {
     setupPing({ message: "error" });
     const { GET } = await import("@/app/api/cron/keepalive/route");
-    const req = new Request("http://localhost/api/cron/keepalive");
+    const req = makeReq();
     const res = await GET(req as never);
     const json = await res.json();
     expect(json.restore_triggered).toBe(false);

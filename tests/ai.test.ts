@@ -19,14 +19,14 @@ describe("MODELS (Anthropic path — no OPENROUTER_API_KEY)", () => {
     vi.resetModules();
   });
 
-  it("FAST tier resolves to claude-haiku model", async () => {
+  it("FAST tier resolves to the deepseek-chat model", async () => {
     const { MODELS } = await import("@/lib/ai");
-    expect(MODELS.FAST).toContain("haiku");
+    expect(MODELS.FAST).toContain("deepseek");
   });
 
-  it("BALANCED tier resolves to claude-sonnet model", async () => {
+  it("BALANCED tier resolves to the deepseek-chat model", async () => {
     const { MODELS } = await import("@/lib/ai");
-    expect(MODELS.BALANCED).toContain("sonnet");
+    expect(MODELS.BALANCED).toContain("deepseek");
   });
 
   it("SMART tier resolves to claude-sonnet model", async () => {
