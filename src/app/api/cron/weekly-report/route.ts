@@ -50,6 +50,17 @@ export async function GET(req: NextRequest) {
       (b) => b.barber?.toLowerCase().includes("melynda")
     ).length;
 
+    // Répartition par barbier — DYNAMIQUE (pour le résumé Telegram)
+    const perBarber = new Map<string, number>();
+    for (const b of activeBookings) {
+      const name = (b.barber || "").trim();
+      if (name) perBarber.set(name, (perBarber.get(name) || 0) + 1);
+    }
+    const barberLines = [...perBarber.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([n, c]) => `👤 ${n}: ${c} RDV`)
+      .join("\n");
+
     // Revenue from cuts table (more accurate with tips/discounts)
     const { data: cuts } = await supabaseAdmin
       .from("cuts")
@@ -113,7 +124,7 @@ export async function GET(req: NextRequest) {
     await notifySystemAlert(
       `📈 <b>Rapport semaine — ${weekLabel}</b>\n\n` +
       `✅ ${totalBookings} RDV — <b>${totalRevenue.toFixed(0)}$</b>\n` +
-      `Melynda: ${bookingsMelynda} RDV\n` +
+      `${barberLines || "Aucun RDV"}\n` +
       `❌ Annulés: ${cancellations} | 👻 No-shows: ${noShows}\n\n` +
       `👤 Nouveaux clients: ${newClients} | 🔄 Réguliers: ${returningClients}`
     );

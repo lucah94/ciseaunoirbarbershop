@@ -28,11 +28,15 @@ export async function GET(req: NextRequest) {
 
     const all = bookings || [];
 
-    const melyndaBookings = all.filter((b) =>
-      b.barber?.toLowerCase().includes("melynda")
-    );
-
     const totalRevenue = all.reduce((sum, b) => sum + (b.price || 0), 0);
+
+    // Planning par barbier — DYNAMIQUE (chaque barbier qui a des RDV aujourd'hui)
+    const byBarber = new Map<string, typeof all>();
+    for (const b of all) {
+      const name = (b.barber || "").trim() || "Sans barbier";
+      if (!byBarber.has(name)) byBarber.set(name, []);
+      byBarber.get(name)!.push(b);
+    }
 
     const formatLines = (bks: typeof all): string => {
       if (bks.length === 0) return "  <i>Aucun RDV</i>";
@@ -41,10 +45,17 @@ export async function GET(req: NextRequest) {
         .join("\n");
     };
 
+    const barberSections = [...byBarber.entries()]
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(([name, bks]) => {
+        const sorted = [...bks].sort((x, y) => (x.time || "").localeCompare(y.time || ""));
+        return `<b>${name} (${bks.length} RDV)</b>\n${formatLines(sorted)}`;
+      })
+      .join("\n\n");
+
     const message =
       `☀️ <b>Bonjour Melynda — Planning du jour</b>\n\n` +
-      `<b>Melynda (${melyndaBookings.length} RDV)</b>\n` +
-      `${formatLines(melyndaBookings)}\n\n` +
+      `${barberSections || "<i>Aucun RDV aujourd'hui</i>"}\n\n` +
       `💰 Revenus estimés: ${totalRevenue}$`;
 
     await notifySystemAlert(message);
@@ -53,7 +64,7 @@ export async function GET(req: NextRequest) {
       ok: true,
       date: today,
       total: all.length,
-      melynda: melyndaBookings.length,
+      barbers: byBarber.size,
       revenue: totalRevenue,
     });
   } catch (e) {

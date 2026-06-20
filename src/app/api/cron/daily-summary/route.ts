@@ -52,11 +52,18 @@ export async function GET(req: NextRequest) {
     const revenueDiff = revenue - lastWeekRevenue;
     const revenueArrow = revenueDiff >= 0 ? "▲" : "▼";
 
-    const melyndaCount = all.filter(
-      (b) =>
-        b.barber?.toLowerCase().includes("melynda") &&
-        b.status !== "cancelled"
-    ).length;
+    // Répartition par barbier — DYNAMIQUE (inclut Stéphanie et tout autre barbier, plus de "Melynda" codé en dur)
+    const perBarber = new Map<string, number>();
+    for (const b of all) {
+      if (b.status === "cancelled") continue;
+      const name = (b.barber || "").trim();
+      if (!name) continue;
+      perBarber.set(name, (perBarber.get(name) || 0) + 1);
+    }
+    const barberLines = [...perBarber.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => `👤 ${name}: ${count} RDV`)
+      .join("\n");
 
     const dateLabel = new Date(today + "T12:00:00").toLocaleDateString(
       "fr-CA",
@@ -66,8 +73,8 @@ export async function GET(req: NextRequest) {
     const message =
       `🌙 <b>Résumé — ${dateLabel}</b>\n\n` +
       `✅ Complétés: ${completed} | ⏳ Confirmés: ${confirmed} | ❌ No-show: ${noShow}\n` +
-      `💰 Revenus: ${revenue}$ (${revenueArrow} vs semaine passée: ${Math.abs(revenueDiff)}$)\n` +
-      `Melynda: ${melyndaCount} RDV`;
+      `💰 Revenus: ${revenue}$ (${revenueArrow} vs semaine passée: ${Math.abs(revenueDiff)}$)\n\n` +
+      `${barberLines || "Aucun RDV aujourd'hui"}`;
 
     await notifySystemAlert(message);
 
@@ -80,7 +87,7 @@ export async function GET(req: NextRequest) {
       no_show: noShow,
       revenue,
       revenue_last_week: lastWeekRevenue,
-      melynda: melyndaCount,
+      byBarber: Object.fromEntries(perBarber),
     });
   } catch (e) {
     console.error("daily-summary cron error:", e);
