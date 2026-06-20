@@ -561,7 +561,13 @@ export default function BarberAgendaPage() {
                   return (
                     <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #1A1A1A" }}>
                       <span style={{ color: "#555", fontSize: "12px" }}>{label}</span>
-                      <span style={{ color: "#AAA", fontSize: "13px", textAlign: "right", maxWidth: "60%" }}>{value}</span>
+                      <span style={{ color: "#AAA", fontSize: "13px", textAlign: "right", maxWidth: "60%" }}>
+                        {label === "Téléphone" ? (
+                          <a href={`tel:${value}`} style={{ color: "inherit", textDecoration: "none" }}>{value}</a>
+                        ) : (
+                          value
+                        )}
+                      </span>
                     </div>
                   );
                 })}

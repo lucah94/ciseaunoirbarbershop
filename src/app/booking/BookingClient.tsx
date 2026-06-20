@@ -475,6 +475,7 @@ function BookingContent() {
   const [submitted, setSubmitted] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [bookedSlots, setBookedSlots] = useState<{ time: string; service: string; end_time?: string; barber?: string }[]>([]);
   const [barbersData, setBarbersData] = useState<BarberData[]>([]);
   const [availabilityReady, setAvailabilityReady] = useState(false);
@@ -607,9 +608,12 @@ function BookingContent() {
   }, [selected.date, refreshBookedSlots]);
 
   async function handleSubmit() {
+    if (submitting) return;
+    setSubmitting(true);
     setBookingError(null);
     const service = SERVICES.find((s) => s.id === selected.service);
     const price = service ? parseInt(service.price) : 0;
+    try {
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -668,6 +672,11 @@ function BookingContent() {
         .then(r => r.json())
         .then(data => { if (data && typeof data.visits === "number") setLoyalty(data); })
         .catch(() => {});
+    }
+    } catch {
+      setBookingError("Une erreur est survenue. Réessaie.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -1442,10 +1451,10 @@ function BookingContent() {
                   }}>← Retour</button>
                   <button
                     onClick={handleSubmit}
-                    disabled={!selected.name || !selected.phone || !selected.email}
+                    disabled={!selected.name || !selected.phone || submitting}
                     className="cta-btn-gold"
                   >
-                    Confirmer le rendez-vous
+                    {submitting ? "Envoi en cours..." : "Confirmer le rendez-vous"}
                   </button>
                 </div>
               </motion.div>

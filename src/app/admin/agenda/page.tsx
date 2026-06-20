@@ -1490,7 +1490,9 @@ export default function AgendaPage() {
           </div>
           <div>
             <p style={labelStyle}>Telephone</p>
-            <p style={{ color: "#F0F0F0", fontSize: "15px" }}>{selected.client_phone}</p>
+            <p style={{ color: "#F0F0F0", fontSize: "15px" }}>
+              <a href={`tel:${selected.client_phone}`} style={{ color: "inherit", textDecoration: "none" }}>{selected.client_phone}</a>
+            </p>
           </div>
           {selected.client_email && (
             <div>

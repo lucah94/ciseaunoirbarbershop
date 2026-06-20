@@ -5,6 +5,7 @@ import { sendConfirmationReminderSMS, sendReminderSMS } from "@/lib/sms";
 import twilio from "twilio";
 import { formatPhone, sendSMS } from "@/lib/sms";
 import { notifyNoShowDigest } from "@/lib/telegram";
+import { montrealDateStr, montrealTimeStr } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -77,13 +78,14 @@ export async function GET(req: NextRequest) {
     let rebookingSent = 0;
     if (process.env.TWILIO_ACCOUNT_SID && completedBookings?.length) {
       const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
-      const { hasClientReturnedSince } = await import("@/lib/client-dedupe");
+      const { buildReturnedChecker } = await import("@/lib/client-dedupe");
+      // Charge les bookings "revenus" UNE fois, puis vérifie en mémoire (évite N+1)
+      const hasReturnedSince = await buildReturnedChecker(threeWeeksAgoStr);
       for (const booking of completedBookings) {
         // Dedupe robuste — normalise email+phone+nom pour éviter doublons SMS si format diffère
-        const returned = await hasClientReturnedSince(
+        const returned = hasReturnedSince(
           booking.client_phone,
           booking.client_email,
-          threeWeeksAgoStr,
           booking.client_name
         );
         if (returned) continue;
@@ -141,16 +143,17 @@ export async function GET(req: NextRequest) {
 
       if (!oldBookings?.length) continue;
 
-      const { hasClientReturnedSince: hasReturned2 } = await import("@/lib/client-dedupe");
+      const { buildReturnedChecker } = await import("@/lib/client-dedupe");
+      // Charge les bookings "revenus" UNE fois par milestone, puis vérifie en mémoire (évite N+1)
+      const hasReturned2 = await buildReturnedChecker(targetDateStr);
       for (const booking of oldBookings) {
         // Skip if no contact info
         if (!booking.client_email && !booking.client_phone) continue;
 
         // Dedupe robuste — accept phone OR email match, normalisé
-        const returned = await hasReturned2(
+        const returned = hasReturned2(
           booking.client_phone,
           booking.client_email,
-          targetDateStr,
           booking.client_name
         );
         if (returned) continue;
@@ -219,7 +222,7 @@ export async function GET(req: NextRequest) {
 
     // ── 5. Google Review SMS ──────────────────────────────────────────
     const reviewCutoff = new Date(now.getTime() - 90 * 60 * 1000);
-    const reviewCutoffTime = reviewCutoff.toTimeString().slice(0, 5); // "HH:MM"
+    const reviewCutoffTime = montrealTimeStr(reviewCutoff); // "HH:MM" Montréal
 
     const { data: reviewCandidates } = await supabase
       .from("bookings")

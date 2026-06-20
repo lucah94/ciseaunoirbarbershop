@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 export const maxDuration = 20;
 
-const SUPABASE_PROJECT_REF = process.env.SUPABASE_PROJECT_REF ?? "kgkkwvchpghjdfajmrnz";
+const SUPABASE_PROJECT_REF = process.env.SUPABASE_PROJECT_REF;
 const SUPABASE_MANAGEMENT_TOKEN = process.env.SUPABASE_MANAGEMENT_TOKEN;
 
 async function triggerRestore(): Promise<boolean> {
@@ -24,6 +24,11 @@ async function triggerRestore(): Promise<boolean> {
 }
 
 export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+
   const start = Date.now();
   try {
     const controller = new AbortController();

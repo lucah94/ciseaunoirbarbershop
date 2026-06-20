@@ -25,7 +25,8 @@ import { NextRequest } from "next/server";
 function makeRequest(body: unknown): NextRequest {
   return new NextRequest("http://localhost/api/bookings/no-show", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    // La route exige maintenant une auth admin/barbier (cookie). "true" = jeton legacy accepté.
+    headers: { "Content-Type": "application/json", cookie: "admin_auth=true" },
     body: JSON.stringify(body),
   });
 }

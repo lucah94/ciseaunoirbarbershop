@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { notifySystemAlert } from "@/lib/telegram";
+import { montrealDateStr } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const today = montrealDateStr();
 
     const { data: bookings, error } = await supabaseAdmin
       .from("bookings")

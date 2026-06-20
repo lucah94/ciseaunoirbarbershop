@@ -15,24 +15,24 @@ export function normalizePhone(phone: string | null | undefined): string | null 
   return digits.slice(-10);
 }
 
-/**
- * Vérifie si un client est revenu après une date donnée.
- * Recherche par téléphone OU email normalisés, croisé sur tous les bookings.
- * Évite les faux négatifs causés par formats différents (espace, majuscules, etc).
- */
-export async function hasClientReturnedSince(
+/** Vérificateur synchrone : un client est-il revenu après le cutoff ? */
+export type ReturnedChecker = (
   clientPhone: string | null,
   clientEmail: string | null,
-  cutoffDate: string,
   clientName?: string
-): Promise<boolean> {
-  const normPhone = normalizePhone(clientPhone);
-  const normEmail = normalizeEmail(clientEmail);
+) => boolean;
 
-  if (!normPhone && !normEmail) return false;
-
+/**
+ * Charge UNE seule fois tous les bookings après `cutoffDate` et construit des
+ * Sets normalisés (téléphone/email/nom). Retourne un vérificateur synchrone à
+ * appeler par-client en mémoire, évitant le N+1 (une requête par client).
+ * Comportement identique à `hasClientReturnedSince` : match phone OU email OU nom.
+ */
+export async function buildReturnedChecker(cutoffDate: string): Promise<ReturnedChecker> {
   // Récupérer tous les bookings après cutoff (avec pagination défensive)
-  const candidates: { client_phone: string | null; client_email: string | null; client_name: string }[] = [];
+  const phones = new Set<string>();
+  const emails = new Set<string>();
+  const names = new Set<string>();
   let from = 0;
   while (true) {
     const { data } = await supabaseAdmin
@@ -42,19 +42,44 @@ export async function hasClientReturnedSince(
       .in("status", ["confirmed", "completed"])
       .range(from, from + 999);
     if (!data || data.length === 0) break;
-    candidates.push(...data);
+    for (const b of data) {
+      const candPhone = normalizePhone(b.client_phone);
+      const candEmail = normalizeEmail(b.client_email);
+      if (candPhone) phones.add(candPhone);
+      if (candEmail) emails.add(candEmail);
+      if (b.client_name) names.add(b.client_name.trim().toLowerCase());
+    }
     if (data.length < 1000) break;
     from += 1000;
     if (from > 20000) break;
   }
 
-  for (const b of candidates) {
-    const candPhone = normalizePhone(b.client_phone);
-    const candEmail = normalizeEmail(b.client_email);
-    if (normPhone && candPhone === normPhone) return true;
-    if (normEmail && candEmail === normEmail) return true;
-    if (clientName && b.client_name && clientName.trim().toLowerCase() === b.client_name.trim().toLowerCase()) return true;
-  }
+  return (clientPhone, clientEmail, clientName) => {
+    const normPhone = normalizePhone(clientPhone);
+    const normEmail = normalizeEmail(clientEmail);
+    if (!normPhone && !normEmail) return false;
+    if (normPhone && phones.has(normPhone)) return true;
+    if (normEmail && emails.has(normEmail)) return true;
+    if (clientName && names.has(clientName.trim().toLowerCase())) return true;
+    return false;
+  };
+}
 
-  return false;
+/**
+ * Vérifie si un client est revenu après une date donnée.
+ * Wrapper de compatibilité : délègue à `buildReturnedChecker`. Pour vérifier
+ * plusieurs clients sur le même cutoff, préférez `buildReturnedChecker` (1 requête).
+ */
+export async function hasClientReturnedSince(
+  clientPhone: string | null,
+  clientEmail: string | null,
+  cutoffDate: string,
+  clientName?: string
+): Promise<boolean> {
+  const normPhone = normalizePhone(clientPhone);
+  const normEmail = normalizeEmail(clientEmail);
+  if (!normPhone && !normEmail) return false;
+
+  const check = await buildReturnedChecker(cutoffDate);
+  return check(clientPhone, clientEmail, clientName);
 }

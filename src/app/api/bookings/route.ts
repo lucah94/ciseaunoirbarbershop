@@ -24,6 +24,9 @@ const bookingSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
+  // NOTE: GET reste PUBLIC — le booking client lit les dispos via ?date= et les pages
+  // /booking/rdv & /booking/cancel via ?id=. Protéger ici casserait la réservation publique.
+  // TODO sécurité: créer un endpoint /api/availability (occupation sans PII) + verrouiller ce GET à l'admin.
   try {
     const { searchParams } = new URL(req.url);
     const date = searchParams.get("date");
@@ -213,6 +216,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  // NOTE: PATCH reste accessible — /booking/cancel l'utilise pour l'annulation self-service du client.
+  // TODO sécurité: restreindre les modifications autres que status:"cancelled" à l'admin/barbier.
   try {
     const body = await req.json();
     const { id, ...updates } = body;

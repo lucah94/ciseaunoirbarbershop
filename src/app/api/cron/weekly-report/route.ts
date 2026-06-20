@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendWeeklyReportEmail } from "@/lib/email";
 import { notifySystemAlert } from "@/lib/telegram";
+import { montrealDateStr } from "@/lib/utils";
 export const dynamic = 'force-dynamic';
 
 export const maxDuration = 60;
@@ -18,8 +19,8 @@ export async function GET(req: NextRequest) {
     const weekAgo = new Date(now);
     weekAgo.setDate(weekAgo.getDate() - 7);
 
-    const startDate = weekAgo.toISOString().split("T")[0];
-    const endDate = now.toISOString().split("T")[0];
+    const startDate = montrealDateStr(weekAgo);
+    const endDate = montrealDateStr(now);
 
     // Query bookings for the past 7 days
     const { data: bookings } = await supabaseAdmin

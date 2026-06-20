@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { Resend } from "resend";
 import { sendSMS } from "@/lib/sms";
+import { montrealParts } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -12,8 +13,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
-  const today = new Date();
-  const mmdd = `${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const { month, day } = montrealParts();
+  const mmdd = `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
   // Trouver clients dont birthday = aujourd'hui (champ birthday optionnel sur clients)
   const { data: clients, error } = await supabaseAdmin

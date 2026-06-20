@@ -9,7 +9,7 @@ import { aiClient as anthropic, MODELS } from "@/lib/ai";
 import { generatePost, publishPostToFacebook } from "@/lib/posts";
 import { proposePostOnTelegram } from "@/lib/telegram";
 
-const resend = new Resend(process.env.RESEND_API_KEY ?? "");
+const resend = new Resend(process.env.RESEND_API_KEY ?? 'placeholder-resend-key');
 const FROM_EMAIL = process.env.FROM_EMAIL || "Ciseau Noir <noreply@ciseaunoirbarbershop.com>";
 export const dynamic = 'force-dynamic';
 

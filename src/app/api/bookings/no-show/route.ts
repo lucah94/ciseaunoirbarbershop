@@ -3,9 +3,14 @@ import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { sendNoShowAdminNotification } from "@/lib/email";
 import { sendNoShowSMS } from "@/lib/sms";
 import { notifyNoShow } from "@/lib/telegram";
+import { requireAdmin, requireBarber } from "@/lib/auth";
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const isAdmin = !requireAdmin(req);
+  const isBarber = !requireBarber(req);
+  if (!isAdmin && !isBarber) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+
   try {
     const body = await req.json();
     const { id } = body;

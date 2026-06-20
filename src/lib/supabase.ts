@@ -9,6 +9,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Admin client — uses service role key, bypasses RLS for server-side API routes
 // NEVER import this in client components — only use in route handlers (server-side)
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.warn("[supabase] SUPABASE_SERVICE_ROLE_KEY manquant — fallback anon, ecritures server-side echoueront");
+}
 export const supabaseAdmin = createClient(
   supabaseUrl,
   (process.env.SUPABASE_SERVICE_ROLE_KEY ?? supabaseAnonKey).trim()

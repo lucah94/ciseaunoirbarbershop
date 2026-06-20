@@ -362,7 +362,18 @@ export default function ClientsPage() {
                     <td style={{ ...tdStyle, color: "#F5F5F5", fontWeight: 500 }}>
                       {c.name}
                     </td>
-                    <td style={tdStyle}>{c.phone || "—"}</td>
+                    <td style={tdStyle}>
+                      {c.phone ? (
+                        <a
+                          href={`tel:${c.phone}`}
+                          style={{ color: "inherit", textDecoration: "none" }}
+                        >
+                          {c.phone}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td
                       style={{
                         ...tdStyle,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { generatePost } from "@/lib/posts";
 import { proposePostOnTelegram } from "@/lib/telegram";
+import { montrealParts } from "@/lib/utils";
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -21,7 +22,7 @@ function pickKind(): string {
   // Rotate based on current day + week number to vary across runs
   const now = new Date();
   const weekNumber = Math.floor(now.getTime() / (7 * 24 * 60 * 60 * 1000));
-  const idx = (now.getDay() + weekNumber) % NON_PROMO_KINDS.length;
+  const idx = (montrealParts(now).weekday + weekNumber) % NON_PROMO_KINDS.length;
   return NON_PROMO_KINDS[idx];
 }
 
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
 
   // Only run on open days (Tue=2, Wed=3, Thu=4, Fri=5, Sat=6)
   const now = new Date();
-  const dayOfWeek = now.getDay();
+  const dayOfWeek = montrealParts(now).weekday;
   const openDays = [2, 3, 4, 5, 6];
   if (!openDays.includes(dayOfWeek)) {
     return NextResponse.json({ ok: false, reason: "Closed day — no proposal made", dayOfWeek });

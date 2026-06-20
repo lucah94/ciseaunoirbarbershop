@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { sendReviewRequestEmail, sendFirstVisitPromoEmail } from "@/lib/email";
+import { montrealDateStr } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
       .from("bookings")
       .select("*")
       .eq("status", "confirmed")
-      .lte("date", now.toISOString().split("T")[0]); // only past or today
+      .lte("date", montrealDateStr(now)); // only past or today
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

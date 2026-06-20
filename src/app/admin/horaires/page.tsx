@@ -99,6 +99,15 @@ export default function HorairesPage() {
   const [overrides, setOverrides] = useState<{ id: string; barber: string; date: string; open: string; close: string }[]>([]);
   const [addingOverride, setAddingOverride] = useState<string | null>(null);
   const [overrideForm, setOverrideForm] = useState({ date: "", open: "09:00", close: "17:00" });
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Mobile detection
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const refreshAll = useCallback(() => {
     Promise.all([
@@ -200,7 +209,7 @@ export default function HorairesPage() {
   return (
     <div style={{ background: "#111318", minHeight: "100vh", display: "flex" }}>
       <AdminSidebar />
-      <main style={{ marginLeft: "260px", flex: 1, padding: "40px 48px" }}>
+      <main style={{ marginLeft: isMobile ? 0 : "260px", flex: 1, padding: isMobile ? "16px 16px 88px" : "40px 48px" }}>
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: "36px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
