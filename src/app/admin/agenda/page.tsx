@@ -128,12 +128,16 @@ export default function AgendaPage() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  // Fenêtre glissante : on charge aujourd'hui −60j → futur (au lieu de TOUT depuis janvier).
+  // datesSet (sur le calendrier) étend la fenêtre vers le passé si on y navigue.
+  const startRef = useRef<string>((() => { const d = new Date(); d.setDate(d.getDate() - 60); return localDateStr(d); })());
+
   const fetchBookings = useCallback(() => {
     setLoading(true);
     setLoadError(false);
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 12000);
-    fetch(`/api/bookings?start=2026-01-01&_=${Date.now()}`, { signal: ctrl.signal, cache: "no-store" })
+    fetch(`/api/bookings?start=${startRef.current}&_=${Date.now()}`, { signal: ctrl.signal, cache: "no-store" })
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
       .then(data => {
         clearTimeout(timeout);
@@ -311,7 +315,7 @@ export default function AgendaPage() {
           }
         } else {
           // Récurrent : refresh silencieux (pas de loading = pas de reset calendrier)
-          fetch(`/api/bookings?start=2026-01-01&_=${Date.now()}`, { cache: "no-store" })
+          fetch(`/api/bookings?start=${startRef.current}&_=${Date.now()}`, { cache: "no-store" })
             .then(r => r.json())
             .then(data => {
               const list = Array.isArray(data) ? data : [];
@@ -955,6 +959,15 @@ export default function AgendaPage() {
               `}</style>
               <FullCalendar
                 ref={calendarRef}
+                datesSet={(arg: { start: Date }) => {
+                  // Si on navigue avant la fenêtre chargée, on l'étend vers le passé (+30j de marge) et on recharge.
+                  const viewStart = localDateStr(arg.start);
+                  if (viewStart < startRef.current) {
+                    const d = new Date(arg.start); d.setDate(d.getDate() - 30);
+                    startRef.current = localDateStr(d);
+                    fetchBookings();
+                  }
+                }}
                 plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
                 initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
                 headerToolbar={{
