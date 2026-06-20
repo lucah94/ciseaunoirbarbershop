@@ -62,6 +62,16 @@ const NAV = [
     ),
   },
   {
+    label: "Services / Prix",
+    href: "/admin/services",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 6h18" /><path d="M3 12h18" /><path d="M3 18h18" />
+        <line x1="7" y1="6" x2="7" y2="6" /><line x1="7" y1="12" x2="7" y2="12" /><line x1="7" y1="18" x2="7" y2="18" />
+      </svg>
+    ),
+  },
+  {
     label: "Réseaux Sociaux",
     href: "/admin/social",
     icon: (

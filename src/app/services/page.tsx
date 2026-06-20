@@ -16,7 +16,19 @@ export const metadata: Metadata = {
   },
 };
 
-const SERVICES = [
+type ServiceCard = {
+  name: string;
+  price: string;
+  duration: string;
+  desc: string;
+  includes: string[];
+  featured?: boolean;
+  icon: string;
+};
+
+// FALLBACK (= données actuelles) : utilisé si /api/services échoue, pour que la page marche TOUJOURS.
+// `includes` / `featured` sont décoratifs (pas en DB) : on les conserve par correspondance de nom.
+const FALLBACK_SERVICES: ServiceCard[] = [
   {
     name: "Coupe + Lavage",
     price: "35$",
@@ -68,7 +80,38 @@ const SERVICES = [
   },
 ];
 
-export default function ServicesPage() {
+// Lit les services depuis /api/services (gérés par Melynda). Filet de sécurité : en cas
+// d'échec ou de réponse vide, renvoie FALLBACK_SERVICES pour que la page marche TOUJOURS.
+async function getServices(): Promise<ServiceCard[]> {
+  try {
+    const base = process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";
+    const res = await fetch(`${base}/api/services`, { next: { revalidate: 60 } });
+    if (!res.ok) throw new Error("services");
+    const data = await res.json();
+    const rows: { name: string; price: number; duration_min: number; description?: string; icon?: string }[] =
+      Array.isArray(data) ? data : (Array.isArray(data?.services) ? data.services : []);
+    const mapped: ServiceCard[] = rows
+      .filter(r => r && r.name)
+      .map(r => {
+        const fb = FALLBACK_SERVICES.find(f => f.name === r.name);
+        return {
+          name: r.name,
+          price: `${r.price}$`,
+          duration: `${r.duration_min} min`,
+          desc: r.description || fb?.desc || "",
+          includes: fb?.includes || [], // décoratif, par correspondance de nom
+          featured: fb?.featured,
+          icon: r.icon || fb?.icon || "✂️",
+        };
+      });
+    return mapped.length > 0 ? mapped : FALLBACK_SERVICES;
+  } catch {
+    return FALLBACK_SERVICES;
+  }
+}
+
+export default async function ServicesPage() {
+  const SERVICES = await getServices();
   return (
     <>
       <style>{`

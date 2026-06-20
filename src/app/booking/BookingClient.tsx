@@ -9,7 +9,11 @@ import Footer from "@/components/Footer";
 import { isPushSupported, subscribeAndSave } from "@/lib/push-notifications";
 import { supabase } from "@/lib/supabase";
 
-const SERVICES = [
+// Type d'un service tel qu'utilisé partout dans le booking (price/duration en string pour l'affichage)
+type Service = { id: string; name: string; price: string; duration: string; desc: string; icon: string };
+
+// FALLBACK (= données actuelles) : utilisé si /api/services échoue, pour que la page marche TOUJOURS.
+const FALLBACK_SERVICES: Service[] = [
   { id: "wash-cut", name: "Coupe + Lavage", price: "35$", duration: "45 min", desc: "Coupe classique avec shampoing", icon: "✂️" },
   { id: "wash-cut-shave", name: "Coupe + Barbe à la lame", price: "50$", duration: "60 min", desc: "Coupe, rasage lame & serviette chaude", icon: "🪒" },
   { id: "cut-beard-shaver", name: "Coupe + Barbe Shaver", price: "45$", duration: "45 min", desc: "Coupe, barbe & rasage à la tondeuse (shaver)", icon: "🧔" },
@@ -17,6 +21,29 @@ const SERVICES = [
   { id: "shave", name: "Rasage / Barbe", price: "25$", duration: "30 min", desc: "Rasage lame, barbe & tondeuse", icon: "🧔" },
   { id: "child", name: "Enfant (12 ans et moins)", price: "30$", duration: "30 min", desc: "Coupe pour enfant de 12 ans et moins (preuve d'âge)", icon: "👦" },
 ];
+
+// Slug stable à partir du nom (sans accents) — sert d'id quand l'API ne renvoie pas d'id local connu
+function slugify(name: string): string {
+  return (name || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+// Mappe une ligne de l'API ({name, price (nombre), duration_min (nombre), description, icon})
+// vers la forme attendue par le code (price "35$", duration "45 min", desc, id slug).
+function mapApiService(row: { name: string; price: number; duration_min: number; description?: string; icon?: string }): Service {
+  return {
+    id: slugify(row.name),
+    name: row.name,
+    price: `${row.price}$`,
+    duration: `${row.duration_min} min`,
+    desc: row.description || "",
+    icon: row.icon || "✂️",
+  };
+}
 
 // Normalise un nom de barbier : minuscules + sans accents (règle "stephanie" vs "stéphanie")
 const norm = (s: string) =>
@@ -143,8 +170,8 @@ function getServiceDuration(service: string): number {
 }
 
 // Durée EXACTE du service sélectionné (depuis sa fiche) — le bon chiffre pour le bon service.
-function selectedServiceDuration(serviceId: string): number {
-  const svc = SERVICES.find(s => s.id === serviceId);
+function selectedServiceDuration(serviceId: string, services: Service[]): number {
+  const svc = services.find(s => s.id === serviceId);
   return svc ? (parseInt(svc.duration) || 30) : 30;
 }
 
@@ -461,7 +488,9 @@ function BookingContent() {
   const params = useSearchParams();
   const preBarber = params.get("barber") || "";
   const preServiceName = params.get("service") || "";
-  const preService = SERVICES.find(s => s.name === preServiceName);
+  // Résolution initiale sur le FALLBACK (synchronisé avec les noms DB) → le deep-link marche tout de suite,
+  // même avant que /api/services réponde.
+  const preService = FALLBACK_SERVICES.find(s => s.name === preServiceName);
   const initialStep = preService ? 2 : 1;
   const [step, setStep] = useState(initialStep);
   const [selected, setSelected] = useState({
@@ -489,6 +518,8 @@ function BookingContent() {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState(false);
   const retryCountRef = useRef(0);
+  // Liste des services : démarre sur le FALLBACK, puis remplacée par /api/services si dispo.
+  const [services, setServices] = useState<Service[]>(FALLBACK_SERVICES);
 
   // Capture source on page load so it's not lost during navigation
   const [detectedSource] = useState(() => {
@@ -505,10 +536,34 @@ function BookingContent() {
     return "direct";
   });
 
-  const service = SERVICES.find((s) => s.id === selected.service);
+  const service = services.find((s) => s.id === selected.service);
 
   const _now = new Date();
   const today = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,"0")}-${String(_now.getDate()).padStart(2,"0")}`;
+
+  // Charge les services depuis l'API (gérés par Melynda). Filet de sécurité : en cas d'échec,
+  // on garde FALLBACK_SERVICES (état initial) pour que le booking marche TOUJOURS.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/services")
+      .then(r => { if (!r.ok) throw new Error("services"); return r.json(); })
+      .then((data) => {
+        if (cancelled) return;
+        const rows: { name: string; price: number; duration_min: number; description?: string; icon?: string }[] =
+          Array.isArray(data) ? data : (Array.isArray(data?.services) ? data.services : []);
+        const mapped = rows.filter(r => r && r.name).map(mapApiService);
+        if (mapped.length === 0) return; // garde le fallback si réponse vide
+        setServices(mapped);
+        // Re-mappe le service présélectionné (deep-link) sur l'id réel de l'API, via son nom.
+        setSelected(prev => {
+          if (!preServiceName) return prev;
+          const match = mapped.find(s => s.name === preServiceName);
+          return match && match.id !== prev.service ? { ...prev, service: match.id } : prev;
+        });
+      })
+      .catch(() => { /* garde FALLBACK_SERVICES */ });
+    return () => { cancelled = true; };
+  }, [preServiceName]);
 
   const refreshAvailability = useCallback(() => {
     // Un seul appel pour tout charger en parallèle côté serveur
@@ -613,7 +668,7 @@ function BookingContent() {
     if (submitting) return;
     setSubmitting(true);
     setBookingError(null);
-    const service = SERVICES.find((s) => s.id === selected.service);
+    const service = services.find((s) => s.id === selected.service);
     const price = service ? parseInt(service.price) : 0;
     try {
     const res = await fetch("/api/bookings", {
@@ -1082,7 +1137,7 @@ function BookingContent() {
                   fontWeight: 400,
                 }}>Choisissez votre service</h2>
                 <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                  {SERVICES.map((s, index) => (
+                  {services.map((s, index) => (
                     <motion.button
                       key={s.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -1257,7 +1312,7 @@ function BookingContent() {
                         .map(b => {
                           const isMelynda = norm(b.name).includes("melynda");
                           // Durée EXACTE du service choisi → bon chiffre de places, bon ajustement des créneaux
-                          const serviceDur = selectedServiceDuration(selected.service);
+                          const serviceDur = selectedServiceDuration(selected.service, services);
                           // Garder QUE les RDV de CE barbier (comparaison sans accent).
                           // Les RDV sans barbier sont comptés sur Melynda (barbière principale) — évite un double-booking.
                           const barberBooked = bookedSlots.filter(x => norm(x.barber || "") === norm(b.name) || (isMelynda && !x.barber));
@@ -1561,7 +1616,7 @@ function BookingContent() {
                     <button
                       onClick={async () => {
                         const barberName = selected.barber;
-                        const serviceName = SERVICES.find(s => s.id === selected.service)?.name || "";
+                        const serviceName = services.find(s => s.id === selected.service)?.name || "";
                         await fetch("/api/waitlist", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },

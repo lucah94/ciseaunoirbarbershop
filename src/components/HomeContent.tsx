@@ -95,6 +95,19 @@ const staggerItem: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } },
 };
 
+/* ───── Services Data ───── */
+type HomeService = { service: string; price: string; desc: string };
+
+// FALLBACK (= données actuelles) : utilisé si /api/services échoue, pour que la section marche TOUJOURS.
+const FALLBACK_SERVICES: HomeService[] = [
+  { service: "Coupe + Lavage", price: "35$", desc: "Coupe classique avec shampoing" },
+  { service: "Coupe + Barbe à la lame", price: "50$", desc: "Coupe, rasage lame & serviette chaude" },
+  { service: "Coupe + Barbe Shaver", price: "45$", desc: "Coupe, barbe & rasage à la tondeuse (shaver)" },
+  { service: "Service Premium", price: "75$", desc: "Coupe, rasage, serviette chaude & exfoliant" },
+  { service: "Rasage / Barbe", price: "25$", desc: "Rasage lame, barbe & tondeuse" },
+  { service: "Enfant (12 ans et moins)", price: "30$", desc: "Coupe pour enfant de 12 ans et moins (preuve d'âge)" },
+];
+
 /* ───── Reviews Data ───── */
 type GoogleReview = { name: string; rating: number; text: string; photo?: string };
 
@@ -227,6 +240,26 @@ function ReviewsGrid() {
 /* ───── Main Component ───── */
 export default function HomeContent() {
   const [ctaHovered, setCtaHovered] = useState(false);
+  // Services : démarre sur le FALLBACK, puis remplacé par /api/services si dispo (géré par Melynda).
+  const [services, setServices] = useState<HomeService[]>(FALLBACK_SERVICES);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/services")
+      .then(r => { if (!r.ok) throw new Error("services"); return r.json(); })
+      .then((data) => {
+        if (cancelled) return;
+        const rows: { name: string; price: number; description?: string }[] =
+          Array.isArray(data) ? data : (Array.isArray(data?.services) ? data.services : []);
+        const mapped = rows
+          .filter(r => r && r.name)
+          .map(r => ({ service: r.name, price: `${r.price}$`, desc: r.description || "" }));
+        if (mapped.length > 0) setServices(mapped); // sinon on garde le fallback
+      })
+      .catch(() => { /* garde FALLBACK_SERVICES */ });
+    return () => { cancelled = true; };
+  }, []);
+
   const heroRef = useRef<HTMLElement>(null);
   const { scrollYProgress: heroScroll } = useScroll({
     target: heroRef,
@@ -751,14 +784,7 @@ export default function HomeContent() {
             margin: "72px auto 0",
           }}
         >
-          {[
-            { service: "Coupe + Lavage", price: "35$", desc: "Coupe classique avec shampoing" },
-            { service: "Coupe + Barbe à la lame", price: "50$", desc: "Coupe, rasage lame & serviette chaude" },
-            { service: "Coupe + Barbe Shaver", price: "45$", desc: "Coupe, barbe & rasage à la tondeuse (shaver)" },
-            { service: "Service Premium", price: "75$", desc: "Coupe, rasage, serviette chaude & exfoliant" },
-            { service: "Rasage / Barbe", price: "25$", desc: "Rasage lame, barbe & tondeuse" },
-            { service: "Enfant (12 ans et moins)", price: "30$", desc: "Coupe pour enfant de 12 ans et moins (preuve d'âge)" },
-          ].map((item, i) => (
+          {services.map((item, i) => (
             <motion.div key={item.service} variants={staggerItem}>
             <Card3D
               style={{
