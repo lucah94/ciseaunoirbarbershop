@@ -26,9 +26,25 @@ export default function MarketingPage() {
   }
 
   async function sendSms() {
-    if (!smsMsg.trim() || !confirm(`Envoyer ce SMS à ${smsCount} clients ?`)) return;
+    if (!smsMsg.trim()) return;
+    // Garde-fou: ne jamais envoyer si le nombre de destinataires n'est pas connu et > 0
+    if (smsCount === null) { setSmsResult("Destinataires non chargés — réessayez."); return; }
+    if (smsCount <= 0) { setSmsResult("Aucun destinataire dans la base."); return; }
+
+    // Confirmation riche: nombre exact, aperçu du message et estimation du coût
+    const segments = Math.max(1, Math.ceil(smsMsg.length / 160));
+    const cost = (smsCount * segments * 0.01).toFixed(2);
+    const preview = smsMsg.trim();
+    const recap =
+      `Envoyer à ${smsCount} clients (~${cost}$) ?\n\n` +
+      `Destinataires : ${smsCount}\n` +
+      `Segments SMS : ${segments} (${smsMsg.length} caractères)\n` +
+      `Coût estimé : ~${cost}$\n\n` +
+      `Aperçu du message :\n"${preview}"`;
+    if (!confirm(recap)) return;
+
     setSmsSending(true); setSmsResult(null);
-    const res = await fetch("/api/sms/blast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: smsMsg }) });
+    const res = await fetch("/api/sms/blast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: smsMsg, confirmed: true, confirmedCount: smsCount, estimatedCost: cost }) });
     const d = await res.json();
     setSmsResult(res.ok ? `${d.sent} envoyés, ${d.failed} échoués` : d.error || "Erreur");
     setSmsSending(false);
@@ -87,9 +103,9 @@ export default function MarketingPage() {
             <p style={{ color: smsMsg.length > 160 ? "#f90" : "#555", fontSize: "11px", textAlign: "right", marginBottom: "16px" }}>
               {smsMsg.length} caractères · {Math.max(1, Math.ceil((smsMsg.length || 1) / 160))} SMS ({smsMsg.length <= 160 ? "1 SMS" : smsMsg.length <= 320 ? "2 SMS" : "3 SMS"} = facturation multipliée)
             </p>
-            <button onClick={sendSms} disabled={smsSending || !smsMsg.trim()}
-              style={{ background: smsSending ? "#111" : "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.3)", color: "#D4AF37", padding: "12px 32px", fontSize: "12px", letterSpacing: "2px", cursor: "pointer", borderRadius: "8px", fontWeight: 600 }}>
-              {smsSending ? "Envoi en cours..." : "Envoyer le SMS"}
+            <button onClick={sendSms} disabled={smsSending || !smsMsg.trim() || smsCount === null || smsCount <= 0}
+              style={{ background: smsSending ? "#111" : "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.3)", color: "#D4AF37", padding: "12px 32px", fontSize: "12px", letterSpacing: "2px", cursor: (smsSending || smsCount === null || smsCount <= 0) ? "not-allowed" : "pointer", opacity: (smsCount === null || smsCount <= 0) ? 0.5 : 1, borderRadius: "8px", fontWeight: 600 }}>
+              {smsSending ? "Envoi en cours..." : smsCount === null ? "Chargement des destinataires..." : "Envoyer le SMS"}
             </button>
             {smsResult && <p style={{ color: "#5a5", marginTop: "16px", fontSize: "14px" }}>{smsResult}</p>}
           </div>

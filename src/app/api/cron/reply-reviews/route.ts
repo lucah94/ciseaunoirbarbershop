@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchGoogleReviews, replyToGoogleReview } from "@/lib/google";
 import { aiClient as anthropic, MODELS } from "@/lib/ai";
+import { notifySystemAlert } from "@/lib/telegram";
 import type Anthropic from "@anthropic-ai/sdk";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ async function generateReply(
     ? "professionnel et attentionné. Remercie pour le feedback, invite à contacter Melynda directement pour améliorer l'expérience."
     : "empathique, professionnel, jamais défensif. Présente des excuses sincères, invite à contacter Melynda au (418) 665-5703 pour résoudre la situation.";
 
-  const prompt = `Tu es Melynda, propriétaire et barbière de Ciseau Noir Barbershop — un barbershop haut de gamme à Beauport (Québec). Tu réponds personnellement aux avis Google de tes clients.
+  const prompt = `Tu es Melynda, propriétaire et barbière de Ciseau Noir Barbershop — un barbershop haut de gamme à Beauport, ville de Québec. Tu réponds personnellement aux avis Google de tes clients.
 
 Avis de ${reviewerName} (${stars}/5 étoiles):
 "${comment || '(aucun commentaire, juste une note)'}"
@@ -63,14 +64,28 @@ export async function GET(req: NextRequest) {
 
   const results: Array<{ reviewer: string; rating: string; replied: boolean; error?: string }> = [];
 
+  const ratingMap = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 };
+
   for (const review of reviews) {
     if (review.reviewReply) continue;
+
+    // Alerte Telegram pour les avis négatifs (≤ 3 étoiles) afin que Melynda réagisse vite
+    if (review.starRating === "ONE" || review.starRating === "TWO" || review.starRating === "THREE") {
+      await notifySystemAlert(
+        `⚠️ Avis négatif (${ratingMap[review.starRating]}/5) de ${review.reviewer.displayName}: ${review.comment || "(aucun commentaire)"}`
+      );
+    }
 
     try {
       const reply = await generateReply(review.reviewer.displayName, review.starRating, review.comment);
       const reviewName = `accounts/-/locations/-/reviews/${review.reviewId}`;
       const fullName = process.env.GOOGLE_LOCATION_NAME + `/reviews/${review.reviewId}`;
       const result = await replyToGoogleReview(fullName, reply);
+      if (!result.success) {
+        await notifySystemAlert(
+          `Réponse à l'avis de ${review.reviewer.displayName} a échoué: ${result.error} — l'API Google Business Profile est peut-être non approuvée (403).`
+        );
+      }
       results.push({
         reviewer: review.reviewer.displayName,
         rating: review.starRating,
@@ -78,6 +93,9 @@ export async function GET(req: NextRequest) {
         error: result.error,
       });
     } catch (e) {
+      await notifySystemAlert(
+        `Réponse à l'avis de ${review.reviewer.displayName} a échoué: ${String(e)} — l'API Google Business Profile est peut-être non approuvée (403).`
+      );
       results.push({
         reviewer: review.reviewer.displayName,
         rating: review.starRating,

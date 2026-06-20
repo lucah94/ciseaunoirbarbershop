@@ -2,8 +2,48 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import twilio from "twilio";
 import crypto from "crypto";
-import { notifyBookingCancelled, notifyBookingRescheduled } from "@/lib/telegram";
+import { notifyBookingCancelled, notifyBookingRescheduled, notifySystemAlert } from "@/lib/telegram";
 export const dynamic = 'force-dynamic';
+
+// Détecte une erreur d'authentification Facebook (token expiré/invalide) dans une réponse Graph API.
+// FB renvoie code 190 / type "OAuthException" / mentions de "access token".
+export function isFbAuthError(raw: unknown): boolean {
+  let s = "";
+  try { s = typeof raw === "string" ? raw : JSON.stringify(raw); } catch { s = String(raw); }
+  const low = s.toLowerCase();
+  return (
+    /"code"\s*:\s*190/.test(s) ||
+    low.includes("oauthexception") ||
+    low.includes("access token") ||
+    low.includes("session has been invalidated") ||
+    low.includes("error validating access token")
+  );
+}
+
+// Alerte Telegram "token Facebook mort" AVEC anti-spam (max 1 / ~3h) via sms_log.
+export async function alertFbTokenDead() {
+  try {
+    const THREE_H = 3 * 60 * 60 * 1000;
+    const { data: recent } = await supabase
+      .from("sms_log")
+      .select("sent_at")
+      .eq("message_type", "fb-token-alert")
+      .gte("sent_at", new Date(Date.now() - THREE_H).toISOString())
+      .limit(1);
+    if (recent && recent.length > 0) return; // déjà alerté récemment → on ne spam pas
+    await notifySystemAlert(
+      "Token Facebook expiré/invalide — le bot Messenger et les réponses FB sont HORS SERVICE. Regénérer le token."
+    );
+    await supabase.from("sms_log").insert([
+      { phone: "fb-token", message_type: "fb-token-alert", message_preview: "Token FB expiré/invalide — Messenger HORS SERVICE" },
+    ]);
+  } catch (e) {
+    console.error("[Messenger] alertFbTokenDead a échoué:", String(e).slice(0, 200));
+  }
+}
+
+// Résultat d'un envoi Messenger : permet au poller de NE PAS marquer "traité" si l'envoi a échoué.
+export type SendResult = { ok: true } | { ok: false; authError: boolean; detail: string };
 
 const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN!;
 const PAGE_ACCESS_TOKEN = process.env.FACEBOOK_ACCESS_TOKEN!;
@@ -356,7 +396,7 @@ async function handleToolCall(toolName: string, toolInput: Record<string, unknow
   return "Outil inconnu.";
 }
 
-export async function sendMessengerMessage(recipientId: string, text: string) {
+export async function sendMessengerMessage(recipientId: string, text: string): Promise<SendResult> {
   // Check if the reply contains the booking URL
   const bookingUrl = "https://ciseaunoirbarbershop.com/booking";
   const hasBookingLink = text.includes(bookingUrl);
@@ -374,8 +414,12 @@ export async function sendMessengerMessage(recipientId: string, text: string) {
   });
   if (!sendRes.ok) {
     const err = await sendRes.text().catch(() => "");
+    const authError = isFbAuthError(err);
     // Si ça échoue ici (souvent token Facebook expiré), on le verra dans les logs Vercel
-    console.error(`[Messenger] Échec envoi FB (HTTP ${sendRes.status}) — token expiré? →`, err.slice(0, 300));
+    console.error(`[Messenger] Échec envoi FB (HTTP ${sendRes.status})${authError ? " — token expiré/invalide" : ""} →`, err.slice(0, 300));
+    if (authError) await alertFbTokenDead();
+    // Envoi du message texte échoué → on signale au poller (il fera le fallback + ne marquera pas "traité")
+    return { ok: false, authError, detail: `HTTP ${sendRes.status} ${err.slice(0, 200)}` };
   }
 
   // Send a clickable button for booking
@@ -404,6 +448,9 @@ export async function sendMessengerMessage(recipientId: string, text: string) {
       }),
     });
   }
+
+  // Message texte livré avec succès (le bouton est un bonus non bloquant).
+  return { ok: true };
 }
 
 export async function processMessageWithClaude(senderId: string, userMessage: string): Promise<string> {

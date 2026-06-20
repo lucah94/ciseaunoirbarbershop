@@ -1000,6 +1000,7 @@ export default function AgendaPage() {
                   const b = info.event.extendedProps.booking as Booking;
                   const newDate = info.event.startStr.split("T")[0];
                   const newTime = info.event.startStr.split("T")[1]?.slice(0, 5) || b.time;
+                  if (!confirm(`Deplacer ce rendez-vous au ${newDate} a ${newTime} ?`)) { info.revert(); return; }
                   const res = await fetch("/api/bookings", {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
@@ -1678,6 +1679,7 @@ export default function AgendaPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
                   <button
                     onClick={async () => {
+                      if (!confirm("Marquer comme complete ? Un courriel de demande d'avis sera envoye au client.")) return;
                       await fetch("/api/bookings", {
                         method: "PATCH",
                         headers: { "Content-Type": "application/json" },
@@ -1700,7 +1702,10 @@ export default function AgendaPage() {
                     Client satisfait (+1 fidelite)
                   </button>
                   <button
-                    onClick={() => updateStatus(selected.id, "completed")}
+                    onClick={() => {
+                      if (!confirm("Marquer comme complete ? Un courriel de demande d'avis sera envoye au client.")) return;
+                      updateStatus(selected.id, "completed");
+                    }}
                     style={{
                       background: "rgba(85,170,85,0.08)", border: "1px solid rgba(85,170,85,0.2)",
                       color: "#5a5", padding: "10px 16px", fontSize: "12px",

@@ -11,44 +11,55 @@ const FB_PAGE_ID = "577401682130596";
 // ── Prompts par type de contenu ───────────────────────────────────────────────
 
 const KIND_PROMPTS: Record<string, string> = {
-  tip: `Génère un conseil de coiffure ou de soin de barbe utile pour les clients de Ciseau Noir Barbershop (Québec).
-Partage un truc pro. Mentionne que Melynda ou Stéphanie peut aider en salon.
-Français québécois, emojis, 2-4 phrases. Génère uniquement le texte du post, sans guillemets.`,
+  tip: `Rédige un post Facebook qui partage UN conseil concret de coiffure ou de soin de barbe, utile et facile à appliquer.
+Accroche d'ouverture qui pique la curiosité ("Tu fais peut-être cette erreur…", "Le secret d'une barbe nette ?"), puis le truc pro, puis l'idée qu'en salon Melynda ou Stéphanie peaufinent ça encore mieux.
+2-4 phrases. Termine par une invitation douce à réserver sur ciseaunoirbarbershop.com/booking.`,
 
-  service_highlight: `Génère une publication Facebook qui met en valeur UN service de Ciseau Noir Barbershop.
+  service_highlight: `Rédige un post Facebook qui met en valeur UN service de Ciseau Noir Barbershop avec une accroche qui arrête le scroll.
 Services et prix RÉELS seulement : Coupe + Lavage 35$, Coupe + Barbe + Lavage 50$, Service Premium (VIP) 75$, Rasage/Barbe 25$, Étudiant/Enfant 30$.
-N'invente AUCUN prix ni rabais. Incite à réserver sur ciseaunoirbarbershop.com/booking.
-Français québécois, emojis, 2-4 phrases.`,
+N'invente AUCUN prix ni rabais. Décris le bénéfice ressenti (look soigné, confiance, moment pour soi), pas juste l'acte.
+Donne une raison de venir maintenant et un appel à l'action clair vers ciseaunoirbarbershop.com/booking. 2-4 phrases.`,
 
-  product: `Génère une publication Facebook sur les produits de soin disponibles EN SALON chez Ciseau Noir (pommades, huiles à barbe, soins capillaires — reste général, n'invente aucun produit précis).
-Invite à venir voir en salon. N'invente AUCUN prix.
-Français québécois, emojis, 2-3 phrases.`,
+  product: `Rédige un post Facebook sur les produits de soin disponibles EN SALON chez Ciseau Noir (pommades, huiles à barbe, soins capillaires — reste général, n'invente aucun produit précis).
+Accroche concrète, bénéfice clair (tenue, look qui dure entre deux visites), invitation à venir les essayer/voir en salon. N'invente AUCUN prix.
+2-3 phrases, ton premium et chaleureux.`,
 
-  client_appreciation: `Génère un message de remerciement chaleureux envers les clients fidèles de Ciseau Noir Barbershop.
-Exprime de la gratitude, invite à laisser un avis Google, encourage à revenir.
-Français québécois, emojis, 2-3 phrases.`,
+  client_appreciation: `Rédige un post Facebook de remerciement sincère envers les clients fidèles de Ciseau Noir Barbershop.
+Accroche humaine et chaleureuse, gratitude authentique (pas de cliché corporatif), invite à laisser un avis Google et à revenir prendre rendez-vous.
+2-3 phrases. Termine par un clin d'œil à réserver sur ciseaunoirbarbershop.com/booking.`,
 
-  news_seasonal: `Génère une publication Facebook sur l'actualité saisonnière ou une nouveauté de Ciseau Noir Barbershop.
-Reste ancré dans la réalité du salon (375 Boul. des Chutes, Québec, ouvert mar-sam). N'invente rien de précis.
-Français québécois, emojis, 2-4 phrases.`,
+  news_seasonal: `Rédige un post Facebook qui surfe sur la saison ou un moment de l'année pour donner envie de prendre rendez-vous.
+Accroche saisonnière (rentrée, été, look des Fêtes, photos, mariage, entretien régulier), raison concrète de venir maintenant pour un look soigné.
+Reste ancré dans la réalité du salon (375 Boul. des Chutes, Beauport, ville de Québec, ouvert mar-sam). N'invente rien de précis.
+2-4 phrases. Appel à l'action clair vers ciseaunoirbarbershop.com/booking.`,
 
-  promotion: `Génère une publication Facebook promotionnelle pour Ciseau Noir Barbershop.
+  promotion: `Rédige un post Facebook promotionnel pour Ciseau Noir Barbershop avec une accroche forte qui arrête le scroll.
 La SEULE offre permise : Service Premium (VIP) normalement 75$, EN PROMO à 65$.
 N'invente AUCUN autre rabais, cadeau, gratuité, concours ni prix. Ne dis JAMAIS que le VIP est à 50$.
-Incite à réserver sur ciseaunoirbarbershop.com/booking.
-Français québécois, emojis, 2-4 phrases.`,
+Mets en avant le bénéfice (l'expérience VIP : soin complet, moment de détente, look impeccable) et une raison d'en profiter maintenant.
+Appel à l'action clair vers ciseaunoirbarbershop.com/booking. 2-4 phrases.`,
 
-  custom: `Génère une publication Facebook créative et engageante pour Ciseau Noir Barbershop.
+  custom: `Rédige un post Facebook créatif et engageant pour Ciseau Noir Barbershop, avec une accroche qui arrête le scroll.
 Services et prix RÉELS : Coupe + Lavage 35$, Coupe + Barbe + Lavage 50$, Service Premium (VIP) 75$, Rasage/Barbe 25$, Étudiant/Enfant 30$.
-N'invente AUCUN rabais, cadeau ni prix fictif. Incite à réserver sur ciseaunoirbarbershop.com/booking.
-Français québécois, emojis, 2-4 phrases.`,
+N'invente AUCUN rabais, cadeau ni prix fictif. Mise sur le bénéfice concret et une raison de venir maintenant.
+Appel à l'action clair vers ciseaunoirbarbershop.com/booking. 2-4 phrases.`,
 };
 
 const SALON_CONTEXT = `
-Salon : Ciseau Noir Barbershop
-Adresse : 375 Boul. des Chutes, Québec
+
+Salon : Ciseau Noir Barbershop, barbershop premium à Beauport, ville de Québec.
+Adresse : 375 Boul. des Chutes, Beauport, ville de Québec
 Téléphone : (418) 665-5703
-Réservation : ciseaunoirbarbershop.com/booking
+Réservation en ligne : ciseaunoirbarbershop.com/booking
+
+STYLE (calibre des meilleurs barbershops) :
+- Une accroche forte (hook) en ouverture qui arrête le scroll.
+- Un bénéfice concret + une raison de venir MAINTENANT (saisonnalité, look soigné, confiance en soi).
+- UN seul appel à l'action clair vers la réservation en ligne (ciseaunoirbarbershop.com/booking).
+- Angle local assumé : Beauport, ville de Québec.
+- Ton premium, chaleureux, québécois naturel. Varie les formulations à chaque fois, jamais robotique ni cliché.
+- Maximum 2-3 hashtags pertinents (pas de mur de hashtags), 1-2 emojis bien placés.
+- Français québécois soigné.
 Génère uniquement le texte du post, sans guillemets ni introduction.`;
 
 // ── generatePost ──────────────────────────────────────────────────────────────
@@ -62,7 +73,7 @@ export async function generatePost(kind: string, instructions?: string): Promise
   const prompt = `${basePrompt}${instructionClause}${SALON_CONTEXT}`;
 
   const response = await anthropic.messages.create({
-    model: MODELS.BALANCED,
+    model: MODELS.SMART,
     max_tokens: 500,
     messages: [{ role: "user", content: prompt }],
   });

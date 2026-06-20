@@ -97,6 +97,7 @@ export default function PayePage() {
   }
 
   async function deleteCut(id: string) {
+    if (!confirm("Supprimer cette entree de paye ?")) return;
     await fetch(`/api/cuts?id=${id}`, { method: "DELETE" });
     setCuts(prev => prev.filter(c => c.id !== id));
   }

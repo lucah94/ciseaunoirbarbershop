@@ -38,7 +38,7 @@ async function generateReply(comment: FBComment): Promise<string> {
   const message = comment.message || "";
   const author = comment.from?.name?.split(" ")[0] || "";
 
-  const prompt = `Tu es Melynda, propriétaire de Ciseau Noir Barbershop — un barbershop haut de gamme à Beauport (Québec). Tu réponds aux commentaires sur ta page Facebook.
+  const prompt = `Tu es Melynda, propriétaire de Ciseau Noir Barbershop — un barbershop haut de gamme à Beauport, ville de Québec. Tu réponds aux commentaires sur ta page Facebook.
 
 Commentaire de ${author}: "${message}"
 

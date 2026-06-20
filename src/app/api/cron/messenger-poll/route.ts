@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processMessageWithClaude, sendMessengerMessage } from "@/app/api/meta/messenger/route";
+import { processMessageWithClaude, sendMessengerMessage, isFbAuthError, alertFbTokenDead } from "@/app/api/meta/messenger/route";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
+import { notifySystemAlert } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -19,14 +20,17 @@ async function pollOnce(handledThisRun: Set<string>): Promise<{ handled: number;
   const convRes = await fetch(`${GRAPH}/${PAGE_ID}/conversations?fields=participants,unread_count&limit=25&access_token=${TOKEN}`);
   const convData = await convRes.json();
   if (!convRes.ok) {
+    // Token FB mort dès l'appel conversations → alerte (anti-spam interne 3h)
+    if (isFbAuthError(convData.error || convData)) await alertFbTokenDead();
     errors.push(`conversations: ${JSON.stringify(convData.error || convData).slice(0, 200)}`);
     return { handled, errors };
   }
 
   for (const conv of (convData.data || [])) {
     if (!conv.unread_count || conv.unread_count < 1) continue;
-    const recipient = (conv.participants?.data || []).find((p: { id: string }) => p.id !== PAGE_ID);
+    const recipient = (conv.participants?.data || []).find((p: { id: string; name?: string }) => p.id !== PAGE_ID);
     if (!recipient?.id) continue;
+    const recipientName: string = recipient.name || "Client inconnu";
     try {
       const msgRes = await fetch(`${GRAPH}/${conv.id}/messages?fields=id,from,message&limit=8&access_token=${TOKEN}`);
       const msgData = await msgRes.json();
@@ -47,12 +51,31 @@ async function pollOnce(handledThisRun: Set<string>): Promise<{ handled: number;
         continue;
       }
 
-      // RÉSERVER le message AVANT de répondre → une exécution parallèle verra qu'il est pris et n'y touchera pas
+      // RÉSERVER le message en mémoire AVANT de répondre → évite qu'un autre passage (loop 5s)
+      // re-réponde au même message. On NE persiste PAS encore last_handled_mid en DB : on ne le
+      // marquera "traité" qu'APRÈS un envoi réussi, sinon un message non livré serait perdu.
       handledThisRun.add(lastUserMsg.id);
-      await supabase.from("messenger_conversations").update({ last_handled_mid: lastUserMsg.id }).eq("sender_id", recipient.id);
 
       const reply = await processMessageWithClaude(recipient.id, lastUserMsg.message);
-      await sendMessengerMessage(recipient.id, reply);
+      const sent = await sendMessengerMessage(recipient.id, reply);
+
+      if (!sent.ok) {
+        // Envoi échoué (token FB mort OU fenêtre 24h dépassée) → on N'A PAS marqué "traité" en DB,
+        // donc un prochain cron pourra réessayer une fois le token régénéré. On alerte un humain pour
+        // qu'il reprenne la conversation et qu'AUCUN message ne tombe dans le vide.
+        // (alertFbTokenDead est déjà déclenché dans sendMessengerMessage si c'est un problème de token.)
+        try {
+          await notifySystemAlert(
+            `Message client Messenger non livré${sent.authError ? " (token FB mort)" : " (fenêtre 24h dépassée?)"} — reprends la conversation.\n` +
+            `👤 ${recipientName}\n💬 "${String(lastUserMsg.message).slice(0, 300)}"`
+          );
+        } catch { /* notif non bloquante */ }
+        errors.push(`${recipient.id}: envoi non livré (${sent.detail})`);
+        continue;
+      }
+
+      // Envoi réussi → SEULEMENT MAINTENANT on marque le message comme traité (persistant en DB).
+      await supabase.from("messenger_conversations").update({ last_handled_mid: lastUserMsg.id }).eq("sender_id", recipient.id);
 
       await fetch(`${GRAPH}/${PAGE_ID}/messages?access_token=${TOKEN}`, {
         method: "POST",

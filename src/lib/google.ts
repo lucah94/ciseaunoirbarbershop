@@ -29,7 +29,10 @@ export async function fetchGoogleReviews(): Promise<{ reviews: GmbReview[]; erro
     const res = await fetch(`https://mybusiness.googleapis.com/v4/${locationName}/reviews?pageSize=50`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    if (!res.ok) return { reviews: [], error: `HTTP ${res.status}` };
+    if (!res.ok) {
+      const body = (await res.text()).trim();
+      return { reviews: [], error: body ? `HTTP ${res.status}: ${body}` : `HTTP ${res.status}` };
+    }
     const data = await res.json();
     return { reviews: data.reviews || [] };
   } catch (e) {

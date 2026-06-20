@@ -328,7 +328,7 @@ export async function sendReviewRequestEmail(booking: {
 
         <div style="text-align: center; margin-bottom: 40px;">
           <p style="color: #C9A84C; font-size: 32px; letter-spacing: 8px; margin-bottom: 8px;">★★★★★</p>
-          <a href="https://search.google.com/local/writereview?placeid=ChIJCiseau_Noir_Barbershop_Quebec"
+          <a href="${process.env.GOOGLE_REVIEW_URL || "https://g.page/r/CQluoL7lA0BBEAE/review"}"
             style="display: inline-block; background: #C9A84C; color: #0A0A0A; padding: 14px 32px; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; text-decoration: none; font-weight: 700;">
             Laisser un avis Google
           </a>

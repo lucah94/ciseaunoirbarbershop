@@ -29,22 +29,24 @@ export async function GET(req: NextRequest) {
     : null;
 
   // 2. Générer le contenu enrichi via AI
-  const prompt = `Tu es community manager pour Ciseau Noir Barbershop à Beauport, Québec.
+  const prompt = `Tu es le community manager d'un barbershop premium : Ciseau Noir Barbershop, à Beauport, ville de Québec.
 
 Promo du mois: ${promo.title}
 Base: ${promo.body}
 ${photo?.caption ? `Photo associée: ${photo.caption}` : ""}
 
-Génère un post Facebook+Instagram engageant en français québécois:
-- Garde le ton chaleureux de Melynda
-- Maximum 4 phrases
-- Inclus emoji pertinents
-- Termine par CTA naturel: "${promo.cta}"
-- Inclus les hashtags: ${promo.hashtags.join(" ")} #BeauPort #Quebec
+Rédige un post Facebook+Instagram au calibre des meilleurs barbershops, en français québécois naturel:
+- Ouvre par une accroche forte (hook) qui arrête le scroll.
+- Donne un bénéfice concret + une raison de venir MAINTENANT (saisonnalité, look soigné, confiance en soi).
+- Assume l'angle local : Beauport, ville de Québec.
+- Garde le ton chaleureux et premium de Melynda. Varie les formulations, jamais robotique ni cliché.
+- Maximum 4 phrases.
+- 1-2 emojis bien placés, et au plus 2-3 hashtags pertinents parmi : ${promo.hashtags.join(" ")} #Beauport #VilleDeQuebec (pas de mur de hashtags).
+- Termine par UN appel à l'action clair vers la réservation: "${promo.cta}"
 - N'inclus PAS d'URL (sera ajoutée auto)`;
 
   const aiResponse = await anthropic.messages.create({
-    model: MODELS.BALANCED,
+    model: MODELS.SMART,
     max_tokens: 400,
     messages: [{ role: "user", content: prompt }],
   });

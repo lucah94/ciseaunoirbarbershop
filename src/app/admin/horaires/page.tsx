@@ -182,6 +182,7 @@ export default function HorairesPage() {
   }
 
   async function removeBlock(id: string) {
+    if (!confirm("Supprimer cette date bloquee ?")) return;
     await fetch("/api/admin/blocks", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
     setBlocks(prev => prev.filter(b => b.id !== id));
   }
@@ -202,6 +203,7 @@ export default function HorairesPage() {
   }
 
   async function removeOverride(id: string) {
+    if (!confirm("Supprimer cette disponibilite exceptionnelle ?")) return;
     await fetch("/api/admin/day-overrides", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
     setOverrides(prev => prev.filter(o => o.id !== id));
   }
