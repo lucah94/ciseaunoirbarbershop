@@ -41,7 +41,7 @@ export default function ContratLocationPage() {
         </div>
 
         <h2>Entre les parties</h2>
-        <p><b>Le Locateur :</b> Ciseau Noir Barbershop, représenté par <span className="blank">&nbsp;</span> (ci-après « le Salon »).</p>
+        <p><b>Le Locateur :</b> Ciseau Noir Barbershop, représenté par ses propriétaires <b>Luca Hayes</b> et <b>Melynda Hayes</b> (ci-après « le Salon »).</p>
         <p><b>La Locataire :</b> <span className="blank">&nbsp;</span>, barbière/coiffeuse exerçant à titre de <b>travailleuse autonome indépendante</b> (ci-après « la Locataire »).</p>
 
         <h2>1. Objet</h2>
@@ -73,13 +73,10 @@ export default function ContratLocationPage() {
 
         <div style={{ marginTop: "28px" }}>
           <p>Signé à <span className="blank-sm">&nbsp;</span>, le <span className="blank-sm">&nbsp;</span>.</p>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "40px", gap: "40px" }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ borderTop: "1px solid #000", paddingTop: "4px", fontSize: "12px" }}>Le Locateur (Salon)</div>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ borderTop: "1px solid #000", paddingTop: "4px", fontSize: "12px" }}>La Locataire</div>
-            </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "38px", marginTop: "44px" }}>
+            <div style={{ borderTop: "1px solid #000", paddingTop: "4px", fontSize: "12px", maxWidth: "340px" }}>Luca Hayes — propriétaire (Salon)</div>
+            <div style={{ borderTop: "1px solid #000", paddingTop: "4px", fontSize: "12px", maxWidth: "340px" }}>Melynda Hayes — propriétaire (Salon)</div>
+            <div style={{ borderTop: "1px solid #000", paddingTop: "4px", fontSize: "12px", maxWidth: "340px" }}>La Locataire (barbier) : <span className="blank-sm">&nbsp;</span></div>
           </div>
         </div>
 
