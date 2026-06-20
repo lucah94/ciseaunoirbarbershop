@@ -42,13 +42,15 @@ const STATUS_LABELS: Record<string, string> = {
 // Chaque barbier a une couleur distincte automatiquement — peu importe combien il y en a.
 const BARBER_PALETTE = ["#D4AF37", "#4A9EDB", "#4CAF50", "#E0699F", "#E58A4A", "#9B7EDE", "#52B9C4", "#C45252"];
 
-const SERVICES = [
+type ServiceOption = { label: string; price: number };
+
+// FALLBACK (= menu actuel) : utilisé si /api/services échoue, pour que le formulaire marche TOUJOURS.
+const FALLBACK_SERVICES: ServiceOption[] = [
   { label: "Coupe + Lavage", price: 35 },
   { label: "Coupe + Barbe à la lame", price: 50 },
   { label: "Coupe + Barbe Shaver", price: 45 },
   { label: "Service Premium", price: 75 },
   { label: "Rasage / Barbe", price: 25 },
-  { label: "Coupe (enfants,étudiants,bébés)", price: 30 },
   { label: "Enfant (12 ans et moins)", price: 30 },
 ];
 
@@ -71,6 +73,8 @@ export default function AgendaPage() {
   const calendarRef = useRef<FullCalendar>(null);
   const [visitCounts, setVisitCounts] = useState<Record<string, number>>({});
   const [isMobile, setIsMobile] = useState(false);
+  // Services chargés depuis /api/services (source de vérité = table Supabase services). Fallback = menu actuel.
+  const [services, setServices] = useState<ServiceOption[]>(FALLBACK_SERVICES);
 
   // New RDV modal state
   const [showNewRDV, setShowNewRDV] = useState(false);
@@ -182,6 +186,18 @@ export default function AgendaPage() {
     fetch(`/api/admin/blocks?_=${Date.now()}`, { cache: "no-store" })
       .then(r => r.json())
       .then(data => setBlocks(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+
+  // Charger les services (menu actuel) depuis /api/services. Fallback déjà en place si l'API échoue.
+  useEffect(() => {
+    fetch(`/api/services?_=${Date.now()}`, { cache: "no-store" })
+      .then(r => r.json())
+      .then((data: { name: string; price: number }[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setServices(data.map(s => ({ label: s.name, price: Number(s.price) })));
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -1252,12 +1268,12 @@ export default function AgendaPage() {
                     <select
                       value={newRDV.service}
                       onChange={e => {
-                        const svc = SERVICES.find(s => s.label === e.target.value);
+                        const svc = services.find(s => s.label === e.target.value);
                         setNewRDV(p => ({ ...p, service: e.target.value, price: svc?.price || 0 }));
                       }}
                       style={{ ...inputStyle, cursor: "pointer", appearance: "auto" }}
                     >
-                      {SERVICES.map(s => (
+                      {services.map(s => (
                         <option key={s.label} value={s.label}>{s.label} ({s.price}$)</option>
                       ))}
                     </select>
@@ -1561,11 +1577,11 @@ export default function AgendaPage() {
                 <div style={{ flex: 1 }}>
                   <p style={labelStyle}>Service</p>
                   <select value={editForm.service} onChange={e => {
-                    const svc = SERVICES.find(s => s.label === e.target.value);
+                    const svc = services.find(s => s.label === e.target.value);
                     setEditForm(f => ({ ...f, service: e.target.value, price: svc ? svc.price : f.price }));
                   }} style={editInputStyle}>
-                    {SERVICES.map(s => <option key={s.label} value={s.label}>{s.label}</option>)}
-                    {!SERVICES.find(s => s.label === editForm.service) && (
+                    {services.map(s => <option key={s.label} value={s.label}>{s.label}</option>)}
+                    {!services.find(s => s.label === editForm.service) && (
                       <option value={editForm.service}>{editForm.service}</option>
                     )}
                   </select>

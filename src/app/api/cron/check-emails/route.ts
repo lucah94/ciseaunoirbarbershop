@@ -116,7 +116,7 @@ const tools: Anthropic.Tool[] = [
         client_name: { type: "string" },
         client_email: { type: "string" },
         client_phone: { type: "string", description: "Optionnel si pas connu" },
-        service: { type: "string", description: "ex: Coupe, Coupe + Barbe, Barbe, Coupe Enfant" },
+        service: { type: "string", description: "ex: Coupe + Lavage, Coupe + Barbe à la lame, Coupe + Barbe Shaver, Service Premium, Rasage / Barbe, Enfant (12 ans et moins)" },
         barber: { type: "string", enum: ["Melynda"] },
         date: { type: "string", description: "YYYY-MM-DD" },
         time: { type: "string", description: "HH:MM (ex: 10:00)" },

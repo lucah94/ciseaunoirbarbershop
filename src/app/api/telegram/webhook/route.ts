@@ -368,13 +368,13 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
     const { client_name, client_phone, client_email, service, barber, date, time, price, note } =
       input as Record<string, string>;
 
-    const SERVICES: Record<string, number> = {
-      "Coupe": 35, "Coupe + Barbe": 50, "Barbe": 20,
-      "Coupe Enfant": 25, "Étudiant": 25, "Coupe + Rasage": 50,
-      "Coupe + Barbe à la lame": 50, "Coupe + Barbe Shaver": 45,
-      "Enfant (12 ans et moins)": 30,
-    };
-    const finalPrice = Number(price) || SERVICES[service] || 35;
+    // Prix : on prend celui fourni, sinon on lit la table services (source de vérité), sinon fallback 35$.
+    let finalPrice = Number(price) || 0;
+    if (!finalPrice) {
+      const { data: svc } = await supabaseAdmin
+        .from("services").select("price").eq("name", service).maybeSingle();
+      finalPrice = Number(svc?.price) || 35;
+    }
 
     const { data, error } = await supabaseAdmin.from("bookings").insert({
       client_name, client_phone: client_phone || "", client_email: client_email || "",
@@ -642,7 +642,7 @@ RÈGLES:
         client_name: { type: "string" },
         client_phone: { type: "string" },
         client_email: { type: "string" },
-        service: { type: "string", description: "Coupe / Coupe+Barbe / Barbe / Coupe Enfant / Coupe+Rasage" },
+        service: { type: "string", description: "Coupe + Lavage / Coupe + Barbe à la lame / Coupe + Barbe Shaver / Service Premium / Rasage / Barbe / Enfant (12 ans et moins)" },
         barber: { type: "string", enum: ["Melynda", "Stéphanie"] },
         date: { type: "string", description: "YYYY-MM-DD" },
         time: { type: "string", description: "HH:MM" },

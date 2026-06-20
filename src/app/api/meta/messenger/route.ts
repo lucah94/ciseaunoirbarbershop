@@ -315,17 +315,10 @@ async function handleToolCall(toolName: string, toolInput: Record<string, unknow
 
   if (toolName === "book_appointment") {
     const { name, phone, email, service, barber, date, time } = toolInput as Record<string, string>;
-    const prices: Record<string, number> = {
-      "Coupe + Lavage": 35,
-      "Coupe + Barbe à la lame": 50,
-      "Coupe + Barbe + Lavage": 50,
-      "Coupe + Rasage Lame": 50,
-      "Coupe + Barbe Shaver": 45,
-      "Service Premium": 75,
-      "Rasage / Barbe": 25,
-      "Enfant (12 ans et moins)": 30,
-    };
-    const price = prices[service] || 35;
+    // Prix lu depuis la table services (source de vérité), fallback 35$ si introuvable.
+    const { data: svc } = await supabase
+      .from("services").select("price").eq("name", service).maybeSingle();
+    const price = Number(svc?.price) || 35;
     // Passe par /api/bookings → déclenche email + SMS + Telegram (la totale), pas juste un insert
     try {
       const base = process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";
