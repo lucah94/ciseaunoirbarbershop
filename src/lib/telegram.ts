@@ -250,6 +250,20 @@ export async function notifyNewContactMessage(opts: {
   );
 }
 
+/** Commentaire FB qui mérite un suivi humain (question/demande) — heads-up calme, pas une alerte rouge */
+export async function notifyFbComment(opts: {
+  author: string;
+  message: string;
+  reply: string;
+}) {
+  await sendMessage(
+    `💬 <b>Commentaire FB à suivre</b>\n\n` +
+    `👤 ${opts.author}\n` +
+    `💬 ${opts.message.slice(0, 280)}${opts.message.length > 280 ? "..." : ""}\n\n` +
+    `<i>Réponse auto envoyée :</i> ${opts.reply.slice(0, 200)}`
+  );
+}
+
 /** Proposition de publication Facebook — boutons inline Telegram */
 export async function proposePostOnTelegram(opts: {
   id: string;

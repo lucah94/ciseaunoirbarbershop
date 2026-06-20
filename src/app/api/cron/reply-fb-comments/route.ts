@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { aiClient as anthropic, MODELS } from "@/lib/ai";
 import type Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "@/lib/supabase";
-import { notifySystemAlert } from "@/lib/telegram";
+import { notifySystemAlert, notifyFbComment } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -75,17 +75,18 @@ async function postReply(commentId: string, message: string): Promise<boolean> {
 }
 
 // Classe un commentaire. Conservateur : en cas de doute → NORMAL (on ne supprime jamais par erreur).
-async function classifyComment(comment: FBComment): Promise<"HATE" | "NEGATIVE" | "NORMAL"> {
+async function classifyComment(comment: FBComment): Promise<"HATE" | "NEGATIVE" | "QUESTION" | "NORMAL"> {
   const message = (comment.message || "").trim();
   if (!message) return "NORMAL";
   const prompt = `Classe ce commentaire Facebook sur la page d'un barbershop. Réponds par UN SEUL mot:
 - HATE = haineux, insultes, vulgarité, racisme, menaces, harcèlement, spam, arnaque, liens douteux
 - NEGATIVE = plainte ou mécontentement légitime d'un client (mauvaise expérience), mais PAS haineux
-- NORMAL = positif, neutre, question, tag d'ami, compliment
+- QUESTION = vraie question ou demande qui mérite un suivi humain (dispo précise, problème avec un rendez-vous, demande pro/partenariat/média, prix spécifique) — PAS un simple compliment
+- NORMAL = positif, neutre, tag d'ami, compliment, merci
 
-Dans le doute, réponds NORMAL.
+Dans le doute entre QUESTION et NORMAL, réponds NORMAL. Dans le doute pour HATE, réponds NORMAL.
 Commentaire: "${message}"
-Réponds uniquement: HATE, NEGATIVE ou NORMAL.`;
+Réponds uniquement: HATE, NEGATIVE, QUESTION ou NORMAL.`;
   try {
     const response = await anthropic.messages.create({
       model: MODELS.FAST,
@@ -95,6 +96,7 @@ Réponds uniquement: HATE, NEGATIVE ou NORMAL.`;
     const text = (response.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text || "").toUpperCase();
     if (text.includes("HATE")) return "HATE";
     if (text.includes("NEGATIVE")) return "NEGATIVE";
+    if (text.includes("QUESTION")) return "QUESTION";
     return "NORMAL";
   } catch {
     return "NORMAL";
@@ -155,9 +157,16 @@ export async function GET(req: NextRequest) {
 
       const reply = await generateReply(comment);
       const success = await postReply(comment.id, reply);
-      if (success || category === "NEGATIVE") {
-        // on log aussi les négatifs même si la réponse échoue → évite de ré-alerter
-        await supabaseAdmin.from("sms_log").insert([{ phone: comment.id, message_type: "fb-reply", message_preview: `${category === "NEGATIVE" ? "[NÉGATIF] " : ""}${(success ? reply : msg).slice(0, 90)}` }]);
+
+      // Question/demande qui mérite un suivi humain → heads-up calme sur Telegram
+      if (category === "QUESTION") {
+        await notifyFbComment({ author, message: msg, reply }).catch(e => console.error("FB comment heads-up error:", e));
+      }
+
+      if (success || category === "NEGATIVE" || category === "QUESTION") {
+        // on log aussi négatifs/questions même si la réponse échoue → évite de ré-alerter
+        const tag = category === "NEGATIVE" ? "[NÉGATIF] " : category === "QUESTION" ? "[QUESTION] " : "";
+        await supabaseAdmin.from("sms_log").insert([{ phone: comment.id, message_type: "fb-reply", message_preview: `${tag}${(success ? reply : msg).slice(0, 90)}` }]);
       }
       results.push({ author, replied: success, preview: `${category === "NEGATIVE" ? "[négatif] " : ""}${reply.slice(0, 70)}` });
     } catch (e) {
