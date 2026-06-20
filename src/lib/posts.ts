@@ -50,8 +50,10 @@ Salon : Ciseau Noir Barbershop, barbershop premium à Beauport, ville de Québec
 Adresse : 375 Boul. des Chutes, Beauport, ville de Québec
 Téléphone : (418) 665-5703
 Réservation en ligne : ciseaunoirbarbershop.com/booking
+Lien d'avis Google (à mettre CLIQUABLE quand le post invite à laisser un avis) : https://g.page/r/CQluoL7lA0BBEAE/review
 
 STYLE (calibre des meilleurs barbershops) :
+- Si le post demande un avis Google, inclus le lien direct cliquable https://g.page/r/CQluoL7lA0BBEAE/review (pas juste « sur Google »).
 - Une accroche forte (hook) en ouverture qui arrête le scroll.
 - Un bénéfice concret + une raison de venir MAINTENANT (saisonnalité, look soigné, confiance en soi).
 - UN seul appel à l'action clair vers la réservation en ligne (ciseaunoirbarbershop.com/booking).

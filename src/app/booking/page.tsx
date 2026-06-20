@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     title: "Réservation — Ciseau Noir Barbershop",
     description: "Réservez en ligne avec Melynda. Coupes, rasages, service premium à Québec.",
     url: "https://ciseaunoirbarbershop.com/booking",
-    images: ["/images/melynda.jpg"],
+    images: ["/images/chair-barbier.jpg"],
   },
   alternates: {
     canonical: "https://ciseaunoirbarbershop.com/booking",
