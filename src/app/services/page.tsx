@@ -58,6 +58,14 @@ const SERVICES = [
     includes: ["Rasage lame droite ou tondeuse", "Serviette chaude", "Finition barbe"],
     icon: "🧔",
   },
+  {
+    name: "Enfant (12 ans et moins)",
+    price: "30$",
+    duration: "30 min",
+    desc: "Coupe pour enfant de 12 ans et moins (preuve d'âge).",
+    includes: ["Coupe adaptée", "Finition soignée"],
+    icon: "👦",
+  },
 ];
 
 export default function ServicesPage() {

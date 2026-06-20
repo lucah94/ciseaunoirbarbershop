@@ -372,6 +372,7 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
       "Coupe": 35, "Coupe + Barbe": 50, "Barbe": 20,
       "Coupe Enfant": 25, "Étudiant": 25, "Coupe + Rasage": 50,
       "Coupe + Barbe à la lame": 50, "Coupe + Barbe Shaver": 45,
+      "Enfant (12 ans et moins)": 30,
     };
     const finalPrice = Number(price) || SERVICES[service] || 35;
 
@@ -569,7 +570,7 @@ AUJOURD'HUI: ${todayLabel}
 RDV aujourd'hui: ${rdvCount} confirmés
 
 LE SALON:
-— Services: Coupe + Lavage 35$ | Coupe + Barbe à la lame 50$ | Coupe + Barbe Shaver 45$ | Service Premium 75$ | Rasage/Barbe 25$
+— Services: Coupe + Lavage 35$ | Coupe + Barbe à la lame 50$ | Coupe + Barbe Shaver 45$ | Service Premium 75$ | Rasage/Barbe 25$ | Enfant (12 ans et moins) 30$
 — Melynda: Mar/Mer/Sam 8h30-16h30 | Jeu/Ven 8h30-20h30
 — Stéphanie: barbière (horaire variable — utilise get_bookings pour vérifier sa dispo)
 — Il y a DEUX barbières : Melynda ET Stéphanie

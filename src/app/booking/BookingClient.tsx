@@ -15,6 +15,7 @@ const SERVICES = [
   { id: "cut-beard-shaver", name: "Coupe + Barbe Shaver", price: "45$", duration: "45 min", desc: "Coupe, barbe & rasage à la tondeuse (shaver)", icon: "🧔" },
   { id: "premium", name: "Service Premium", price: "75$", duration: "75 min", desc: "Coupe, rasage, serviette chaude & exfoliant", icon: "👑" },
   { id: "shave", name: "Rasage / Barbe", price: "25$", duration: "30 min", desc: "Rasage lame, barbe & tondeuse", icon: "🧔" },
+  { id: "child", name: "Enfant (12 ans et moins)", price: "30$", duration: "30 min", desc: "Coupe pour enfant de 12 ans et moins (preuve d'âge)", icon: "👦" },
 ];
 
 // Normalise un nom de barbier : minuscules + sans accents (règle "stephanie" vs "stéphanie")

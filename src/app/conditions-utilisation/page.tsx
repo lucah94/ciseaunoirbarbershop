@@ -99,6 +99,7 @@ export default function ConditionsUtilisationPage() {
             <li>Coupe + Barbe Shaver (coupe, barbe & rasage à la tondeuse)</li>
             <li>Service Premium (coupe, rasage, exfoliant visage)</li>
             <li>Rasage / Barbe (tondeuse ou lame droite)</li>
+            <li>Enfant 12 ans et moins (preuve d'âge)</li>
           </ul>
           <p style={paragraphStyle}>
             Les tarifs et services sont sujets à modification sans préavis. Les prix affichés sur le site sont en dollars canadiens (CAD) et incluent les taxes applicables, sauf indication contraire.

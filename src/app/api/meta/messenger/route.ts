@@ -89,7 +89,8 @@ SERVICES ET PRIX:
 - Coupe + Barbe Shaver (coupe, barbe & rasage à la tondeuse): 45$ (45 min)
 - Service Premium (coupe, rasage, serviette chaude & exfoliant): 75$ (75 min)
 - Rasage / Barbe: 25$ (30 min)
-(Liste TOUJOURS les 5 services au complet.)
+- Enfant (12 ans et moins, preuve d'âge): 30$ (30 min)
+(Liste TOUJOURS les 6 services au complet.)
 
 COIFFEURS ET HORAIRES (à jour):
 ${barbersText}
@@ -331,6 +332,7 @@ async function handleToolCall(toolName: string, toolInput: Record<string, unknow
       "Coupe + Barbe Shaver": 45,
       "Service Premium": 75,
       "Rasage / Barbe": 25,
+      "Enfant (12 ans et moins)": 30,
     };
     const price = prices[service] || 35;
     // Passe par /api/bookings → déclenche email + SMS + Telegram (la totale), pas juste un insert

@@ -757,6 +757,7 @@ export default function HomeContent() {
             { service: "Coupe + Barbe Shaver", price: "45$", desc: "Coupe, barbe & rasage à la tondeuse (shaver)" },
             { service: "Service Premium", price: "75$", desc: "Coupe, rasage, serviette chaude & exfoliant" },
             { service: "Rasage / Barbe", price: "25$", desc: "Rasage lame, barbe & tondeuse" },
+            { service: "Enfant (12 ans et moins)", price: "30$", desc: "Coupe pour enfant de 12 ans et moins (preuve d'âge)" },
           ].map((item, i) => (
             <motion.div key={item.service} variants={staggerItem}>
             <Card3D

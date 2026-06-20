@@ -99,6 +99,14 @@ export default function JsonLd() {
             description: "Forfait coupe de cheveux et taille de barbe",
           },
         },
+        {
+          "@type": "Offer",
+          itemOffered: {
+            "@type": "Service",
+            name: "Enfant (12 ans et moins)",
+            description: "Coupe pour enfant de 12 ans et moins",
+          },
+        },
       ],
     },
   };

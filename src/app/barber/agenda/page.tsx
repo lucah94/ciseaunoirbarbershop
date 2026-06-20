@@ -27,6 +27,7 @@ const SERVICES = [
   { label: "Coupe + Barbe Shaver", price: 45 },
   { label: "Service Premium", price: 75 },
   { label: "Rasage / Barbe", price: 25 },
+  { label: "Enfant (12 ans et moins)", price: 30 },
 ];
 
 const TIME_SLOTS: string[] = [];
@@ -42,6 +43,7 @@ function svcDuration(service: string): number {
   if (s.includes("premium") || s.includes("forfait")) return 75;
   if (s.includes("shaver") && s.includes("coupe")) return 45; // Coupe + Barbe Shaver = 45 min
   if ((s.includes("barbe") || s.includes("rasage") || s.includes("lame")) && s.includes("coupe")) return 60;
+  if (s.includes("enfant") && !s.includes("coupe")) return 30; // service Enfant seul = 30 min
   if (s.includes("coupe") || s.includes("lavage") || s.includes("enfant") || s.includes("étudiant") || s.includes("etudiant")) return 45;
   return 30;
 }
