@@ -15,7 +15,7 @@ Accroche d'ouverture qui pique la curiosité ("Tu fais peut-être cette erreur�
 2-4 phrases. Termine par une invitation douce à réserver sur ciseaunoirbarbershop.com/booking.`,
 
   service_highlight: `Rédige un post Facebook qui met en valeur UN service de Ciseau Noir Barbershop avec une accroche qui arrête le scroll.
-Services et prix RÉELS seulement : Coupe + Lavage 35$, Coupe + Barbe + Lavage 50$, Service Premium (VIP) 75$, Rasage/Barbe 25$, Étudiant/Enfant 30$.
+Services et prix RÉELS seulement : Coupe + Lavage 35$, Coupe + Barbe à la lame 50$, Coupe + Barbe Shaver 45$, Service Premium (VIP) 75$, Rasage/Barbe 25$.
 N'invente AUCUN prix ni rabais. Décris le bénéfice ressenti (look soigné, confiance, moment pour soi), pas juste l'acte.
 Donne une raison de venir maintenant et un appel à l'action clair vers ciseaunoirbarbershop.com/booking. 2-4 phrases.`,
 
@@ -39,7 +39,7 @@ Mets en avant le bénéfice (l'expérience VIP : soin complet, moment de détent
 Appel à l'action clair vers ciseaunoirbarbershop.com/booking. 2-4 phrases.`,
 
   custom: `Rédige un post Facebook créatif et engageant pour Ciseau Noir Barbershop, avec une accroche qui arrête le scroll.
-Services et prix RÉELS : Coupe + Lavage 35$, Coupe + Barbe + Lavage 50$, Service Premium (VIP) 75$, Rasage/Barbe 25$, Étudiant/Enfant 30$.
+Services et prix RÉELS : Coupe + Lavage 35$, Coupe + Barbe à la lame 50$, Coupe + Barbe Shaver 45$, Service Premium (VIP) 75$, Rasage/Barbe 25$.
 N'invente AUCUN rabais, cadeau ni prix fictif. Mise sur le bénéfice concret et une raison de venir maintenant.
 Appel à l'action clair vers ciseaunoirbarbershop.com/booking. 2-4 phrases.`,
 };

@@ -8,7 +8,7 @@ type Cut = {
   price: number; tip: number; discount_percent: number; date: string;
 };
 
-const SERVICES = ["Coupe + Lavage", "Coupe + Rasage Lame", "Service Premium", "Rasage / Barbe", "Étudiant / Enfant", "Autre"];
+const SERVICES = ["Coupe + Lavage", "Coupe + Barbe à la lame", "Coupe + Barbe Shaver", "Service Premium", "Rasage / Barbe", "Autre"];
 
 function getWeekDates(offset = 0) {
   const now = new Date();

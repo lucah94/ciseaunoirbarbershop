@@ -293,7 +293,7 @@ async function processEmailWithAgent(email: {
   const systemPrompt = `Tu es Figaro ✂️, l'agent IA de Ciseau Noir Barbershop à Québec. Tu traites les emails reçus par le salon de façon AUTONOME — tu prends les actions nécessaires sans attendre confirmation humaine.
 
 Infos salon :
-- Services : Coupe 35$, Coupe + Barbe 50$, Coupe Enfant 25$, Barbe 20$, Coupe + Rasage Lame & Serviette Chaude 50$
+- Services : Coupe + Lavage 35$, Coupe + Barbe à la lame 50$, Coupe + Barbe Shaver 45$, Service Premium 75$, Rasage/Barbe 25$
 - Horaires : Mar-Mer 8h30-16h30, Jeu-Ven 8h30-20h30, Sam 8h30-16h30, Dim-Lun FERMÉ
 - Adresse : 375 Bd des Chutes, Québec
 - Téléphone : (418) 665-5703

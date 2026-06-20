@@ -85,10 +85,10 @@ Aujourd'hui: ${dayName} ${today}.
 
 SERVICES ET PRIX:
 - Coupe + Lavage: 35$ (45 min)
-- Coupe + Barbe + Lavage (rasage lame & serviette chaude): 50$ (60 min)
+- Coupe + Barbe à la lame (rasage lame & serviette chaude): 50$ (60 min)
+- Coupe + Barbe Shaver (coupe, barbe & rasage à la tondeuse): 45$ (45 min)
 - Service Premium (coupe, rasage, serviette chaude & exfoliant): 75$ (75 min)
 - Rasage / Barbe: 25$ (30 min)
-- Étudiant / Enfant (12 ans et moins, preuve requise): 30$ (30 min)
 (Liste TOUJOURS les 5 services au complet.)
 
 COIFFEURS ET HORAIRES (à jour):
@@ -223,6 +223,7 @@ const minutesOf = (t: string) => { const [h, m] = (t || "0:0").split(":").map(Nu
 function serviceDuration(service: string): number {
   const s = (service || "").toLowerCase();
   if (s.includes("premium") || s.includes("forfait")) return 75;
+  if (s.includes("shaver") && s.includes("coupe")) return 45; // Coupe + Barbe Shaver = 45 min
   if ((s.includes("barbe") || s.includes("rasage") || s.includes("lame")) && s.includes("coupe")) return 60;
   if (s.includes("enfant")) return 30;
   if (s.includes("coupe") || s.includes("lavage") || s.includes("étudiant") || s.includes("etudiant") || s.includes("student")) return 45;
@@ -324,11 +325,12 @@ async function handleToolCall(toolName: string, toolInput: Record<string, unknow
     const { name, phone, email, service, barber, date, time } = toolInput as Record<string, string>;
     const prices: Record<string, number> = {
       "Coupe + Lavage": 35,
+      "Coupe + Barbe à la lame": 50,
       "Coupe + Barbe + Lavage": 50,
       "Coupe + Rasage Lame": 50,
+      "Coupe + Barbe Shaver": 45,
       "Service Premium": 75,
       "Rasage / Barbe": 25,
-      "Étudiant / Enfant": 30,
     };
     const price = prices[service] || 35;
     // Passe par /api/bookings → déclenche email + SMS + Telegram (la totale), pas juste un insert

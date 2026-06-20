@@ -95,10 +95,10 @@ export default function ConditionsUtilisationPage() {
           </p>
           <ul style={listStyle}>
             <li>Coupe + Lavage (shampoing, coupe personnalisée, finition)</li>
-            <li>Coupe + Rasage lame & serviette chaude</li>
+            <li>Coupe + Barbe à la lame (rasage lame & serviette chaude)</li>
+            <li>Coupe + Barbe Shaver (coupe, barbe & rasage à la tondeuse)</li>
             <li>Service Premium (coupe, rasage, exfoliant visage)</li>
             <li>Rasage / Barbe (tondeuse ou lame droite)</li>
-            <li>Étudiant / Enfant (12 ans et moins, preuve requise)</li>
           </ul>
           <p style={paragraphStyle}>
             Les tarifs et services sont sujets à modification sans préavis. Les prix affichés sur le site sont en dollars canadiens (CAD) et incluent les taxes applicables, sauf indication contraire.

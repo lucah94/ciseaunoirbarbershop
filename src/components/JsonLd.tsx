@@ -95,7 +95,7 @@ export default function JsonLd() {
           "@type": "Offer",
           itemOffered: {
             "@type": "Service",
-            name: "Coupe + Barbe",
+            name: "Coupe + Barbe à la lame",
             description: "Forfait coupe de cheveux et taille de barbe",
           },
         },

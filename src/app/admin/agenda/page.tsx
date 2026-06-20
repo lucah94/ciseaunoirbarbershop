@@ -44,10 +44,10 @@ const BARBER_PALETTE = ["#D4AF37", "#4A9EDB", "#4CAF50", "#E0699F", "#E58A4A", "
 
 const SERVICES = [
   { label: "Coupe + Lavage", price: 35 },
-  { label: "Coupe + Rasage Lame & Serviette Chaude", price: 50 },
+  { label: "Coupe + Barbe à la lame", price: 50 },
+  { label: "Coupe + Barbe Shaver", price: 45 },
   { label: "Service Premium", price: 75 },
   { label: "Rasage / Barbe", price: 25 },
-  { label: "Étudiant / Enfant", price: 30 },
   { label: "Coupe (enfants,étudiants,bébés)", price: 30 },
 ];
 
@@ -458,6 +458,7 @@ export default function AgendaPage() {
   function svcDuration(service: string): number {
     const s = service.toLowerCase();
     if (s.includes("premium") || s.includes("forfait")) return 75;
+    if (s.includes("shaver") && s.includes("coupe")) return 45; // Coupe + Barbe Shaver = 45 min
     if ((s.includes("barbe") || s.includes("rasage") || s.includes("lame")) && s.includes("coupe")) return 60;
     if (s.includes("coupe") || s.includes("lavage") || s.includes("enfant") || s.includes("étudiant") || s.includes("etudiant")) return 45;
     return 30;
@@ -535,6 +536,7 @@ export default function AgendaPage() {
   function getServiceDuration(service: string): number {
     const s = service.toLowerCase();
     if (s.includes("premium")) return 75;
+    if (s.includes("shaver") && s.includes("coupe")) return 45; // Coupe + Barbe Shaver = 45 min
     if (s.includes("barbe") && s.includes("coupe")) return 60;
     if (s.includes("coupe")) return 45;
     return 30;

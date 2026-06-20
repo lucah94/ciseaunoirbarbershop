@@ -11,10 +11,10 @@ import { supabase } from "@/lib/supabase";
 
 const SERVICES = [
   { id: "wash-cut", name: "Coupe + Lavage", price: "35$", duration: "45 min", desc: "Coupe classique avec shampoing", icon: "✂️" },
-  { id: "wash-cut-shave", name: "Coupe + Barbe + Lavage", price: "50$", duration: "60 min", desc: "Coupe, rasage lame & serviette chaude", icon: "🪒" },
+  { id: "wash-cut-shave", name: "Coupe + Barbe à la lame", price: "50$", duration: "60 min", desc: "Coupe, rasage lame & serviette chaude", icon: "🪒" },
+  { id: "cut-beard-shaver", name: "Coupe + Barbe Shaver", price: "45$", duration: "45 min", desc: "Coupe, barbe & rasage à la tondeuse (shaver)", icon: "🧔" },
   { id: "premium", name: "Service Premium", price: "75$", duration: "75 min", desc: "Coupe, rasage, serviette chaude & exfoliant", icon: "👑" },
   { id: "shave", name: "Rasage / Barbe", price: "25$", duration: "30 min", desc: "Rasage lame, barbe & tondeuse", icon: "🧔" },
-  { id: "child", name: "Étudiant / Enfant", price: "30$", duration: "30 min", desc: "Coupe enfant ou étudiant (12 ans et moins, preuve requise)", icon: "👦" },
 ];
 
 // Normalise un nom de barbier : minuscules + sans accents (règle "stephanie" vs "stéphanie")
@@ -134,6 +134,7 @@ function isDateAvailableForBarber(
 function getServiceDuration(service: string): number {
   const s = service.toLowerCase();
   if (s.includes("premium") || s.includes("forfait")) return 75;
+  if (s.includes("shaver") && s.includes("coupe")) return 45; // Coupe + Barbe Shaver = 45 min
   if ((s.includes("barbe") || s.includes("rasage") || s.includes("lame")) && s.includes("coupe")) return 60;
   if (s.includes("enfant")) return 30; // enfant = 30 min (vérifié avant étudiant)
   if (s.includes("coupe") || s.includes("lavage") || s.includes("étudiant") || s.includes("etudiant") || s.includes("student")) return 45;

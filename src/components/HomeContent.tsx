@@ -753,10 +753,10 @@ export default function HomeContent() {
         >
           {[
             { service: "Coupe + Lavage", price: "35$", desc: "Coupe classique avec shampoing" },
-            { service: "Coupe + Rasage Lame", price: "50$", desc: "Coupe, rasage lame & serviette chaude" },
+            { service: "Coupe + Barbe à la lame", price: "50$", desc: "Coupe, rasage lame & serviette chaude" },
+            { service: "Coupe + Barbe Shaver", price: "45$", desc: "Coupe, barbe & rasage à la tondeuse (shaver)" },
             { service: "Service Premium", price: "75$", desc: "Coupe, rasage, serviette chaude & exfoliant" },
             { service: "Rasage / Barbe", price: "25$", desc: "Rasage lame, barbe & tondeuse" },
-            { service: "Étudiant / Enfant", price: "30$", desc: "Coupe enfant/étudiant (12 ans et moins, preuve requise)" },
           ].map((item, i) => (
             <motion.div key={item.service} variants={staggerItem}>
             <Card3D

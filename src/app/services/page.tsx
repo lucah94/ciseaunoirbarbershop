@@ -5,10 +5,10 @@ import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Services & Tarifs",
-  description: "Coupes, rasages lame, service premium et tarif étudiant. Barbershop premium à Québec — 375 Bd des Chutes. (418) 665-5703.",
+  description: "Coupes, rasages lame, barbe shaver et service premium. Barbershop premium à Québec — 375 Bd des Chutes. (418) 665-5703.",
   openGraph: {
     title: "Services & Tarifs — Ciseau Noir Barbershop",
-    description: "Coupes à partir de 30$, rasage lame, service premium 75$. Barbershop premium à Québec.",
+    description: "Coupes à partir de 25$, rasage lame, service premium 75$. Barbershop premium à Québec.",
     url: "https://ciseaunoirbarbershop.com/services",
   },
   alternates: {
@@ -26,12 +26,20 @@ const SERVICES = [
     icon: "✂️",
   },
   {
-    name: "Coupe + Rasage Lame & Serviette Chaude",
+    name: "Coupe + Barbe à la lame",
     price: "50$",
     duration: "60 min",
     desc: "L'expérience complète pour l'homme moderne. Coupe précise et rasage traditionnel à la lame droite.",
     includes: ["Shampoing & conditionneur", "Coupe personnalisée", "Rasage lame droite", "Serviette chaude"],
     icon: "🪒",
+  },
+  {
+    name: "Coupe + Barbe Shaver",
+    price: "45$",
+    duration: "45 min",
+    desc: "Coupe, barbe & rasage à la tondeuse (shaver). Un look net et précis sans la lame droite.",
+    includes: ["Coupe personnalisée", "Barbe taillée", "Rasage à la tondeuse (shaver)"],
+    icon: "🧔",
   },
   {
     name: "Service Premium",
@@ -49,14 +57,6 @@ const SERVICES = [
     desc: "Pour un rasage net ou une barbe bien taillée. Tondeuse, lame droite et serviette chaude.",
     includes: ["Rasage lame droite ou tondeuse", "Serviette chaude", "Finition barbe"],
     icon: "🧔",
-  },
-  {
-    name: "Étudiant / Enfant",
-    price: "30$",
-    duration: "30 min",
-    desc: "Coupe pour enfant ou jeune étudiant (12 ans et moins).",
-    includes: ["Coupe adaptée", "Finition soignée"],
-    icon: "👦",
   },
 ];
 

@@ -23,10 +23,10 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string;
 
 const SERVICES = [
   { label: "Coupe + Lavage", price: 35 },
-  { label: "Coupe + Rasage Lame & Serviette Chaude", price: 50 },
+  { label: "Coupe + Barbe à la lame", price: 50 },
+  { label: "Coupe + Barbe Shaver", price: 45 },
   { label: "Service Premium", price: 75 },
   { label: "Rasage / Barbe", price: 25 },
-  { label: "Étudiant / Enfant", price: 30 },
 ];
 
 const TIME_SLOTS: string[] = [];
@@ -40,6 +40,7 @@ for (let h = 8; h < 21; h++) {
 function svcDuration(service: string): number {
   const s = service.toLowerCase();
   if (s.includes("premium") || s.includes("forfait")) return 75;
+  if (s.includes("shaver") && s.includes("coupe")) return 45; // Coupe + Barbe Shaver = 45 min
   if ((s.includes("barbe") || s.includes("rasage") || s.includes("lame")) && s.includes("coupe")) return 60;
   if (s.includes("coupe") || s.includes("lavage") || s.includes("enfant") || s.includes("étudiant") || s.includes("etudiant")) return 45;
   return 30;
