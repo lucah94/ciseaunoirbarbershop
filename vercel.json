@@ -74,7 +74,7 @@
     },
     {
       "path": "/api/cron/reply-fb-comments",
-      "schedule": "0 */3 * * *"
+      "schedule": "* * * * *"
     },
     {
       "path": "/api/cron/expire-posts",
