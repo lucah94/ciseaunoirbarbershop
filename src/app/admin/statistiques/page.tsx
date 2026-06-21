@@ -9,6 +9,7 @@ export default function StatistiquesPage() {
   const [monthlyData, setMonthlyData] = useState<MonthData[]>([]);
   const [topClients, setTopClients] = useState<{ name: string; count: number; revenue: number }[]>([]);
   const [serviceBreakdown, setServiceBreakdown] = useState<{ service: string; count: number }[]>([]);
+  const [barberStats, setBarberStats] = useState<{ barber: string; count: number; revenue: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refreshStats = useCallback(() => {
@@ -66,6 +67,22 @@ export default function StatistiquesPage() {
         Object.entries(svcMap)
           .map(([service, count]) => ({ service, count }))
           .sort((a, b) => b.count - a.count)
+      );
+
+      // Revenus par barbier — mois courant (RDV actifs: confirmés + complétés, sans annulés/no-show)
+      const curMonth = new Date().toISOString().slice(0, 7);
+      const barberMap: Record<string, { count: number; revenue: number }> = {};
+      for (const b of bookings) {
+        if (b.status === "cancelled" || b.status === "no_show" || !b.barber) continue;
+        if (b.date?.slice(0, 7) !== curMonth) continue;
+        if (!barberMap[b.barber]) barberMap[b.barber] = { count: 0, revenue: 0 };
+        barberMap[b.barber].count++;
+        barberMap[b.barber].revenue += b.price || 0;
+      }
+      setBarberStats(
+        Object.entries(barberMap)
+          .map(([barber, d]) => ({ barber, ...d }))
+          .sort((a, b) => b.revenue - a.revenue)
       );
 
       setLoading(false);
@@ -144,6 +161,32 @@ export default function StatistiquesPage() {
               );
             })}
           </div>
+        </div>
+
+        {/* Revenus par barbier — ce mois-ci */}
+        <div style={{ ...cardStyle, marginBottom: "24px" }}>
+          <p style={{ color: "#D4AF37", fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase", marginBottom: "20px" }}>Revenus par barbier &middot; ce mois-ci</p>
+          {barberStats.length === 0 ? (
+            <p style={{ color: "#555", textAlign: "center", padding: "20px 0" }}>Aucune donnée ce mois-ci</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {barberStats.map(b => {
+                const maxRev = Math.max(...barberStats.map(x => x.revenue), 1);
+                const pct = Math.round((b.revenue / maxRev) * 100);
+                return (
+                  <div key={b.barber}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                      <span style={{ color: "#F0F0F0", fontSize: "13px" }}>{b.barber}</span>
+                      <span style={{ color: "#D4AF37", fontSize: "13px", fontWeight: 600 }}>{b.revenue.toFixed(0)}$ <span style={{ color: "#666", fontWeight: 400 }}>&middot; {b.count} RDV</span></span>
+                    </div>
+                    <div style={{ height: "8px", background: "#1A1A1A", borderRadius: "4px", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg, #D4AF37, #B8860B)", borderRadius: "4px", transition: "width 0.8s ease" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
