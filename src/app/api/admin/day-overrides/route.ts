@@ -18,7 +18,9 @@ export async function GET(req: NextRequest) {
   if (barber) query = query.eq("barber", barber);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error }, { status: 500 });
-  return NextResponse.json(data ?? []);
+  return NextResponse.json(data ?? [], {
+    headers: { "Cache-Control": "public, s-maxage=600, stale-while-revalidate=300" },
+  });
 }
 
 export async function POST(req: NextRequest) {

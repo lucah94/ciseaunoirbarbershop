@@ -22,7 +22,9 @@ export async function GET() {
       .eq("active", true)
       .order("sort_order");
     if (error || !data || data.length === 0) return NextResponse.json(FALLBACK);
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: { "Cache-Control": "public, s-maxage=600, stale-while-revalidate=300" },
+    });
   } catch {
     return NextResponse.json(FALLBACK);
   }

@@ -19,6 +19,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { fetchUnreadEmails, markAsRead, sendGmailReply, archiveEmail, deleteEmail } from "@/lib/gmail";
 import { sendSMS } from "@/lib/sms";
 import { notifyEscalation, notifyBookingCancelled, sendEmailApprovalRequest } from "@/lib/telegram";
+import { runCron } from "@/lib/cron-log";
 export const dynamic = 'force-dynamic';
 
 export const maxDuration = 120;
@@ -400,7 +401,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "GOOGLE_REFRESH_TOKEN non configuré" }, { status: 503 });
   }
 
-  try {
+  return await runCron("check-emails", async () => {
     const emails = await fetchUnreadEmails();
     if (!emails.length) return NextResponse.json({ processed: 0 });
 
@@ -612,8 +613,5 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ processed, results, silenced: silenced.length });
-  } catch (e) {
-    console.error("check-emails cron error:", e);
-    return NextResponse.json({ error: String(e) }, { status: 500 });
-  }
+  });
 }

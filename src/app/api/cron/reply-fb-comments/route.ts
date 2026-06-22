@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateText, MODELS } from "@/lib/ai";
 import { supabaseAdmin } from "@/lib/supabase";
 import { notifySystemAlert, notifyFbComment } from "@/lib/telegram";
+import { runCron } from "@/lib/cron-log";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -116,6 +117,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: "Facebook credentials manquants" });
   }
 
+  return await runCron("reply-fb-comments", async () => {
   const comments = await fetchPageComments();
   const ourPageId = process.env.FACEBOOK_PAGE_ID;
   const externalComments = comments.filter(c => c.from?.id !== ourPageId);
@@ -177,5 +179,6 @@ export async function GET(req: NextRequest) {
     external_comments: externalComments.length,
     new_replies: results.length,
     results,
+  });
   });
 }

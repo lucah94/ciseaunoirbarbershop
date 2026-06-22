@@ -681,11 +681,16 @@ function BookingContent() {
     });
     const resData = await res.json().catch(() => ({}));
     if (!res.ok) {
+      // Créneau pris/bloqué entre-temps : on rafraîchit les dispos, on efface l'heure
+      // et on ramène le client au choix du créneau (étape 2) pour qu'il en pige un autre.
       refreshBookedSlots(selected.date);
       setSelected(s => ({ ...s, time: "" }));
-      setBookingError(res.status === 409
-        ? "Ce créneau vient d'être pris par quelqu'un d'autre. Choisis un autre horaire."
-        : (resData?.error || "Une erreur est survenue. Réessaie."));
+      if (res.status === 409) {
+        setBookingError("Ce créneau vient d'être pris, choisis-en un autre.");
+        setStep(2);
+      } else {
+        setBookingError(resData?.error || "Une erreur est survenue. Réessaie.");
+      }
       return;
     }
     if (resData?.id) setBookingId(resData.id);
@@ -1215,6 +1220,13 @@ function BookingContent() {
                   fontWeight: 400,
                 }}>Choisissez la date et l'heure</h2>
 
+                {/* Erreur 409 : créneau pris/bloqué pendant la confirmation → on revient ici choisir un autre horaire */}
+                {bookingError && (
+                  <div style={{ background: "rgba(238,85,85,0.1)", border: "1px solid rgba(238,85,85,0.3)", borderRadius: "8px", padding: "12px 16px", marginBottom: "24px", color: "#e55", fontSize: "13px", textAlign: "center", maxWidth: "600px", margin: "0 auto 24px" }}>
+                    {bookingError}
+                  </div>
+                )}
+
                 {/* Calendar — dispo si au moins un barbier travaille ce jour */}
                 <div style={{ marginBottom: "32px" }}>
                   <label style={{
@@ -1339,7 +1351,7 @@ function BookingContent() {
                                   {slots.map(t => (
                                     <button
                                       key={t}
-                                      onClick={() => { setSelected({ ...selected, barber: b.name, time: t }); setStep(3); }}
+                                      onClick={() => { setSelected({ ...selected, barber: b.name, time: t }); setBookingError(null); setStep(3); }}
                                       className={isMelynda ? "slot-melynda" : undefined}
                                       style={{
                                         background: isMelynda ? "#0D0D0D" : "transparent",

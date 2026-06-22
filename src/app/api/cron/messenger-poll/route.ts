@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { processMessageWithClaude, sendMessengerMessage, isFbAuthError, alertFbTokenDead } from "@/app/api/meta/messenger/route";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { notifySystemAlert } from "@/lib/telegram";
+import { runCron } from "@/lib/cron-log";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -102,6 +103,7 @@ export async function GET(req: NextRequest) {
   }
   if (!TOKEN) return NextResponse.json({ error: "FACEBOOK_ACCESS_TOKEN manquant" }, { status: 500 });
 
+  return await runCron("messenger-poll", async () => {
   const deadline = Date.now() + 50000;
   let total = 0;
   const allErrors: string[] = [];
@@ -114,4 +116,5 @@ export async function GET(req: NextRequest) {
     await sleep(5000);
   }
   return NextResponse.json({ ok: true, handled: total, errors: allErrors.slice(0, 10) });
+  });
 }

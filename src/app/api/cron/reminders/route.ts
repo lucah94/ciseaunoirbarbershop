@@ -6,6 +6,7 @@ import twilio from "twilio";
 import { formatPhone, sendSMS } from "@/lib/sms";
 import { notifyNoShowDigest } from "@/lib/telegram";
 import { montrealDateStr } from "@/lib/utils";
+import { runCron } from "@/lib/cron-log";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
-  try {
+  return await runCron("reminders", async () => {
     // ── 1. Rappels J-1 ──────────────────────────────────────────────
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -261,8 +262,5 @@ export async function GET(req: NextRequest) {
       total_reminders: bookings?.length || 0,
       total_rebooking: completedBookings?.length || 0,
     });
-  } catch (e) {
-    console.error("reminders cron error:", e);
-    return NextResponse.json({ error: String(e) }, { status: 500 });
-  }
+  });
 }

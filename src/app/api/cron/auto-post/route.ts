@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { generatePost } from "@/lib/posts";
 import { proposePostOnTelegram } from "@/lib/telegram";
 import { montrealParts } from "@/lib/utils";
+import { runCron } from "@/lib/cron-log";
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -33,17 +34,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
-  // Only run on open days (Tue=2, Wed=3, Thu=4, Fri=5, Sat=6)
-  const now = new Date();
-  const dayOfWeek = montrealParts(now).weekday;
-  const openDays = [2, 3, 4, 5, 6];
-  if (!openDays.includes(dayOfWeek)) {
-    return NextResponse.json({ ok: false, reason: "Closed day — no proposal made", dayOfWeek });
-  }
+  return await runCron("auto-post", async () => {
+    // Only run on open days (Tue=2, Wed=3, Thu=4, Fri=5, Sat=6)
+    const now = new Date();
+    const dayOfWeek = montrealParts(now).weekday;
+    const openDays = [2, 3, 4, 5, 6];
+    if (!openDays.includes(dayOfWeek)) {
+      return NextResponse.json({ ok: false, reason: "Closed day — no proposal made", dayOfWeek });
+    }
 
-  const kind = pickKind();
+    const kind = pickKind();
 
-  try {
     const content = await generatePost(kind);
 
     // Insert into pending_posts
@@ -62,8 +63,5 @@ export async function GET(req: NextRequest) {
     await proposePostOnTelegram({ id: row.id as string, content, kind });
 
     return NextResponse.json({ ok: true, kind, pendingId: row.id, preview: content.slice(0, 120) });
-  } catch (e) {
-    console.error("auto-post error:", e);
-    return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
-  }
+  });
 }
