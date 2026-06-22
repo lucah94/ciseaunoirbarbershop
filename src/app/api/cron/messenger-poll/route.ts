@@ -60,16 +60,20 @@ async function pollOnce(handledThisRun: Set<string>): Promise<{ handled: number;
       const sent = await sendMessengerMessage(recipient.id, reply);
 
       if (!sent.ok) {
-        // Envoi échoué (token FB mort OU fenêtre 24h dépassée) → on N'A PAS marqué "traité" en DB,
-        // donc un prochain cron pourra réessayer une fois le token régénéré. On alerte un humain pour
-        // qu'il reprenne la conversation et qu'AUCUN message ne tombe dans le vide.
-        // (alertFbTokenDead est déjà déclenché dans sendMessengerMessage si c'est un problème de token.)
-        try {
-          await notifySystemAlert(
-            `Message client Messenger non livré${sent.authError ? " (token FB mort)" : " (fenêtre 24h dépassée?)"} — reprends la conversation.\n` +
-            `👤 ${recipientName}\n💬 "${String(lastUserMsg.message).slice(0, 300)}"`
-          );
-        } catch { /* notif non bloquante */ }
+        // Deux cas distincts :
+        //  - authError (token FB mort) → on NE marque PAS "traité" : récupérable, on réessaiera une fois
+        //    le token régénéré (et alertFbTokenDead, throttlé, gère l'alerte côté sendMessengerMessage).
+        //  - sinon (fenêtre 24h Facebook dépassée = échec PERMANENT) → on marque "traité" pour ne PAS
+        //    réessayer/alerter en boucle chaque minute. On alerte UNE seule fois pour qu'un humain reprenne.
+        if (!sent.authError) {
+          await supabase.from("messenger_conversations").update({ last_handled_mid: lastUserMsg.id }).eq("sender_id", recipient.id);
+          try {
+            await notifySystemAlert(
+              `Message client Messenger non livré (fenêtre 24h Facebook dépassée) — reprends la conversation manuellement.\n` +
+              `👤 ${recipientName}\n💬 "${String(lastUserMsg.message).slice(0, 300)}"`
+            );
+          } catch { /* notif non bloquante */ }
+        }
         errors.push(`${recipient.id}: envoi non livré (${sent.detail})`);
         continue;
       }
