@@ -225,8 +225,10 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  // NOTE: PATCH reste accessible — /booking/cancel l'utilise pour l'annulation self-service du client.
-  // TODO sécurité: restreindre les modifications autres que status:"cancelled" à l'admin/barbier.
+  // PATCH reste accessible pour l'annulation self-service du client (/booking/cancel),
+  // MAIS un appel NON authentifié ne peut QUE passer status:"cancelled" — toute autre
+  // modification (prix, date, heure, barbier, note, statut completed/no_show) exige admin/barbier.
+  // Ferme l'IDOR: sans ça, n'importe qui connaissant l'UUID pouvait changer prix/date d'un RDV.
   try {
     const body = await req.json();
     const { id, ...updates } = body;
@@ -238,6 +240,20 @@ export async function PATCH(req: NextRequest) {
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: "Aucun champ à mettre à jour" }, { status: 400 });
     }
+
+    // ── Sécurité IDOR ────────────────────────────────────────────────
+    const isAuthed = requireAdmin(req) === null || requireBarber(req) === null;
+    if (!isAuthed) {
+      const keys = Object.keys(updates).filter((k) => k !== "force");
+      const onlyCancel = keys.length === 1 && keys[0] === "status" && updates.status === "cancelled";
+      if (!onlyCancel) {
+        return NextResponse.json(
+          { error: "Non autorisé — seule l'annulation est permise sans connexion." },
+          { status: 403 }
+        );
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────
 
     // ── Overlap check when time/date/barber changes ──────────────────
     const forceOverlap = !!updates.force;
