@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion, useMotionValue, useTransform, useScroll, type Variants } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
+import { toHomeServices, type HomeService } from "@/lib/services-fallback";
 
 /* ───── 3D Tilt Card ───── */
 function Card3D({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
@@ -96,17 +97,9 @@ const staggerItem: Variants = {
 };
 
 /* ───── Services Data ───── */
-type HomeService = { service: string; price: string; desc: string };
-
-// FALLBACK (= données actuelles) : utilisé si /api/services échoue, pour que la section marche TOUJOURS.
-const FALLBACK_SERVICES: HomeService[] = [
-  { service: "Coupe + Lavage", price: "35$", desc: "Coupe classique avec shampoing" },
-  { service: "Coupe + Barbe à la lame", price: "50$", desc: "Coupe, rasage lame & serviette chaude" },
-  { service: "Coupe + Barbe Shaver", price: "45$", desc: "Coupe, barbe & rasage à la tondeuse (shaver)" },
-  { service: "Service Premium", price: "75$", desc: "Coupe, rasage, serviette chaude & exfoliant" },
-  { service: "Rasage / Barbe", price: "25$", desc: "Rasage lame, barbe & tondeuse" },
-  { service: "Enfant (12 ans et moins)", price: "30$", desc: "Coupe pour enfant de 12 ans et moins (preuve d'âge)" },
-];
+// FALLBACK (= données actuelles, centralisé dans @/lib/services-fallback) :
+// utilisé si /api/services échoue, pour que la section marche TOUJOURS.
+const FALLBACK_SERVICES: HomeService[] = toHomeServices();
 
 /* ───── Reviews Data ───── */
 type GoogleReview = { name: string; rating: number; text: string; photo?: string };

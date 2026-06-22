@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
 
 interface RateLimitEntry {
   count: number;
@@ -62,4 +63,63 @@ export function rateLimit(
   }
 
   return null;
+}
+
+/**
+ * Persistent (DB-backed) rate limiter for serverless environments where each
+ * container has its own in-memory state. Uses the `rate_limit` table
+ * (key text PRIMARY KEY, count int, window_start timestamptz).
+ *
+ * Returns true if the request is ALLOWED, false if the limit is exceeded.
+ * Fail-open: any DB error returns true so real logins are never blocked.
+ */
+export async function dbRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number
+): Promise<boolean> {
+  try {
+    const now = Date.now();
+
+    const { data, error } = await supabaseAdmin
+      .from("rate_limit")
+      .select("count, window_start")
+      .eq("key", key)
+      .maybeSingle();
+
+    if (error) {
+      // DB error → fail open
+      return true;
+    }
+
+    // No row, or the window has expired → start a fresh window.
+    if (!data || now - new Date(data.window_start).getTime() >= windowMs) {
+      const { error: upsertError } = await supabaseAdmin
+        .from("rate_limit")
+        .upsert({
+          key,
+          count: 1,
+          window_start: new Date(now).toISOString(),
+        });
+
+      if (upsertError) return true;
+      return true;
+    }
+
+    // Within the active window.
+    if (data.count >= limit) {
+      return false;
+    }
+
+    const { error: updateError } = await supabaseAdmin
+      .from("rate_limit")
+      .update({ count: data.count + 1 })
+      .eq("key", key);
+
+    if (updateError) return true;
+    return true;
+  } catch {
+    // Any unexpected error → fail open.
+    return true;
+  }
 }

@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, dbRateLimit } from "@/lib/rate-limit";
 import { generateToken } from "@/lib/auth";
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const allowed = await dbRateLimit(`login:${ip}`, 6, 5 * 60 * 1000);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Trop de tentatives, réessaie dans quelques minutes." },
+      { status: 429 }
+    );
+  }
+
   const limited = rateLimit(req, { limit: 5, windowMs: 60_000 });
   if (limited) return limited;
 

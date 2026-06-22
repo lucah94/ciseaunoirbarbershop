@@ -7,6 +7,7 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import { toServiceOptions, type ServiceOption } from "@/lib/services-fallback";
 
 type Booking = {
   id: string; client_name: string; client_phone: string; client_email: string;
@@ -42,17 +43,9 @@ const STATUS_LABELS: Record<string, string> = {
 // Chaque barbier a une couleur distincte automatiquement — peu importe combien il y en a.
 const BARBER_PALETTE = ["#D4AF37", "#4A9EDB", "#4CAF50", "#E0699F", "#E58A4A", "#9B7EDE", "#52B9C4", "#C45252"];
 
-type ServiceOption = { label: string; price: number };
-
-// FALLBACK (= menu actuel) : utilisé si /api/services échoue, pour que le formulaire marche TOUJOURS.
-const FALLBACK_SERVICES: ServiceOption[] = [
-  { label: "Coupe + Lavage", price: 35 },
-  { label: "Coupe + Barbe à la lame", price: 50 },
-  { label: "Coupe + Barbe Shaver", price: 45 },
-  { label: "Service Premium", price: 75 },
-  { label: "Rasage / Barbe", price: 25 },
-  { label: "Enfant (12 ans et moins)", price: 30 },
-];
+// FALLBACK (= menu actuel, centralisé dans @/lib/services-fallback) :
+// utilisé si /api/services échoue, pour que le formulaire marche TOUJOURS.
+const FALLBACK_SERVICES: ServiceOption[] = toServiceOptions();
 
 
 const TIME_SLOTS: string[] = [];

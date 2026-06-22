@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { toServiceCards, type ServiceCard } from "@/lib/services-fallback";
 
 export const metadata: Metadata = {
   title: "Services & Tarifs",
@@ -16,69 +17,10 @@ export const metadata: Metadata = {
   },
 };
 
-type ServiceCard = {
-  name: string;
-  price: string;
-  duration: string;
-  desc: string;
-  includes: string[];
-  featured?: boolean;
-  icon: string;
-};
-
-// FALLBACK (= données actuelles) : utilisé si /api/services échoue, pour que la page marche TOUJOURS.
+// FALLBACK (= données actuelles, centralisé dans @/lib/services-fallback) :
+// utilisé si /api/services échoue, pour que la page marche TOUJOURS.
 // `includes` / `featured` sont décoratifs (pas en DB) : on les conserve par correspondance de nom.
-const FALLBACK_SERVICES: ServiceCard[] = [
-  {
-    name: "Coupe + Lavage",
-    price: "35$",
-    duration: "45 min",
-    desc: "Notre service signature. Shampoing, coupe classique adaptée à votre style, et finition impeccable.",
-    includes: ["Shampoing & conditionneur", "Coupe personnalisée", "Finition & coiffage"],
-    icon: "✂️",
-  },
-  {
-    name: "Coupe + Barbe à la lame",
-    price: "50$",
-    duration: "60 min",
-    desc: "L'expérience complète pour l'homme moderne. Coupe précise et rasage traditionnel à la lame droite.",
-    includes: ["Shampoing & conditionneur", "Coupe personnalisée", "Rasage lame droite", "Serviette chaude"],
-    icon: "🪒",
-  },
-  {
-    name: "Coupe + Barbe Shaver",
-    price: "45$",
-    duration: "45 min",
-    desc: "Coupe, barbe & rasage à la tondeuse (shaver). Un look net et précis sans la lame droite.",
-    includes: ["Coupe personnalisée", "Barbe taillée", "Rasage à la tondeuse (shaver)"],
-    icon: "🧔",
-  },
-  {
-    name: "Service Premium",
-    price: "75$",
-    duration: "75 min",
-    desc: "Notre service haut de gamme. Une expérience de barbier complète du début à la fin.",
-    includes: ["Shampoing & conditionneur", "Coupe personnalisée", "Rasage lame droite", "Serviette chaude", "Exfoliant visage"],
-    featured: true,
-    icon: "👑",
-  },
-  {
-    name: "Rasage / Barbe",
-    price: "25$",
-    duration: "30 min",
-    desc: "Pour un rasage net ou une barbe bien taillée. Tondeuse, lame droite et serviette chaude.",
-    includes: ["Rasage lame droite ou tondeuse", "Serviette chaude", "Finition barbe"],
-    icon: "🧔",
-  },
-  {
-    name: "Enfant (12 ans et moins)",
-    price: "30$",
-    duration: "30 min",
-    desc: "Coupe pour enfant de 12 ans et moins (preuve d'âge).",
-    includes: ["Coupe adaptée", "Finition soignée"],
-    icon: "👦",
-  },
-];
+const FALLBACK_SERVICES: ServiceCard[] = toServiceCards();
 
 // Lit les services depuis /api/services (gérés par Melynda). Filet de sécurité : en cas
 // d'échec ou de réponse vide, renvoie FALLBACK_SERVICES pour que la page marche TOUJOURS.

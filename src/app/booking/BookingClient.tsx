@@ -9,19 +9,14 @@ import Footer from "@/components/Footer";
 import { isPushSupported, subscribeAndSave } from "@/lib/push-notifications";
 import { supabase } from "@/lib/supabase";
 import { serviceDuration } from "@/lib/serviceDuration";
+import { toBookingServices, type BookingService } from "@/lib/services-fallback";
 
 // Type d'un service tel qu'utilisé partout dans le booking (price/duration en string pour l'affichage)
-type Service = { id: string; name: string; price: string; duration: string; desc: string; icon: string };
+type Service = BookingService;
 
-// FALLBACK (= données actuelles) : utilisé si /api/services échoue, pour que la page marche TOUJOURS.
-const FALLBACK_SERVICES: Service[] = [
-  { id: "wash-cut", name: "Coupe + Lavage", price: "35$", duration: "45 min", desc: "Coupe classique avec shampoing", icon: "✂️" },
-  { id: "wash-cut-shave", name: "Coupe + Barbe à la lame", price: "50$", duration: "60 min", desc: "Coupe, rasage lame & serviette chaude", icon: "🪒" },
-  { id: "cut-beard-shaver", name: "Coupe + Barbe Shaver", price: "45$", duration: "45 min", desc: "Coupe, barbe & rasage à la tondeuse (shaver)", icon: "🧔" },
-  { id: "premium", name: "Service Premium", price: "75$", duration: "75 min", desc: "Coupe, rasage, serviette chaude & exfoliant", icon: "👑" },
-  { id: "shave", name: "Rasage / Barbe", price: "25$", duration: "30 min", desc: "Rasage lame, barbe & tondeuse", icon: "🧔" },
-  { id: "child", name: "Enfant (12 ans et moins)", price: "30$", duration: "30 min", desc: "Coupe pour enfant de 12 ans et moins (preuve d'âge)", icon: "👦" },
-];
+// FALLBACK (= données actuelles, centralisé dans @/lib/services-fallback) :
+// utilisé si /api/services échoue, pour que la page marche TOUJOURS.
+const FALLBACK_SERVICES: Service[] = toBookingServices();
 
 // Slug stable à partir du nom (sans accents) — sert d'id quand l'API ne renvoie pas d'id local connu
 function slugify(name: string): string {

@@ -3,20 +3,6 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import AdminSidebar from "@/components/AdminSidebar";
 import { useRealtimeTable } from "@/lib/use-realtime-bookings";
 
-type Booking = {
-  id: string;
-  client_name: string;
-  client_phone: string;
-  client_email: string;
-  barber: string;
-  service: string;
-  price: number;
-  date: string;
-  time: string;
-  status: string;
-  loyalty_counted: boolean;
-};
-
 type ClientStats = {
   name: string;
   phone: string;
@@ -32,7 +18,7 @@ type SortKey = "name" | "totalVisits" | "totalSpent" | "lastVisit" | "noShowCoun
 type SortDir = "asc" | "desc";
 
 export default function ClientsPage() {
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [clients, setClients] = useState<ClientStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("totalVisits");
@@ -46,54 +32,22 @@ export default function ClientsPage() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  const fetchBookings = useCallback(() => {
-    fetch(`/api/bookings?_=${Date.now()}`, { cache: "no-store" })
+  // Agrégation faite CÔTÉ SERVEUR (#8 perf) — on récupère les clients déjà
+  // agrégés via /api/client-stats au lieu de tout calculer dans le navigateur.
+  const fetchClients = useCallback(() => {
+    fetch(`/api/client-stats?_=${Date.now()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
-        setBookings(Array.isArray(data) ? data : data.bookings || []);
+        setClients(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, []);
 
-  useEffect(() => { fetchBookings(); }, [fetchBookings]);
+  useEffect(() => { fetchClients(); }, [fetchClients]);
 
   // Push live: tout changement bookings ou clients propage instantanément
-  useRealtimeTable("admin-clients-rt", ["bookings", "clients"], fetchBookings);
-
-  const clients = useMemo(() => {
-    const map = new Map<string, Booking[]>();
-    for (const b of bookings) {
-      const key = (b.client_email || b.client_phone || "").toLowerCase();
-      if (!key) continue;
-      const arr = map.get(key) || [];
-      arr.push(b);
-      map.set(key, arr);
-    }
-
-    const stats: ClientStats[] = [];
-    for (const [, bks] of map) {
-      const verified = bks.filter((b) => b.loyalty_counted === true);
-      const noShows = bks.filter((b) => b.status === "no_show");
-      const lastVerified = verified
-        .map((b) => b.date)
-        .sort()
-        .reverse()[0] || "";
-      const latest = bks[0];
-
-      stats.push({
-        name: latest.client_name,
-        phone: latest.client_phone || "",
-        email: latest.client_email || "",
-        totalVisits: verified.length,
-        totalSpent: verified.reduce((sum, b) => sum + (b.price || 0), 0),
-        lastVisit: lastVerified,
-        noShowCount: noShows.length,
-        loyaltyProgress: verified.length === 0 ? 0 : ((verified.length % 10) || 10),
-      });
-    }
-    return stats;
-  }, [bookings]);
+  useRealtimeTable("admin-clients-rt", ["bookings", "clients"], fetchClients);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
