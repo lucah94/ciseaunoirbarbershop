@@ -22,9 +22,29 @@ export function isFbAuthError(raw: unknown): boolean {
   );
 }
 
-// Alerte Telegram "token Facebook mort" AVEC anti-spam (max 1 / ~3h) via sms_log.
+// Alerte "token Facebook mort" — MAIS ne crie PAS au loup sur un hoquet passager.
+// Facebook renvoie parfois des erreurs 190/OAuthException temporaires pour un token POURTANT valide.
+// Donc on: (1) tente l'auto-réparation (re-dérivation depuis le token System User permanent),
+// (2) VÉRIFIE réellement si le token est mort (appel /me), (3) n'alerte QUE s'il est vraiment
+// invalide après ça. Anti-spam 3h. → élimine les fausses alarmes "regénérer le token".
 export async function alertFbTokenDead() {
   try {
+    // 1. Auto-réparation : re-dérive un token de page frais depuis l'ancre permanente.
+    await refreshFacebookToken().catch(() => null);
+
+    // 2. Le token (frais) est-il VRAIMENT mort ?
+    let reallyDead = false;
+    try {
+      const token = await getFacebookToken();
+      const res = await fetch(`https://graph.facebook.com/v19.0/me?fields=id&access_token=${token}`);
+      const data = await res.json();
+      reallyDead = !res.ok && isFbAuthError(data);
+    } catch {
+      reallyDead = false; // erreur réseau ≠ token mort → on n'alerte pas
+    }
+    if (!reallyDead) return; // faux positif ou auto-réparé → silence, aucune fausse alarme.
+
+    // 3. Token réellement invalide (vérifié) ET auto-réparation impossible → vraie alerte.
     const THREE_H = 3 * 60 * 60 * 1000;
     const { data: recent } = await supabase
       .from("sms_log")
@@ -34,10 +54,10 @@ export async function alertFbTokenDead() {
       .limit(1);
     if (recent && recent.length > 0) return; // déjà alerté récemment → on ne spam pas
     await notifySystemAlert(
-      "Token Facebook expiré/invalide — le bot Messenger et les réponses FB sont HORS SERVICE. Regénérer le token."
+      "Token Facebook VRAIMENT invalide (vérifié, auto-réparation échouée) — le token System User a peut-être été retiré du bot. À vérifier dans Business Manager."
     );
     await supabase.from("sms_log").insert([
-      { phone: "fb-token", message_type: "fb-token-alert", message_preview: "Token FB expiré/invalide — Messenger HORS SERVICE" },
+      { phone: "fb-token", message_type: "fb-token-alert", message_preview: "Token FB invalide vérifié — auto-réparation échouée" },
     ]);
   } catch (e) {
     console.error("[Messenger] alertFbTokenDead a échoué:", String(e).slice(0, 200));
