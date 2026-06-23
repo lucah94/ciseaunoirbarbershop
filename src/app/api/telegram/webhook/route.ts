@@ -1271,6 +1271,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const update = await req.json();
 
+    // Idempotence : Telegram re-livre un update si on ne répond pas 200 à temps (ex: traitement IA long).
+    // On enregistre update_id (clé primaire) — si déjà vu → on ignore (évite double-action / double-booking).
+    const updateId = update?.update_id;
+    if (typeof updateId === "number") {
+      const { error: dupErr } = await supabaseAdmin.from("telegram_updates").insert({ update_id: updateId });
+      if (dupErr) return NextResponse.json({ ok: true }); // déjà traité → idempotent
+    }
+
     // ── Callback buttons (approval + reminders + receipts + posts) ─────────────
     if (update.callback_query) {
       const { id, data, message } = update.callback_query as {
