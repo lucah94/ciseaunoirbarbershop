@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getFacebookToken } from "@/lib/fbToken";
 export const dynamic = 'force-dynamic';
 
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID!;
-const TOKEN = process.env.FACEBOOK_ACCESS_TOKEN!;
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const postId = searchParams.get("postId");
 
   try {
+    const TOKEN = await getFacebookToken();
     if (postId) {
       // Get comments for a specific post
       const res = await fetch(

@@ -3,18 +3,18 @@ import { processMessageWithClaude, sendMessengerMessage, isFbAuthError, alertFbT
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { notifySystemAlert } from "@/lib/telegram";
 import { runCron } from "@/lib/cron-log";
+import { getFacebookToken } from "@/lib/fbToken";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "577401682130596";
-const TOKEN = process.env.FACEBOOK_ACCESS_TOKEN;
 const GRAPH = "https://graph.facebook.com/v19.0";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 // Une passe : lit les conversations NON LUES, répond, marque comme lu (dédup via unread_count).
-async function pollOnce(handledThisRun: Set<string>): Promise<{ handled: number; errors: string[] }> {
+async function pollOnce(TOKEN: string, handledThisRun: Set<string>): Promise<{ handled: number; errors: string[] }> {
   const errors: string[] = [];
   let handled = 0;
 
@@ -101,6 +101,8 @@ export async function GET(req: NextRequest) {
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  // Token de page auto-réparé (re-dérivé depuis le System User token au besoin).
+  const TOKEN = await getFacebookToken();
   if (!TOKEN) return NextResponse.json({ error: "FACEBOOK_ACCESS_TOKEN manquant" }, { status: 500 });
 
   return await runCron("messenger-poll", async () => {
@@ -109,7 +111,7 @@ export async function GET(req: NextRequest) {
   const allErrors: string[] = [];
   const handledThisRun = new Set<string>(); // anti-doublon partagé entre les passages de 5s
   for (;;) {
-    const { handled, errors } = await pollOnce(handledThisRun);
+    const { handled, errors } = await pollOnce(TOKEN, handledThisRun);
     total += handled;
     allErrors.push(...errors);
     if (Date.now() + 5500 >= deadline) break;

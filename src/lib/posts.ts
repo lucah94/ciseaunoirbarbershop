@@ -4,6 +4,7 @@
  */
 
 import { generateText, MODELS } from "@/lib/ai";
+import { getFacebookToken, refreshFacebookToken, isFbTokenError } from "@/lib/fbToken";
 
 const FB_PAGE_ID = "577401682130596";
 
@@ -90,16 +91,29 @@ export async function generatePost(kind: string, instructions?: string): Promise
 export async function publishPostToFacebook(
   content: string
 ): Promise<{ id?: string; error?: string }> {
-  const token = process.env.FACEBOOK_ACCESS_TOKEN;
+  // Token de page auto-réparé (re-dérivé depuis le System User token au besoin).
+  let token = await getFacebookToken();
   if (!token) return { error: "FACEBOOK_ACCESS_TOKEN manquant" };
 
-  try {
+  const doPublish = async (tok: string) => {
     const res = await fetch(`https://graph.facebook.com/v19.0/${FB_PAGE_ID}/feed`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: content, access_token: token }),
+      body: JSON.stringify({ message: content, access_token: tok }),
     });
-    const data = (await res.json()) as { id?: string; error?: { message?: string } };
+    return (await res.json()) as { id?: string; error?: { message?: string; code?: number; type?: string } };
+  };
+
+  try {
+    let data = await doPublish(token);
+    // AUTO-RÉPARATION : token mort → on re-dérive un token frais et on RÉESSAIE une fois.
+    if (data.error && isFbTokenError(data.error)) {
+      const fresh = await refreshFacebookToken();
+      if (fresh) {
+        token = fresh;
+        data = await doPublish(token);
+      }
+    }
     if (data.error) return { error: data.error.message || "Erreur Facebook" };
     return { id: data.id };
   } catch (e) {
@@ -110,7 +124,7 @@ export async function publishPostToFacebook(
 // ── deleteFacebookPost ────────────────────────────────────────────────────────
 
 export async function deleteFacebookPost(postId: string): Promise<boolean> {
-  const token = process.env.FACEBOOK_ACCESS_TOKEN;
+  const token = await getFacebookToken();
   if (!token) return false;
 
   try {

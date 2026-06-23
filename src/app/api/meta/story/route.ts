@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+import { getFacebookToken, refreshFacebookToken, isFbTokenError } from "@/lib/fbToken";
 export const dynamic = 'force-dynamic';
 
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID!;
-const TOKEN = process.env.FACEBOOK_ACCESS_TOKEN!;
 
 export async function POST(req: NextRequest) {
   const denied = requireAdmin(req);
@@ -13,20 +13,31 @@ export async function POST(req: NextRequest) {
 
   if (!imageUrl) return NextResponse.json({ error: "URL d'image requise pour une story" }, { status: 400 });
 
+  // Token de page auto-réparé (re-dérivé depuis le System User token au besoin).
+  let TOKEN = await getFacebookToken();
+
   try {
     const results: Record<string, unknown> = {};
 
     // Facebook Story
     if (platform === "facebook" || platform === "both") {
-      const res = await fetch(
-        `https://graph.facebook.com/v19.0/${PAGE_ID}/photo_stories`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: imageUrl, access_token: TOKEN }),
-        }
-      );
-      const data = await res.json();
+      const doStory = async (tok: string) => {
+        const r = await fetch(
+          `https://graph.facebook.com/v19.0/${PAGE_ID}/photo_stories`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: imageUrl, access_token: tok }),
+          }
+        );
+        return (await r.json()) as { id?: string; error?: { message?: string; code?: number; type?: string } };
+      };
+      let data = await doStory(TOKEN);
+      // AUTO-RÉPARATION : token mort → re-dérive + réessaie une fois.
+      if (data.error && isFbTokenError(data.error)) {
+        const fresh = await refreshFacebookToken();
+        if (fresh) { TOKEN = fresh; data = await doStory(TOKEN); }
+      }
       results.facebook = data.error ? { error: data.error.message } : { ok: true, id: data.id };
     }
 

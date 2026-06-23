@@ -77,6 +77,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/cron/fb-token-refresh",
+      "schedule": "0 */6 * * *"
+    },
+    {
       "path": "/api/cron/expire-posts",
       "schedule": "0 13 * * *"
     }

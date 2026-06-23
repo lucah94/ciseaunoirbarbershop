@@ -3,6 +3,7 @@ import { generateText, MODELS } from "@/lib/ai";
 import { supabaseAdmin } from "@/lib/supabase";
 import { notifySystemAlert, notifyFbComment } from "@/lib/telegram";
 import { runCron } from "@/lib/cron-log";
+import { getFacebookToken } from "@/lib/fbToken";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -16,7 +17,7 @@ type FBComment = {
 
 async function fetchPageComments(): Promise<FBComment[]> {
   const PAGE_ID = process.env.FACEBOOK_PAGE_ID;
-  const TOKEN = process.env.FACEBOOK_ACCESS_TOKEN;
+  const TOKEN = await getFacebookToken();
   if (!PAGE_ID || !TOKEN) return [];
 
   const postsRes = await fetch(
@@ -63,7 +64,7 @@ Réponds uniquement le texte de la réponse, rien d'autre.`;
 }
 
 async function postReply(commentId: string, message: string): Promise<boolean> {
-  const TOKEN = process.env.FACEBOOK_ACCESS_TOKEN;
+  const TOKEN = await getFacebookToken();
   if (!TOKEN) return false;
   const res = await fetch(`https://graph.facebook.com/v19.0/${commentId}/comments`, {
     method: "POST",
@@ -102,7 +103,7 @@ Réponds uniquement: HATE, NEGATIVE, QUESTION ou NORMAL.`;
 }
 
 async function deleteComment(commentId: string): Promise<boolean> {
-  const TOKEN = process.env.FACEBOOK_ACCESS_TOKEN;
+  const TOKEN = await getFacebookToken();
   if (!TOKEN) return false;
   const res = await fetch(`https://graph.facebook.com/v19.0/${commentId}?access_token=${TOKEN}`, { method: "DELETE" });
   return res.ok;
@@ -113,7 +114,7 @@ export async function GET(req: NextRequest) {
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
-  if (!process.env.FACEBOOK_PAGE_ID || !process.env.FACEBOOK_ACCESS_TOKEN) {
+  if (!process.env.FACEBOOK_PAGE_ID || !(await getFacebookToken())) {
     return NextResponse.json({ ok: false, reason: "Facebook credentials manquants" });
   }
 

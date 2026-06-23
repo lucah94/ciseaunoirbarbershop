@@ -4,6 +4,7 @@ import twilio from "twilio";
 import crypto from "crypto";
 import { notifyBookingCancelled, notifyBookingRescheduled, notifySystemAlert } from "@/lib/telegram";
 import { serviceDuration } from "@/lib/serviceDuration";
+import { getFacebookToken, refreshFacebookToken } from "@/lib/fbToken";
 export const dynamic = 'force-dynamic';
 
 // Détecte une erreur d'authentification Facebook (token expiré/invalide) dans une réponse Graph API.
@@ -47,7 +48,6 @@ export async function alertFbTokenDead() {
 export type SendResult = { ok: true } | { ok: false; authError: boolean; detail: string };
 
 const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN!;
-const PAGE_ACCESS_TOKEN = process.env.FACEBOOK_ACCESS_TOKEN!;
 import type Anthropic from "@anthropic-ai/sdk";
 import { aiClient as anthropic, MODELS } from "@/lib/ai";
 
@@ -408,27 +408,45 @@ export async function sendMessengerMessage(recipientId: string, text: string): P
   // Send the text (remove the URL from text if we'll send a button)
   const cleanText = hasBookingLink ? text.replace(bookingUrl, "").replace(/👉\s*$/, "").trim() : text;
 
-  const sendRes = await fetch(`https://graph.facebook.com/v19.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      recipient: { id: recipientId },
-      message: { text: cleanText },
-    }),
-  });
+  // POST du message texte avec un token donné. Retourne la réponse + le corps (texte).
+  const postText = async (token: string) =>
+    fetch(`https://graph.facebook.com/v19.0/me/messages?access_token=${token}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        message: { text: cleanText },
+      }),
+    });
+
+  // Token de page auto-réparé (re-dérivé depuis le System User token au besoin).
+  let token = await getFacebookToken();
+  let sendRes = await postText(token);
+
+  // AUTO-RÉPARATION : si l'envoi échoue à cause d'un token mort, on re-dérive un token frais et on RÉESSAIE une fois.
   if (!sendRes.ok) {
-    const err = await sendRes.text().catch(() => "");
-    const authError = isFbAuthError(err);
-    // Si ça échoue ici (souvent token Facebook expiré), on le verra dans les logs Vercel
-    console.error(`[Messenger] Échec envoi FB (HTTP ${sendRes.status})${authError ? " — token expiré/invalide" : ""} →`, err.slice(0, 300));
-    if (authError) await alertFbTokenDead();
-    // Envoi du message texte échoué → on signale au poller (il fera le fallback + ne marquera pas "traité")
-    return { ok: false, authError, detail: `HTTP ${sendRes.status} ${err.slice(0, 200)}` };
+    let err = await sendRes.text().catch(() => "");
+    if (isFbAuthError(err)) {
+      const fresh = await refreshFacebookToken();
+      if (fresh) {
+        token = fresh;
+        sendRes = await postText(token);
+        if (!sendRes.ok) err = await sendRes.text().catch(() => "");
+      }
+    }
+    if (!sendRes.ok) {
+      const authError = isFbAuthError(err);
+      // Si ça échoue ici (souvent token Facebook expiré), on le verra dans les logs Vercel
+      console.error(`[Messenger] Échec envoi FB (HTTP ${sendRes.status})${authError ? " — token expiré/invalide" : ""} →`, err.slice(0, 300));
+      if (authError) await alertFbTokenDead();
+      // Envoi du message texte échoué → on signale au poller (il fera le fallback + ne marquera pas "traité")
+      return { ok: false, authError, detail: `HTTP ${sendRes.status} ${err.slice(0, 200)}` };
+    }
   }
 
   // Send a clickable button for booking
   if (hasBookingLink) {
-    await fetch(`https://graph.facebook.com/v19.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`, {
+    await fetch(`https://graph.facebook.com/v19.0/me/messages?access_token=${token}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -604,8 +622,9 @@ export async function POST(req: NextRequest) {
 
         // Update sender name if available
         try {
+          const profileToken = await getFacebookToken();
           const profileRes = await fetch(
-            `https://graph.facebook.com/v19.0/${senderId}?fields=first_name,last_name&access_token=${PAGE_ACCESS_TOKEN}`
+            `https://graph.facebook.com/v19.0/${senderId}?fields=first_name,last_name&access_token=${profileToken}`
           );
           const profile = await profileRes.json();
           if (profile.first_name) {
