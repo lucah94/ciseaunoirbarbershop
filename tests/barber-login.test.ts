@@ -95,7 +95,7 @@ describe("POST /api/auth/barber-login route", () => {
   beforeEach(() => {
     process.env.MELYNDA_PASSWORD = "secret-mel";
     process.env.STEPHANIE_PASSWORD = "secret-steph";
-    vi.mock("@/lib/rate-limit", () => ({ rateLimit: vi.fn(() => null) }));
+    vi.mock("@/lib/rate-limit", () => ({ rateLimit: vi.fn(() => null), dbRateLimit: vi.fn().mockResolvedValue(true) }));
   });
 
   afterEach(() => {

@@ -13,12 +13,13 @@ import { NextRequest } from "next/server";
 
 vi.mock("@/lib/rate-limit", () => ({
   rateLimit: vi.fn().mockReturnValue(null),
+  dbRateLimit: vi.fn().mockResolvedValue(true),
 }));
 vi.mock("@/lib/auth", () => ({
   generateToken: vi.fn().mockReturnValue("a".repeat(64)),
 }));
 
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, dbRateLimit } from "@/lib/rate-limit";
 import { generateToken } from "@/lib/auth";
 
 function makePost(body: object, ip = "127.0.0.1") {
@@ -32,6 +33,7 @@ function makePost(body: object, ip = "127.0.0.1") {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(rateLimit).mockReturnValue(null);
+  vi.mocked(dbRateLimit).mockResolvedValue(true);
   process.env.ADMIN_PASSWORD = "correct-password";
 });
 
