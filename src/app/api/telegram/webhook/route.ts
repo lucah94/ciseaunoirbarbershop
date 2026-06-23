@@ -1032,7 +1032,7 @@ function needsSonnet(msg: string): boolean {
 // ────────────────────────────────────────────────────────────────────────────
 // B) MOTEUR AGENTIQUE — personnalité Figaro, boucle gardée (max 6 tours)
 // ────────────────────────────────────────────────────────────────────────────
-async function handleConversation(chatId: number, userMessage: string): Promise<void> {
+export async function handleConversation(chatId: number, userMessage: string, sendReply = true): Promise<string> {
   const todayQCStr = todayQC();
   const todayLabel = nowInQC().toLocaleDateString("fr-CA", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
@@ -1042,7 +1042,7 @@ async function handleConversation(chatId: number, userMessage: string): Promise<
     supabaseAdmin.from("bookings").select("id", { count: "exact" }).eq("date", todayQCStr).neq("status", "cancelled"),
   ]);
 
-  await saveHistory(chatId, "user", userMessage);
+  if (sendReply) await saveHistory(chatId, "user", userMessage);
 
   const notes = notesData.data?.map((n) => `• ${n.key}: ${n.content}`).join("\n") || "Aucune note";
   const rdvCount = rdvAujourdhui.count || 0;
@@ -1116,11 +1116,16 @@ Tu réponds à TOUT (questions, gestion, conseils) — t'es l'assistant complet 
     }
 
     if (!reply) reply = "Je t'entends mais j'arrive pas à formuler. Reformule et réessaie.";
-    await saveHistory(chatId, "assistant", reply);
-    await sendTelegramMessage(chatId, reply);
+    if (sendReply) {
+      await saveHistory(chatId, "assistant", reply);
+      await sendTelegramMessage(chatId, reply);
+    }
+    return reply;
   } catch (e) {
     console.error("Conversation error:", e);
-    await sendTelegramMessage(chatId, "🔴 Erreur technique — réessaie dans une seconde.");
+    const errMsg = "🔴 Erreur technique — réessaie dans une seconde.";
+    if (sendReply) await sendTelegramMessage(chatId, errMsg);
+    return errMsg;
   }
 }
 
