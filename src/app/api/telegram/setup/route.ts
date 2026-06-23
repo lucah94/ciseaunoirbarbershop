@@ -30,17 +30,28 @@ export async function POST(req: NextRequest) {
   const webhookUrl = `https://ciseaunoirbarbershop.com/api/telegram/webhook`;
 
   if (action === "register" || !action) {
+    // SÉCURITÉ : on enregistre le secret_token. Telegram le renverra dans l'en-tête
+    // X-Telegram-Bot-Api-Secret-Token à chaque appel webhook ; la route le vérifie
+    // en temps constant (fail closed si TELEGRAM_WEBHOOK_SECRET n'est pas défini).
+    const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+    if (!secret) {
+      return NextResponse.json({
+        error: "TELEGRAM_WEBHOOK_SECRET non configuré — refus d'enregistrer un webhook non sécurisé.",
+        hint: "Définis TELEGRAM_WEBHOOK_SECRET (32+ chars [A-Za-z0-9_-]) en variable d'environnement, puis réessaie.",
+      }, { status: 400 });
+    }
     const res = await fetch(`${TELEGRAM_API}${token}/setWebhook`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         url: webhookUrl,
+        secret_token: secret,
         allowed_updates: ["message", "callback_query"],
         drop_pending_updates: true,
       }),
     });
     const data = await res.json() as Record<string, unknown>;
-    return NextResponse.json({ action: "register", webhookUrl, result: data });
+    return NextResponse.json({ action: "register", webhookUrl, secret_token: "configuré ✓", result: data });
   }
 
   if (action === "status") {

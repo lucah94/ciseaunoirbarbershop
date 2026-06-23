@@ -141,7 +141,8 @@ export async function GET(req: NextRequest) {
     try {
       const category = await classifyComment(comment);
 
-      // Haineux / spam / arnaque → on supprime + on avertit l'équipe
+      // Haineux / spam / arnaque → on supprime + on avertit l'équipe AVANT toute génération IA.
+      // On ne génère pas de réponse pour un commentaire qu'on supprime (économie de tokens).
       if (category === "HATE") {
         const deleted = await deleteComment(comment.id);
         await notifySystemAlert(`🚫 Commentaire ${deleted ? "SUPPRIMÉ" : "à supprimer (échec)"} (haineux/spam)\n👤 ${author}\n💬 "${msg.slice(0, 200)}"`);
@@ -155,6 +156,7 @@ export async function GET(req: NextRequest) {
         await notifySystemAlert(`⚠️ Commentaire négatif à surveiller (PAS supprimé)\n👤 ${author}\n💬 "${msg.slice(0, 200)}"`);
       }
 
+      // À ce stade, le commentaire n'est PAS HATE → on peut générer une réponse IA.
       const reply = await generateReply(comment);
       const success = await postReply(comment.id, reply);
 

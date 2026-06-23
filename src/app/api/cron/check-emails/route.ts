@@ -16,6 +16,7 @@ async function createWithFallback(
   }
 }
 import { supabaseAdmin } from "@/lib/supabase";
+import { resolveService } from "@/lib/serviceLookup";
 import { fetchUnreadEmails, markAsRead, sendGmailReply, archiveEmail, deleteEmail } from "@/lib/gmail";
 import { sendSMS } from "@/lib/sms";
 import { notifyEscalation, notifyBookingCancelled, sendEmailApprovalRequest } from "@/lib/telegram";
@@ -236,22 +237,33 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
       client_name: string; client_email: string; client_phone?: string;
       service: string; barber: string; date: string; time: string; price: number; note?: string;
     };
+
+    // Anti-hallucination : valide le service contre la table `services` AVANT d'insérer.
+    // Si introuvable (typo, service inventé) → refuse et demande de clarifier (ne JAMAIS inventer).
+    const svc = await resolveService(b.service);
+    if (!svc.matched) {
+      return `REFUS : le service "${b.service}" n'existe pas dans notre liste officielle. Ne crée PAS ce RDV. Demande au client de préciser parmi : Coupe + Lavage, Coupe + Barbe à la lame, Coupe + Barbe Shaver, Service Premium, Rasage / Barbe, Enfant (12 ans et moins).`;
+    }
+    // On force le nom et le prix OFFICIELS (issus de la table services), pas ceux fournis par l'IA.
+    const officialName = svc.name;
+    const officialPrice = svc.price;
+
     const { data, error } = await supabaseAdmin.from("bookings").insert([{
       client_name: b.client_name,
       client_email: b.client_email,
       client_phone: b.client_phone || "",
-      service: b.service,
+      service: officialName,
       barber: b.barber,
       date: b.date,
       time: b.time,
-      price: b.price,
+      price: officialPrice,
       note: b.note || "Réservé par email via Figaro",
       status: "confirmed",
       source: "email",
     }]).select().single();
     if (error) return `Erreur création RDV: ${error.message}`;
     // Note: bookings/route.ts already sends Telegram notification — no duplicate here
-    return `RDV créé avec succès ! ID: ${data.id} | ${b.service} avec ${b.barber} le ${b.date} à ${b.time}`;
+    return `RDV créé avec succès ! ID: ${data.id} | ${officialName} (${officialPrice}$) avec ${b.barber} le ${b.date} à ${b.time}`;
   }
 
   if (name === "cancel_booking") {
@@ -285,11 +297,34 @@ function isImportantEmail(email: { from: string; fromEmail: string; subject: str
   return IMPORTANT_KEYWORDS.some(kw => text.includes(kw));
 }
 
+// ── Détection de langue (heuristique simple) ────────────────────────────────────
+// Compte des mots-fonction très fréquents propres à chaque langue pour décider FR vs EN.
+// Par défaut FR (clientèle majoritairement francophone à Québec).
+const FR_MARKERS = ["bonjour", "salut", "merci", "rendez-vous", "réserver", "voudrais", "aimerais", "pourriez", "s'il vous plaît", "svp", "à", "pour", "avec", "votre", "vous", "je", "est", "une", "des", "annuler", "déplacer", "heure"];
+const EN_MARKERS = ["hello", "hi", "thanks", "thank you", "appointment", "book", "would like", "could you", "please", "the", "for", "with", "your", "you", "i ", "is", "an ", "cancel", "reschedule", "time", "haircut"];
+
+function detectLanguage(email: { subject: string; body: string }): "fr" | "en" {
+  const text = ` ${email.subject} ${email.body} `.toLowerCase();
+  let fr = 0;
+  let en = 0;
+  for (const m of FR_MARKERS) if (text.includes(` ${m} `) || text.includes(`${m} `)) fr++;
+  for (const m of EN_MARKERS) if (text.includes(` ${m} `) || text.includes(`${m} `)) en++;
+  // Accents = fort signal de français
+  if (/[àâçéèêëîïôûùœ]/i.test(text)) fr += 2;
+  return en > fr ? "en" : "fr";
+}
+
 async function processEmailWithAgent(email: {
   id: string; threadId: string; from: string; fromEmail: string; subject: string; body: string;
 }): Promise<{ reply: string; intent: string; actionsPerformed: string[]; emailAction: "archive" | "delete" | "keep" }> {
   const today = new Date().toISOString().slice(0, 10);
   const actionsPerformed: string[] = [];
+
+  // Détecte la langue du courriel pour répondre dans la langue du client.
+  const lang = detectLanguage(email);
+  const langInstruction = lang === "en"
+    ? `LANGUE DE RÉPONSE : ce client écrit en ANGLAIS. Réponds-lui ENTIÈREMENT en anglais (ton chaleureux, professionnel). Signe avec : Figaro ✂️ — Ciseau Noir. Les balises de fin ([URGENT]/[IMPORTANT]/[INFO]/[IGNORE]) restent telles quelles.`
+    : `LANGUE DE RÉPONSE : ce client écrit en FRANÇAIS. Réponds en français québécois, chaleureux et concis. Signe avec : Figaro ✂️ — Ciseau Noir.`;
 
   const systemPrompt = `Tu es Figaro ✂️, l'agent IA de Ciseau Noir Barbershop à Québec. Tu traites les emails reçus par le salon de façon AUTONOME — tu prends les actions nécessaires sans attendre confirmation humaine.
 
@@ -317,8 +352,9 @@ TOUJOURS terminer ta réponse finale avec exactement une de ces balises sur sa p
 [INFO] — RDV créé/annulé/déplacé, question répondue
 [IGNORE] — spam, newsletter, supprimé
 
-Réponds en français québécois, chaleureux et concis.
-Signe avec : Figaro ✂️ — Ciseau Noir`;
+IMPORTANT — VALIDATION DES SERVICES : n'invente JAMAIS un nom de service ni un prix. Le prix officiel provient de notre table de services et est appliqué automatiquement par l'outil create_booking. Si le client demande un service qui n'existe pas, l'outil refusera : demande-lui alors de préciser parmi la liste officielle.
+
+${langInstruction}`;
 
   const messages: Anthropic.MessageParam[] = [
     {

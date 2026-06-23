@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { notifyBookingCancelled, notifyBookingRescheduled, notifySystemAlert } from "@/lib/telegram";
 import { serviceDuration } from "@/lib/serviceDuration";
 import { getFacebookToken, refreshFacebookToken } from "@/lib/fbToken";
+import { resolveService } from "@/lib/serviceLookup";
 export const dynamic = 'force-dynamic';
 
 // Détecte une erreur d'authentification Facebook (token expiré/invalide) dans une réponse Graph API.
@@ -335,21 +336,29 @@ async function handleToolCall(toolName: string, toolInput: Record<string, unknow
 
   if (toolName === "book_appointment") {
     const { name, phone, email, service, barber, date, time } = toolInput as Record<string, string>;
-    // Prix lu depuis la table services (source de vérité), fallback 35$ si introuvable.
-    const { data: svc } = await supabase
-      .from("services").select("price").eq("name", service).maybeSingle();
-    const price = Number(svc?.price) || 35;
+    // Email OBLIGATOIRE (le prompt l'exige) — on force la règle côté code : pas d'email → on redemande, on ne booke pas.
+    if (!email || !email.trim()) {
+      return "Il me manque ton adresse email pour confirmer la réservation (elle sert à t'envoyer la confirmation). Tu peux me la donner?";
+    }
+    // Prix : résolu/validé via resolveService (source de vérité = table services). JAMAIS de prix inventé.
+    // Si le service ne correspond à rien → on NE BOOKE PAS, on demande de clarifier.
+    const svc = await resolveService(service);
+    if (!svc.matched) {
+      return `Je ne reconnais pas le service « ${service} ». Peux-tu choisir parmi nos services? Coupe + Lavage (35$), Coupe + Barbe à la lame (50$), Coupe + Barbe Shaver (45$), Service Premium (75$), Rasage / Barbe (25$), Enfant (30$).`;
+    }
+    const price = svc.price;
+    const resolvedService = svc.name;
     // Passe par /api/bookings → déclenche email + SMS + Telegram (la totale), pas juste un insert
     try {
       const base = process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";
       const res = await fetch(`${base}/api/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ client_name: name, client_phone: phone, client_email: email, service, barber, date, time, price, source: "messenger" }),
+        body: JSON.stringify({ client_name: name, client_phone: phone, client_email: email, service: resolvedService, barber, date, time, price, source: "messenger" }),
       });
       const data = await res.json();
       if (!res.ok) return `Erreur lors de la réservation: ${data.error || ("HTTP " + res.status)}`;
-      return `Réservation confirmée! ${name}, ${service} avec ${barber} le ${date} à ${time}.`;
+      return `Réservation confirmée! ${name}, ${resolvedService} avec ${barber} le ${date} à ${time}.`;
     } catch (e) {
       return `Erreur lors de la réservation: ${String(e)}`;
     }
