@@ -24,6 +24,7 @@ type Barber = {
   schedule: Schedule;
   color: string;
   active: boolean;
+  photo?: string | null;
 };
 
 function todayStr() {
@@ -87,6 +88,7 @@ export default function HorairesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Barber>>({});
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [addingBarber, setAddingBarber] = useState(false);
   const [newBarber, setNewBarber] = useState({ name: "", role: "", color: "#D4AF37" });
 
@@ -139,6 +141,25 @@ export default function HorairesPage() {
       setEditingId(null);
     }
     setSaving(false);
+  }
+
+  async function uploadPhoto(file: File) {
+    setUploadingPhoto(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/portfolio/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.url) {
+        setEditForm(f => ({ ...f, photo: data.url }));
+      } else {
+        alert("Échec du téléversement de la photo");
+      }
+    } catch {
+      alert("Échec du téléversement de la photo");
+    } finally {
+      setUploadingPhoto(false);
+    }
   }
 
   async function deleteBarber(id: string, name: string) {
@@ -274,7 +295,12 @@ export default function HorairesPage() {
                   {/* Header barbier */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: `linear-gradient(135deg, ${barber.color}33, ${barber.color}11)`, border: `1px solid ${barber.color}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>✂️</div>
+                      {barber.photo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={barber.photo} alt={barber.name} style={{ width: "40px", height: "40px", borderRadius: "50%", objectFit: "cover", border: `1px solid ${barber.color}66` }} />
+                      ) : (
+                        <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: `linear-gradient(135deg, ${barber.color}33, ${barber.color}11)`, border: `1px solid ${barber.color}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>✂️</div>
+                      )}
                       <div>
                         <p style={{ color: "#F0F0F0", fontSize: "16px", letterSpacing: "1px" }}>{barber.name}</p>
                         <p style={{ color: "#7D8590", fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase" }}>{barber.role || "Barbier"}</p>
@@ -288,7 +314,7 @@ export default function HorairesPage() {
                         </>
                       ) : (
                         <>
-                          <button onClick={() => { setEditingId(barber.id); setEditForm({ name: barber.name, role: barber.role, schedule: { ...barber.schedule }, color: barber.color }); }}
+                          <button onClick={() => { setEditingId(barber.id); setEditForm({ name: barber.name, role: barber.role, schedule: { ...barber.schedule }, color: barber.color, photo: barber.photo ?? null }); }}
                             style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.2)", color: "#D4AF37", padding: "8px 16px", cursor: "pointer", borderRadius: "8px", fontSize: "12px" }}>
                             ✏️ Modifier
                           </button>
@@ -309,6 +335,27 @@ export default function HorairesPage() {
                         <label style={{ display: "block", color: "#888", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>Rôle</label>
                         <input value={editForm.role || ""} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))}
                           style={{ background: "#1C2129", border: "1px solid rgba(212,175,55,0.2)", color: "#F0F0F0", padding: "8px 12px", borderRadius: "6px", fontSize: "13px", width: "200px" }} />
+                      </div>
+                      <div style={{ marginBottom: "16px" }}>
+                        <label style={{ display: "block", color: "#888", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px" }}>Photo</label>
+                        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                          {editForm.photo ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={editForm.photo} alt="Aperçu" style={{ width: "56px", height: "56px", borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(212,175,55,0.4)" }} />
+                          ) : (
+                            <div style={{ width: "56px", height: "56px", borderRadius: "50%", background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>✂️</div>
+                          )}
+                          <label style={{
+                            background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.2)", color: "#D4AF37",
+                            padding: "8px 16px", cursor: uploadingPhoto ? "wait" : "pointer", borderRadius: "8px", fontSize: "12px",
+                            opacity: uploadingPhoto ? 0.6 : 1,
+                          }}>
+                            {uploadingPhoto ? "Téléversement…" : "Changer la photo"}
+                            <input type="file" accept="image/*" disabled={uploadingPhoto}
+                              onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ""; }}
+                              style={{ display: "none" }} />
+                          </label>
+                        </div>
                       </div>
                       <ScheduleEditor schedule={editForm.schedule || {}} onChange={s => setEditForm(f => ({ ...f, schedule: s }))} />
                     </div>

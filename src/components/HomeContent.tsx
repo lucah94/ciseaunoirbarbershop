@@ -1,6 +1,5 @@
 "use client";
 import Link from "next/link";
-import Image from "next/image";
 import { motion, useMotionValue, useTransform, useScroll, type Variants } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import { toHomeServices, type HomeService } from "@/lib/services-fallback";
@@ -100,6 +99,31 @@ const staggerItem: Variants = {
 // FALLBACK (= données actuelles, centralisé dans @/lib/services-fallback) :
 // utilisé si /api/services échoue, pour que la section marche TOUJOURS.
 const FALLBACK_SERVICES: HomeService[] = toHomeServices();
+
+/* ───── Équipe ───── */
+type TeamMember = { name: string; role: string; years: string; image: string };
+type ApiBarber = { name: string; role?: string; active?: boolean; photo?: string | null };
+
+// FALLBACK équipe (= rendu actuel) : si /api/barbers échoue, l'accueil reste intact.
+const FALLBACK_TEAM: TeamMember[] = [
+  { name: "Melynda", role: "Barbière & Co-fondatrice", years: "18+ ans d'expérience", image: "/images/melynda.jpg" },
+  { name: "Stéphanie", role: "Barbière", years: "Ciseau Noir", image: "/images/chair-barbier.jpg" },
+];
+
+// Image par défaut quand un barbier n'a pas de photo en DB (selon son nom).
+function teamFallbackImage(name: string): string {
+  const n = name.trim().toLowerCase();
+  if (n.startsWith("melynda")) return "/images/melynda.jpg";
+  if (n.startsWith("stéphanie") || n.startsWith("stephanie")) return "/images/chair-barbier.jpg";
+  return "/images/chair-barbier.jpg";
+}
+
+// "Années d'expérience" : valeur sensée par nom, générique sinon.
+function teamYears(name: string): string {
+  const n = name.trim().toLowerCase();
+  if (n.startsWith("melynda")) return "18+ ans d'expérience";
+  return "Ciseau Noir";
+}
 
 /* ───── Reviews Data ───── */
 type GoogleReview = { name: string; rating: number; text: string; photo?: string };
@@ -235,6 +259,29 @@ export default function HomeContent() {
   const [ctaHovered, setCtaHovered] = useState(false);
   // Services : démarre sur le FALLBACK, puis remplacé par /api/services si dispo (géré par Melynda).
   const [services, setServices] = useState<HomeService[]>(FALLBACK_SERVICES);
+  // Équipe : démarre sur le FALLBACK codé en dur, puis remplacé par /api/barbers si dispo.
+  const [team, setTeam] = useState<TeamMember[]>(FALLBACK_TEAM);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/barbers")
+      .then(r => { if (!r.ok) throw new Error("barbers"); return r.json(); })
+      .then((data: ApiBarber[]) => {
+        if (cancelled) return;
+        if (!Array.isArray(data)) return;
+        const mapped = data
+          .filter(b => b && b.name && b.active !== false)
+          .map(b => ({
+            name: b.name,
+            role: b.role || "Barbier",
+            years: teamYears(b.name),
+            image: b.photo || teamFallbackImage(b.name),
+          }));
+        if (mapped.length > 0) setTeam(mapped); // sinon on garde le fallback
+      })
+      .catch(() => { /* garde FALLBACK_TEAM */ });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -645,10 +692,7 @@ export default function HomeContent() {
           maxWidth: "900px",
           margin: "72px auto 0",
         }}>
-          {[
-            { name: "Melynda", role: "Barbière & Co-fondatrice", years: "18+ ans d'expérience", image: "/images/melynda.jpg" },
-            { name: "Stéphanie", role: "Barbière", years: "Ciseau Noir", image: "/images/chair-barbier.jpg" },
-          ].map((barber, i) => (
+          {team.map((barber, i) => (
             <motion.div
               key={barber.name}
               initial={{ opacity: 0, y: 30 }}
@@ -687,7 +731,8 @@ export default function HomeContent() {
                   boxShadow: "0 0 30px rgba(212,175,55,0.15)",
                   position: "relative",
                 }}>
-                  <Image
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
                     src={barber.image}
                     alt={barber.name}
                     width={120}
