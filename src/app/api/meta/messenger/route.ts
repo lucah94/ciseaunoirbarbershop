@@ -613,10 +613,11 @@ function verifyFacebookSignature(rawBody: string, signature: string | null): boo
   return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig));
 }
 
-// POST: Receive and handle incoming messages
-// DÉSACTIVÉ exprès : la page est branchée sur Composio, c'est le cron messenger-poll qui répond.
-// Garder ce webhook actif causait des réponses EN DOUBLE (webhook + poll). On garde donc un seul chemin.
-const BOT_ENABLED = false;
+// POST: webhook Messenger — RÉPONSE INSTANTANÉE (live). Facebook pousse le message ici dès
+// qu'un client écrit → le bot répond dans la seconde (avant qu'un humain lise).
+// Dédup PARTAGÉ avec le cron messenger-poll via last_handled_mid → jamais de double réponse.
+// Le cron reste un FILET DE SECOURS (si un webhook est manqué). C'est ça, le "live".
+const BOT_ENABLED = true;
 
 export async function POST(req: NextRequest) {
   if (!BOT_ENABLED) {
@@ -641,15 +642,22 @@ export async function POST(req: NextRequest) {
       for (const event of entry.messaging || []) {
         const senderId = event.sender?.id;
         if (!senderId) continue;
-
-        // Only process text messages
         if (!event.message?.text) continue;
-        // Ignore echo messages from the page itself
-        if (event.message?.is_echo) continue;
+        if (event.message?.is_echo) continue; // ignore les messages de la page elle-même
+
+        const mid: string | undefined = event.message?.mid;
+
+        // DÉDUP (partagé avec le cron) : message déjà traité → on saute (anti double-réponse + anti-retry FB).
+        const { data: convRow } = await supabase
+          .from("messenger_conversations")
+          .select("last_handled_mid")
+          .eq("sender_id", senderId)
+          .maybeSingle();
+        if (mid && convRow?.last_handled_mid === mid) continue;
 
         const userText: string = event.message.text;
 
-        // Update sender name if available
+        // Met à jour le nom de l'expéditeur (non-critique)
         try {
           const profileToken = await getFacebookToken();
           const profileRes = await fetch(
@@ -663,17 +671,25 @@ export async function POST(req: NextRequest) {
               .upsert({ sender_id: senderId, sender_name: senderName }, { onConflict: "sender_id" });
           }
         } catch {
-          // Profile fetch failure is non-critical
+          // non-critique
         }
 
         const reply = await processMessageWithClaude(senderId, userText);
-        await sendMessengerMessage(senderId, reply);
+        const sent = await sendMessengerMessage(senderId, reply);
+
+        // Marque "traité" SEULEMENT si l'envoi a réussi (sinon le cron réessaiera) → dédup avec le poll.
+        if (sent.ok && mid) {
+          await supabase
+            .from("messenger_conversations")
+            .upsert({ sender_id: senderId, last_handled_mid: mid }, { onConflict: "sender_id" });
+        }
       }
     }
 
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("Messenger webhook error:", e);
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    // 200 quand même → évite que FB re-livre en boucle (le cron est le filet de secours).
+    return NextResponse.json({ ok: true });
   }
 }
