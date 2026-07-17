@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/messenger-poll",
-      "schedule": "* * * * *"
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/morning-briefing",
@@ -42,7 +42,7 @@
     },
     {
       "path": "/api/cron/keepalive",
-      "schedule": "0 * * * *"
+      "schedule": "0 9 * * *"
     },
     {
       "path": "/api/cron/check-reminders",
@@ -74,7 +74,7 @@
     },
     {
       "path": "/api/cron/reply-fb-comments",
-      "schedule": "* * * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/fb-token-refresh",

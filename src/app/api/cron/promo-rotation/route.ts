@@ -45,7 +45,7 @@ Rédige un post Facebook+Instagram au calibre des meilleurs barbershops, en fran
 - N'inclus PAS d'URL (sera ajoutée auto)`;
 
   const aiText = await generateText({
-    model: MODELS.SMART,
+    model: MODELS.FREE,
     max_tokens: 400,
     messages: [{ role: "user", content: prompt }],
   });

@@ -75,7 +75,7 @@ export async function generatePost(kind: string, instructions?: string): Promise
   const prompt = `${basePrompt}${instructionClause}${SALON_CONTEXT}`;
 
   const text = await generateText({
-    model: MODELS.SMART,
+    model: MODELS.FREE,
     max_tokens: 500,
     messages: [{ role: "user", content: prompt }],
   });

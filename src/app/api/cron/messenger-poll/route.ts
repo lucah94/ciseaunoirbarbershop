@@ -11,8 +11,6 @@ export const maxDuration = 60;
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "577401682130596";
 const GRAPH = "https://graph.facebook.com/v19.0";
 
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
 // Une passe : lit les conversations NON LUES, répond, marque comme lu (dédup via unread_count).
 async function pollOnce(TOKEN: string, handledThisRun: Set<string>): Promise<{ handled: number; errors: string[] }> {
   const errors: string[] = [];
@@ -95,7 +93,10 @@ async function pollOnce(TOKEN: string, handledThisRun: Set<string>): Promise<{ h
   return { handled, errors };
 }
 
-// Cron chaque minute. On boucle ~50s en vérifiant aux 5s → réponse client en ~5 secondes.
+// Cron aux 5 min (filet de secours). Le webhook Messenger répond déjà EN DIRECT ; ce cron
+// ne fait qu'UN seul passage pour rattraper un message manqué. Un passage par exécution
+// (au lieu de l'ancienne boucle de 50s chaque minute) = coût Vercel réduit ~50x, sans
+// impact réel pour le client (le webhook reste instantané).
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -106,17 +107,8 @@ export async function GET(req: NextRequest) {
   if (!TOKEN) return NextResponse.json({ error: "FACEBOOK_ACCESS_TOKEN manquant" }, { status: 500 });
 
   return await runCron("messenger-poll", async () => {
-  const deadline = Date.now() + 50000;
-  let total = 0;
-  const allErrors: string[] = [];
-  const handledThisRun = new Set<string>(); // anti-doublon partagé entre les passages de 5s
-  for (;;) {
+    const handledThisRun = new Set<string>();
     const { handled, errors } = await pollOnce(TOKEN, handledThisRun);
-    total += handled;
-    allErrors.push(...errors);
-    if (Date.now() + 5500 >= deadline) break;
-    await sleep(5000);
-  }
-  return NextResponse.json({ ok: true, handled: total, errors: allErrors.slice(0, 10) });
+    return NextResponse.json({ ok: true, handled, errors: errors.slice(0, 10) });
   });
 }

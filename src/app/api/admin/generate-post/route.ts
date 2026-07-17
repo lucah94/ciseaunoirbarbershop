@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { requireAdmin } from "@/lib/auth";
-import { aiClient as anthropic, MODELS } from "@/lib/ai";
+import { generateText, MODELS } from "@/lib/ai";
 export const dynamic = 'force-dynamic';
 
 const CONTENT_PROMPTS: Record<string, string> = {
@@ -19,8 +18,8 @@ export async function POST(req: NextRequest) {
   const { type = "promotion" } = await req.json().catch(() => ({}));
   const prompt = CONTENT_PROMPTS[type] || CONTENT_PROMPTS.promotion;
 
-  const response = await anthropic.messages.create({
-    model: MODELS.SMART,
+  const text = await generateText({
+    model: MODELS.FREE,
     max_tokens: 500,
     messages: [{
       role: "user",
@@ -28,6 +27,5 @@ export async function POST(req: NextRequest) {
     }],
   });
 
-  const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === "text");
-  return NextResponse.json({ text: textBlock?.text || "" });
+  return NextResponse.json({ text });
 }

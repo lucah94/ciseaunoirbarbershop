@@ -56,7 +56,7 @@ Style: varie tes formulations, évite les clichés, 1 emoji max, pas de hashtags
 Réponds uniquement le texte de la réponse, rien d'autre.`;
 
   const text = await generateText({
-    model: MODELS.SMART,
+    model: MODELS.FREE,
     max_tokens: 200,
     messages: [{ role: "user", content: prompt }],
   });
