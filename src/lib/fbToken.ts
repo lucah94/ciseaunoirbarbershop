@@ -92,6 +92,28 @@ export async function refreshFacebookToken(): Promise<string | null> {
   return null;
 }
 
+/**
+ * Vérifie EN LIGNE qu'un token de page fonctionne vraiment (appel Graph /me).
+ * Sert au health-check du cron : distingue "token vivant" d'un placeholder / token mort.
+ * Retourne { ok, hasAnchor } — hasAnchor=false = le token System User n'est même pas configuré
+ * (ou vaut un placeholder), donc l'auto-réparation est IMPOSSIBLE tant que Melynda n'agit pas.
+ */
+export async function checkFacebookTokenHealth(): Promise<{ ok: boolean; hasAnchor: boolean }> {
+  const sut = process.env.FACEBOOK_SYSTEM_USER_TOKEN || "";
+  // Un vrai token Facebook fait ~150-250 caractères. Un placeholder ("[SENSITIVE]", "", "set"…)
+  // n'a rien à faire ici : inutile d'appeler Graph, l'ancre est absente.
+  const hasAnchor = sut.length > 50;
+  const token = await getFacebookToken();
+  if (!token || token.length < 50) return { ok: false, hasAnchor };
+  try {
+    const res = await fetch(`${GRAPH}/me?fields=id&access_token=${encodeURIComponent(token)}`);
+    return { ok: res.ok, hasAnchor };
+  } catch {
+    // Erreur réseau ≠ token mort → on ne conclut pas à un échec de token.
+    return { ok: true, hasAnchor };
+  }
+}
+
 /** Détecte une erreur de token Facebook (expiré/invalide) dans une réponse Graph. */
 export function isFbTokenError(err: unknown): boolean {
   const e = err as { code?: number; type?: string; message?: string } | undefined;
