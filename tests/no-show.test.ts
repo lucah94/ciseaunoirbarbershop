@@ -20,13 +20,16 @@ import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { sendNoShowAdminNotification } from "@/lib/email";
 import { sendNoShowSMS } from "@/lib/sms";
 import { POST } from "@/app/api/bookings/no-show/route";
+import { generateToken } from "@/lib/auth";
 import { NextRequest } from "next/server";
+
+const ADMIN_COOKIE = `admin_auth=${generateToken("admin")}`;
 
 function makeRequest(body: unknown): NextRequest {
   return new NextRequest("http://localhost/api/bookings/no-show", {
     method: "POST",
-    // La route exige maintenant une auth admin/barbier (cookie). "true" = jeton legacy accepté.
-    headers: { "Content-Type": "application/json", cookie: "admin_auth=true" },
+    // Auth admin via vrai jeton HMAC signé (le repli "true" a été retiré — faille sécurité).
+    headers: { "Content-Type": "application/json", cookie: ADMIN_COOKIE },
     body: JSON.stringify(body),
   });
 }

@@ -19,10 +19,11 @@ vi.mock("@/lib/supabase", () => ({
 
 import { NextRequest } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
+import { generateToken } from "@/lib/auth";
 
 function makeRequest(method: string, body?: object, adminCookie = false) {
   const headers: Record<string, string> = { "content-type": "application/json" };
-  if (adminCookie) headers["Cookie"] = "admin_auth=true";
+  if (adminCookie) headers["Cookie"] = `admin_auth=${generateToken("admin")}`;
   return new NextRequest("http://localhost/api/portfolio", {
     method,
     headers,

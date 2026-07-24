@@ -1270,11 +1270,28 @@ async function handleExpenseCallback(callbackId: string, data: string, chatId: n
 // MAIN WEBHOOK
 // ────────────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  // FULL ACCESS (choix du propriétaire) — aucune barrière d'authentification sur le webhook.
-  // Le bot répond à tout, sans secret ni allowlist. Les confirmations restent sur les actions
-  // destructives/sortantes (anti-erreur de l'IA), pas pour bloquer l'accès.
+  // SÉCURITÉ : le webhook n'accepte QUE les requêtes signées par Telegram via le secret_token
+  // enregistré (/api/telegram/setup). Sans lui, n'importe qui pouvait forger un update et
+  // piloter Figaro (fuite PII + SMS/annulations). Fail closed si TELEGRAM_WEBHOOK_SECRET absent.
+  if (!verifyWebhookSecret(req)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   try {
     const update = await req.json();
+
+    // Allowlist des chats admin (groupe ops / Melynda / Luca). Un chat non autorisé ne reçoit
+    // QUE son propre chat_id (pour se faire ajouter par l'admin) — aucune donnée client.
+    const chatId: number | undefined =
+      update?.message?.chat?.id ?? update?.callback_query?.message?.chat?.id;
+    if (!isAllowedChat(chatId)) {
+      if (typeof chatId === "number") {
+        await sendTelegramMessage(
+          chatId,
+          `⛔ Accès refusé. Pour être ajouté, donne ce chat_id à l'admin : <code>${chatId}</code>`
+        );
+      }
+      return NextResponse.json({ ok: true });
+    }
 
     // Idempotence : Telegram re-livre un update si on ne répond pas 200 à temps (ex: traitement IA long).
     // On enregistre update_id (clé primaire) — si déjà vu → on ignore (évite double-action / double-booking).

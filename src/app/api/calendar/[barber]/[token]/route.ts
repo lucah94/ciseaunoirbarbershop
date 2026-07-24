@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 export const dynamic = 'force-dynamic';
+
+/**
+ * Le flux iCal expose les PII de TOUS les RDV (nom, tél, prix) : il DOIT être protégé par
+ * un secret. On compare en temps constant le token de l'URL à CALENDAR_SECRET.
+ * FAIL CLOSED : si CALENDAR_SECRET n'est pas défini → on refuse tout (jamais public).
+ */
+function isValidCalendarToken(token: string): boolean {
+  const expected = process.env.CALENDAR_SECRET;
+  if (!expected) return false;
+  const a = Buffer.from(token || "");
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  try {
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
 
 function toICalDate(date: string, time: string): string {
   return date.replace(/-/g, "") + "T" + time.replace(":", "") + "00";
@@ -23,7 +42,12 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ barber: string; token: string }> }
 ) {
-  const { barber } = await params;
+  const { barber, token } = await params;
+
+  // SÉCURITÉ : sans token valide, on renvoie 404 (ne pas révéler l'existence du flux).
+  if (!isValidCalendarToken(token)) {
+    return new NextResponse("Not found", { status: 404 });
+  }
 
   const barberName = barber.toLowerCase();
   if (barberName !== "melynda") {

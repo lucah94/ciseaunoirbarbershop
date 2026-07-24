@@ -27,8 +27,10 @@ export function verifyToken(role: "admin" | "barber", token: string): boolean {
 /** Returns 401 response if not admin, or null if authorized. */
 export function requireAdmin(req: NextRequest): NextResponse | null {
   const auth = req.cookies.get("admin_auth");
-  // Accept both signed token and legacy "true" during transition
-  if (auth && (verifyToken("admin", auth.value) || auth.value === "true")) {
+  // Seul le token HMAC signé est accepté. (L'ancien repli "true" était un bypass total :
+  // n'importe qui pouvait envoyer le cookie admin_auth=true. Retiré — le login pose déjà
+  // generateToken("admin"), donc aucune régression pour les vrais admins.)
+  if (auth && verifyToken("admin", auth.value)) {
     return null;
   }
   return NextResponse.json({ error: "Non autorisé" }, { status: 401 });

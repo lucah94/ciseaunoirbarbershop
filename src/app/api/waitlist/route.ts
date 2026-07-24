@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import twilio from "twilio";
 import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
+import { requireAdmin } from "@/lib/auth";
 export const dynamic = 'force-dynamic';
 
 const waitlistSchema = z.object({
@@ -76,11 +77,10 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const cookieHeader = req.headers.get("cookie") || "";
-  const isAdmin = cookieHeader.includes("admin_auth=true");
-  if (!isAdmin) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+  // Contrôle admin via jeton HMAC signé (avant : cookieHeader.includes("admin_auth=true"),
+  // un bypass trivial identique à la faille auth.ts).
+  const denied = requireAdmin(req);
+  if (denied) return denied;
 
   const { searchParams } = new URL(req.url);
   const date = searchParams.get("date");

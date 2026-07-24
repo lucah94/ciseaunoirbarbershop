@@ -72,9 +72,11 @@ describe("requireAdmin", () => {
     expect(requireAdmin(req)).toBeNull();
   });
 
-  it("returns null for legacy 'true' value (transition period)", () => {
+  it("REJECTS legacy 'true' value (bypass retiré — faille sécurité)", () => {
     const req = makeMockRequest("admin_auth", "true");
-    expect(requireAdmin(req)).toBeNull();
+    const response = requireAdmin(req);
+    expect(response).not.toBeNull();
+    expect(response?.status).toBe(401);
   });
 
   it("returns 401 when cookie is missing", () => {

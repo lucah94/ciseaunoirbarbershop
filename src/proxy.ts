@@ -13,7 +13,8 @@ export async function proxy(req: NextRequest) {
 
   if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
     const auth = req.cookies.get("admin_auth");
-    if (!auth || !(verifyToken("admin", auth.value) || auth.value === "true")) {
+    // Token HMAC uniquement (le repli "true" était un bypass total — retiré).
+    if (!auth || !verifyToken("admin", auth.value)) {
       return NextResponse.redirect(new URL("/admin/login", req.url));
     }
   }
