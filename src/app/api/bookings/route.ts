@@ -253,6 +253,17 @@ export async function PATCH(req: NextRequest) {
         );
       }
     }
+
+    // Empêche l'annulation d'un RDV déjà PASSÉ (client non connecté). Comparaison par JOUR en
+    // heure de Montréal (America/Toronto) — corrige l'ancien bug de fuseau (UTC) qui bloquait
+    // à tort les annulations le jour même après ~8h.
+    if (!isAuthed && updates.status === "cancelled") {
+      const { data: b } = await supabase.from("bookings").select("date").eq("id", id).single();
+      const todayMtl = new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
+      if (b?.date && b.date < todayMtl) {
+        return NextResponse.json({ error: "Ce rendez-vous est déjà passé." }, { status: 400 });
+      }
+    }
     // ─────────────────────────────────────────────────────────────────
 
     // ── Overlap check when time/date/barber changes ──────────────────

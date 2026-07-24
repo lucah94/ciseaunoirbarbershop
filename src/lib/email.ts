@@ -83,7 +83,7 @@ export async function sendBookingConfirmation(booking: {
             Voir mon rendez-vous
           </a>
           <br>
-          <a href="${process.env.NEXT_PUBLIC_SITE_URL}/api/bookings/${booking.booking_id}/cancel"
+          <a href="${process.env.NEXT_PUBLIC_SITE_URL}/booking/cancel?id=${booking.booking_id}"
              style="display: inline-block; margin-top: 8px; background: transparent; color: #888; padding: 10px 24px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; text-decoration: none; border: 1px solid #333; border-radius: 4px;">
             Annuler mon rendez-vous
           </a>
@@ -173,7 +173,7 @@ export async function sendConfirmationReminderEmail(booking: {
   });
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";
   const rdvUrl = `${siteUrl}/booking/rdv/${booking.booking_id}`;
-  const cancelUrl = `${siteUrl}/api/bookings/${booking.booking_id}/cancel`;
+  const cancelUrl = `${siteUrl}/booking/cancel?id=${booking.booking_id}`;
 
   await resend.emails.send({
     from: FROM_EMAIL,
