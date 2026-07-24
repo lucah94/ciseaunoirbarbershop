@@ -22,16 +22,17 @@ vi.mock("@/lib/auth", async (importOriginal) => {
 });
 
 vi.mock("@/lib/ai", () => ({
-  aiClient: { messages: { create: vi.fn() } },
-  MODELS: { SMART: "claude-sonnet-4-6", FAST: "claude-haiku-4-5-20251001", BALANCED: "claude-sonnet-4-6" },
+  generateText: vi.fn(),
+  MODELS: {
+    FREE: "meta-llama/llama-3.3-70b-instruct:free",
+    FAST: "deepseek/deepseek-chat",
+    BALANCED: "deepseek/deepseek-chat",
+    SMART: "anthropic/claude-sonnet-4-6",
+  },
 }));
 
 import { requireAdmin } from "@/lib/auth";
-import { aiClient, MODELS } from "@/lib/ai";
-
-function makeAiResponse(text: string) {
-  return { content: [{ type: "text", text }] };
-}
+import { generateText, MODELS } from "@/lib/ai";
 
 function makePost(body: object = {}) {
   return new NextRequest("http://localhost/api/admin/generate-post", {
@@ -45,7 +46,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
   vi.mocked(requireAdmin).mockReturnValue(null);
-  vi.mocked(aiClient.messages.create).mockResolvedValue(makeAiResponse("Votre coupe vous attend!") as never);
+  vi.mocked(generateText).mockResolvedValue("Votre coupe vous attend!");
 });
 
 describe("POST /api/admin/generate-post — auth", () => {
@@ -70,20 +71,20 @@ describe("POST /api/admin/generate-post — content generation", () => {
   it("calls AI with promotion prompt when type=promotion", async () => {
     const { POST } = await import("@/app/api/admin/generate-post/route");
     await POST(makePost({ type: "promotion" }));
-    const call = vi.mocked(aiClient.messages.create).mock.calls[0][0];
+    const call = vi.mocked(generateText).mock.calls[0][0];
     expect((call.messages[0].content as string)).toContain("promotionnelle");
   });
 
   it("defaults to promotion when type is not provided", async () => {
     const { POST } = await import("@/app/api/admin/generate-post/route");
     await POST(makePost({}));
-    expect(aiClient.messages.create).toHaveBeenCalledOnce();
+    expect(generateText).toHaveBeenCalledOnce();
   });
 
   it("uses promotion prompt for unknown type", async () => {
     const { POST } = await import("@/app/api/admin/generate-post/route");
     await POST(makePost({ type: "unknown_type" }));
-    const call = vi.mocked(aiClient.messages.create).mock.calls[0][0];
+    const call = vi.mocked(generateText).mock.calls[0][0];
     expect((call.messages[0].content as string)).toContain("promotionnelle");
   });
 
