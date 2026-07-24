@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/telegram-register",
+      "schedule": "*/10 * * * *"
+    },
+    {
       "path": "/api/cron/messenger-poll",
       "schedule": "*/5 * * * *"
     },
