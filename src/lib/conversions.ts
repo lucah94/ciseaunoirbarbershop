@@ -45,7 +45,9 @@ async function fireMetaCAPI(booking: {
   id: string; client_name: string; client_email: string | null; client_phone: string | null;
   price: number; service: string; source?: string; created_at?: string;
 }): Promise<void> {
-  const pixelId = process.env.META_PIXEL_ID;
+  // Même pixel exposé sous 2 noms d'env (META_PIXEL_ID côté serveur, NEXT_PUBLIC_FB_PIXEL_ID côté
+  // client) — on dérive l'un de l'autre pour qu'ils ne divergent jamais (audit #11).
+  const pixelId = process.env.META_PIXEL_ID || process.env.NEXT_PUBLIC_FB_PIXEL_ID;
   const accessToken = process.env.META_ACCESS_TOKEN;
   if (!pixelId || !accessToken) return;
 

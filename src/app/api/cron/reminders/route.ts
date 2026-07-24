@@ -200,12 +200,16 @@ export async function GET(req: NextRequest) {
       timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false,
     }); // "HH:MM" Montréal
 
-    const { data: possibleNoShows } = await supabase
+    // Filtre en MINUTES (et non un .lt lexicographique) : booking.time peut être non
+    // zero-paddé ("9:00"), ce qui faisait rater TOUS les no-show du matin (audit #9).
+    const toMin = (t: string) => { const [h, m] = (t || "0:0").split(":").map(Number); return h * 60 + (m || 0); };
+    const cutoffMin = toMin(noShowCutoffTime);
+    const { data: allTodayConfirmed } = await supabase
       .from("bookings")
       .select("*")
       .eq("date", todayStr)
-      .eq("status", "confirmed")
-      .lt("time", noShowCutoffTime);
+      .eq("status", "confirmed");
+    const possibleNoShows = (allTodayConfirmed || []).filter((b) => toMin(b.time) < cutoffMin);
 
     // Un SEUL message résumé (au lieu d'un message par RDV déguisé en alerte système)
     let noShowAlerts = 0;
