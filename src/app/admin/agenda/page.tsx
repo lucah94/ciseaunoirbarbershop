@@ -94,6 +94,8 @@ export default function AgendaPage() {
   const [showBlock, setShowBlock] = useState(false);
   const [blockForm, setBlockForm] = useState({ barber: "Melynda", date: localDateStr(), start_time: "09:00", end_time: "11:00", reason: "" });
   const [blockSaving, setBlockSaving] = useState(false);
+  // Édition d'un bloc existant (demande Melynda #1) : null = création, sinon id du bloc à modifier.
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [barbers, setBarbers] = useState<{ name: string; schedule: Record<string, { open: string; close: string } | null> }[]>([]);
   const [overrides, setOverrides] = useState<{ barber: string; date: string; open: string; close: string }[]>([]);
@@ -379,12 +381,49 @@ export default function AgendaPage() {
   async function saveBlock() {
     if (!blockForm.date || !blockForm.start_time || !blockForm.end_time) return;
     setBlockSaving(true);
+    const payload = {
+      barber: blockForm.barber.toLowerCase(),
+      date: blockForm.date,
+      start_time: blockForm.start_time,
+      end_time: blockForm.end_time,
+      reason: blockForm.reason || null,
+    };
+    // Édition d'un bloc existant (PATCH) OU création (POST) — demande Melynda #1.
     await fetch("/api/admin/blocks", {
-      method: "POST",
+      method: editingBlockId ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ barber: blockForm.barber.toLowerCase(), date: blockForm.date, start_time: blockForm.start_time, end_time: blockForm.end_time, reason: blockForm.reason || null }),
+      body: JSON.stringify(editingBlockId ? { id: editingBlockId, ...payload } : payload),
     });
     setShowBlock(false);
+    setEditingBlockId(null);
+    setBlockSaving(false);
+    fetchBlocks();
+  }
+
+  // Ouvre le modal pré-rempli pour MODIFIER un bloc (clic sur un bloc dans l'agenda).
+  function openEditBlock(block: Block) {
+    setBlockForm({
+      barber: block.barber || "Melynda",
+      date: block.date,
+      start_time: block.start_time || "09:00",
+      end_time: block.end_time || "11:00",
+      reason: block.reason || "",
+    });
+    setEditingBlockId(block.id);
+    setShowBlock(true);
+  }
+
+  async function deleteBlock() {
+    if (!editingBlockId) return;
+    if (typeof window !== "undefined" && !window.confirm("Supprimer ce blocage ?")) return;
+    setBlockSaving(true);
+    await fetch("/api/admin/blocks", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: editingBlockId }),
+    });
+    setShowBlock(false);
+    setEditingBlockId(null);
     setBlockSaving(false);
     fetchBlocks();
   }
@@ -765,7 +804,12 @@ export default function AgendaPage() {
               + Nouveau RDV
             </button>
             <button
-              onClick={() => setShowBlock(true)}
+              onClick={() => {
+                // Mode création : réinitialise (sinon on garderait les valeurs d'un bloc édité juste avant).
+                setEditingBlockId(null);
+                setBlockForm({ barber: "Melynda", date: localDateStr(), start_time: "09:00", end_time: "11:00", reason: "" });
+                setShowBlock(true);
+              }}
               style={{
                 background: "rgba(238,85,85,0.1)", border: "1px solid rgba(238,85,85,0.3)", color: "#e55",
                 padding: isMobile ? "6px 14px" : "8px 20px", fontSize: isMobile ? "10px" : "11px",
@@ -1018,7 +1062,11 @@ export default function AgendaPage() {
                 editable={true}
                 events={[...events, ...blockEvents]}
                 eventClick={(info) => {
-                  if (info.event.extendedProps.isBlock) return;
+                  if (info.event.extendedProps.isBlock) {
+                    // Clic sur un horaire bloqué → ouvre l'édition (demande Melynda #1)
+                    openEditBlock(info.event.extendedProps.block as Block);
+                    return;
+                  }
                   const b = info.event.extendedProps.booking as Booking;
                   setSelected(b);
                 }}
@@ -1455,8 +1503,8 @@ export default function AgendaPage() {
           onClick={e => { if (e.target === e.currentTarget) setShowBlock(false); }}>
           <div style={{ background: "#111318", border: "1px solid rgba(238,85,85,0.3)", borderRadius: "16px", width: "100%", maxWidth: "440px", padding: "32px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "24px" }}>
-              <p style={{ color: "#e55", fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase" }}>🚫 Bloquer une tranche</p>
-              <button onClick={() => setShowBlock(false)} style={{ background: "none", border: "none", color: "#666", fontSize: "24px", cursor: "pointer" }}>×</button>
+              <p style={{ color: "#e55", fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase" }}>{editingBlockId ? "🚫 Modifier le blocage" : "🚫 Bloquer une tranche"}</p>
+              <button onClick={() => { setShowBlock(false); setEditingBlockId(null); }} style={{ background: "none", border: "none", color: "#666", fontSize: "24px", cursor: "pointer" }}>×</button>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <div>
@@ -1490,8 +1538,14 @@ export default function AgendaPage() {
               </div>
               <button onClick={saveBlock} disabled={blockSaving || !blockForm.date}
                 style={{ background: "rgba(238,85,85,0.15)", border: "1px solid rgba(238,85,85,0.4)", color: "#e55", padding: "14px", cursor: "pointer", borderRadius: "8px", fontSize: "13px", fontWeight: 700, letterSpacing: "1px", marginTop: "4px" }}>
-                {blockSaving ? "..." : "Bloquer cette tranche"}
+                {blockSaving ? "..." : editingBlockId ? "Enregistrer les modifications" : "Bloquer cette tranche"}
               </button>
+              {editingBlockId && (
+                <button onClick={deleteBlock} disabled={blockSaving}
+                  style={{ background: "transparent", border: "1px solid #444", color: "#999", padding: "10px", cursor: "pointer", borderRadius: "8px", fontSize: "12px", letterSpacing: "1px" }}>
+                  Supprimer ce blocage
+                </button>
+              )}
             </div>
           </div>
         </div>
