@@ -64,6 +64,11 @@ export default function AgendaPage() {
   const [selected, setSelected] = useState<Booking | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const calendarRef = useRef<FullCalendar>(null);
+  // Semaine affichée conservée entre les refresh (demande Melynda : ne pas revenir à aujourd'hui).
+  const [initialAgendaDate] = useState<string | undefined>(() => {
+    if (typeof window === "undefined") return undefined;
+    return localStorage.getItem("cn_agenda_date") || undefined;
+  });
   const [visitCounts, setVisitCounts] = useState<Record<string, number>>({});
   const [isMobile, setIsMobile] = useState(false);
   // Services chargés depuis /api/services (source de vérité = table Supabase services). Fallback = menu actuel.
@@ -981,6 +986,8 @@ export default function AgendaPage() {
                 datesSet={(arg: { start: Date }) => {
                   // Si on navigue avant la fenêtre chargée, on l'étend vers le passé (+30j de marge) et on recharge.
                   const viewStart = localDateStr(arg.start);
+                  // Conserve la semaine affichée pour la restaurer au prochain chargement (demande Melynda).
+                  if (typeof window !== "undefined") localStorage.setItem("cn_agenda_date", viewStart);
                   if (viewStart < startRef.current) {
                     const d = new Date(arg.start); d.setDate(d.getDate() - 30);
                     startRef.current = localDateStr(d);
@@ -988,6 +995,7 @@ export default function AgendaPage() {
                   }
                 }}
                 plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                initialDate={initialAgendaDate}
                 initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
                 headerToolbar={{
                   left: "prev,next today",

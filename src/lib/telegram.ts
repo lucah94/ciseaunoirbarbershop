@@ -56,16 +56,24 @@ export async function notifyNewBooking(booking: {
   date: string;
   time: string;
   price: number;
+  note?: string;
   source?: string;
 }) {
   const sourceIcon = booking.source === "google" ? "🔍" : booking.source === "facebook" ? "📘" : booking.source === "instagram" ? "📸" : booking.source === "messenger" ? "💬" : "🌐";
+  // Note du client bien en évidence (demande Melynda : les notes ne sont pas visibles dans l'agenda).
+  // Échappe le texte libre du client pour ne pas casser le HTML Telegram.
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const noteLine = booking.note && booking.note.trim()
+    ? `\n\n📝 <b>NOTE DU CLIENT :</b>\n${esc(booking.note.trim())}`
+    : "";
   await sendMessage(
     `✂️ <b>Nouveau RDV</b> ${sourceIcon}\n\n` +
     `👤 ${booking.client_name}\n` +
     `📞 ${booking.client_phone}\n` +
     `💈 ${booking.service} — ${booking.price}$\n` +
     `👨‍💼 ${booking.barber}\n` +
-    `📅 ${formatDate(booking.date)} à ${booking.time}`
+    `📅 ${formatDate(booking.date)} à ${booking.time}` +
+    noteLine
   );
 }
 
