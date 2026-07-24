@@ -71,6 +71,8 @@ export default function AgendaPage() {
   });
   const [visitCounts, setVisitCounts] = useState<Record<string, number>>({});
   const [isMobile, setIsMobile] = useState(false);
+  // Override admin : autoriser un RDV hors de l'horaire du barbier (demande Melynda #3).
+  const [forceOutsideHours, setForceOutsideHours] = useState(false);
   // Services chargés depuis /api/services (source de vérité = table Supabase services). Fallback = menu actuel.
   const [services, setServices] = useState<ServiceOption[]>(FALLBACK_SERVICES);
 
@@ -327,6 +329,7 @@ export default function AgendaPage() {
         setShowNewRDV(false);
         setSubmitError(null);
         resetNewRDVForm();
+        setForceOutsideHours(false); // réinitialise l'override hors-horaire pour le prochain RDV
         if (!isRecurring && created && created.id) {
           // Non-récurrent : ajout direct au state, pas de reset calendrier
           setBookings(prev => [...prev, created]);
@@ -1330,6 +1333,18 @@ export default function AgendaPage() {
                   </div>
                 )}
 
+                {/* Override admin : forcer un RDV hors horaire (demande Melynda #3) */}
+                {currentSlotConflict && !currentSlotConflict.includes("a déjà un RDV") && (
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", color: "#D4AF37", fontSize: "13px", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={forceOutsideHours}
+                      onChange={(e) => setForceOutsideHours(e.target.checked)}
+                    />
+                    Forcer ce RDV hors de l&apos;horaire du barbier (exception admin)
+                  </label>
+                )}
+
                 {/* Note */}
                 <div>
                   <label style={labelStyle}>Note (optionnel)</label>
@@ -1404,7 +1419,7 @@ export default function AgendaPage() {
                 {/* Submit — disable si client manquant ou conflit horaire (pas de force submit avec erreur visible) */}
                 <button
                   onClick={submitNewRDV}
-                  disabled={submitting || !newRDV.client_name.trim() || (currentSlotConflict !== null && !currentSlotConflict.includes("a déjà un RDV"))}
+                  disabled={submitting || !newRDV.client_name.trim() || (currentSlotConflict !== null && !currentSlotConflict.includes("a déjà un RDV") && !forceOutsideHours)}
                   style={{
                     background: submitting || !newRDV.client_name.trim()
                       ? "#333"
