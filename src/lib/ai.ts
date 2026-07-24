@@ -65,6 +65,44 @@ async function alertExpensiveFallback(requested: string): Promise<void> {
   }
 }
 
+// ── FILET « ABONNEMENT » : Anthropic DIRECT, UNIQUEMENT si OpenRouter est DOWN ──────────
+// Normalement tout passe par OpenRouter (anti-charges-surprises). Mais si OpenRouter tombe
+// complètement, on ne veut pas que Figaro / les bots deviennent muets. Dernier recours : on
+// appelle l'API Anthropic DIRECTE (clé ANTHROPIC_API_KEY = ton abonnement), sur Haiku (pas cher,
+// borne la facture), avec une alerte Telegram. Ne s'active QUE si la clé est présente.
+let _directAnthropic: Anthropic | null = null;
+export function getDirectAnthropic(): Anthropic | null {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return null;
+  if (!_directAnthropic) _directAnthropic = new Anthropic({ apiKey: key }); // baseURL Anthropic par défaut
+  return _directAnthropic;
+}
+// Haiku = pas cher + rapide → borne le coût de l'abonnement quand on est en mode secours.
+export const DIRECT_FALLBACK_MODEL = "claude-haiku-4-5-20251001";
+
+let lastDirectAlert = 0;
+export async function alertDirectAnthropicFallback(): Promise<void> {
+  try {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+    if (!token || !chatId) return;
+    const now = Date.now();
+    if (now - lastDirectAlert < 3_600_000) return; // anti-spam : 1 alerte / heure
+    lastDirectAlert = now;
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: `🛟 OpenRouter semble injoignable — l'IA bascule sur ton ABONNEMENT Anthropic direct (Haiku, pas cher) le temps que ça revienne. À surveiller.`,
+        disable_web_page_preview: true,
+      }),
+    });
+  } catch {
+    /* ne jamais bloquer */
+  }
+}
+
 /**
  * Génère du texte via OpenRouter avec une chaîne de secours SÉCURITAIRE.
  * Le modèle est choisi par l'appelant (params.model). S'il échoue (indispo, rate limit…) :
@@ -105,6 +143,24 @@ export async function generateText(params: GenParams): Promise<string> {
     } catch (e) {
       lastErr = e;
       console.error(`[ai] modèle "${model}" a échoué${i < chain.length - 1 ? " — fallback suivant" : ""}:`, e);
+    }
+  }
+
+  // Dernier filet : toute la chaîne OpenRouter a échoué → on tente l'ABONNEMENT Anthropic direct.
+  const direct = getDirectAnthropic();
+  if (direct) {
+    try {
+      void alertDirectAnthropicFallback();
+      const res = await direct.messages.create({
+        model: DIRECT_FALLBACK_MODEL,
+        max_tokens: params.max_tokens,
+        ...(params.system ? { system: params.system } : {}),
+        messages: params.messages,
+      });
+      const block = res.content.find((b): b is Anthropic.TextBlock => b.type === "text");
+      return (block?.text || "").trim();
+    } catch (e) {
+      console.error("[ai] filet abonnement Anthropic direct a aussi échoué:", e);
     }
   }
   throw lastErr;

@@ -6,7 +6,7 @@ import { getUpcomingHolidays } from "@/lib/holidays-qc";
 import { sendSMS, formatPhone } from "@/lib/sms";
 import { Resend } from "resend";
 import type Anthropic from "@anthropic-ai/sdk";
-import { aiClient as anthropic, generateText, MODELS } from "@/lib/ai";
+import { aiClient as anthropic, generateText, MODELS, getDirectAnthropic, DIRECT_FALLBACK_MODEL } from "@/lib/ai";
 import { resolveService } from "@/lib/serviceLookup";
 import { serviceDuration } from "@/lib/serviceDuration";
 import { generatePost, publishPostToFacebook } from "@/lib/posts";
@@ -24,7 +24,9 @@ const TELEGRAM_API = "https://api.telegram.org/bot";
 const TZ = "America/Toronto";
 
 const MODEL_FAST = MODELS.FAST;
-const MODEL_SMART = MODELS.BALANCED;
+// Tâches Figaro complexes/importantes (needsSonnet) → vrai modèle fort (Sonnet).
+// Avant : = MODELS.BALANCED (deepseek), donc needsSonnet() ne routait JAMAIS vers Sonnet (bug).
+const MODEL_SMART = MODELS.SMART;
 
 // ── Appel IA AVEC outils (tool use) + FALLBACK Sonnet ──────────────────────────
 async function createWithFallback(
@@ -34,8 +36,18 @@ async function createWithFallback(
     return await anthropic.messages.create(params);
   } catch (e) {
     console.error(`[telegram] modèle "${params.model}" a échoué — fallback Sonnet:`, e);
-    if (params.model === MODELS.SMART) throw e;
-    return await anthropic.messages.create({ ...params, model: MODELS.SMART });
+    try {
+      if (params.model === MODELS.SMART) throw e;
+      return await anthropic.messages.create({ ...params, model: MODELS.SMART });
+    } catch (e2) {
+      // OpenRouter est down → dernier filet : abonnement Anthropic DIRECT (Haiku, pas cher).
+      const direct = getDirectAnthropic();
+      if (direct) {
+        console.error("[telegram] OpenRouter injoignable — bascule abonnement Anthropic direct");
+        return await direct.messages.create({ ...params, model: DIRECT_FALLBACK_MODEL });
+      }
+      throw e2;
+    }
   }
 }
 
