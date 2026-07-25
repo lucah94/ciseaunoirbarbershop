@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { getFacebookToken, checkFacebookTokenHealth } from "@/lib/fbToken";
 export const dynamic = 'force-dynamic';
 
 type ServiceStatus = "ok" | "error" | "slow";
@@ -96,16 +97,48 @@ async function checkRLS(): Promise<Check> {
   );
 }
 
+// Diagnostic Facebook/Messenger — pointe précisément où l'auto-réponse casse.
+// N'expose AUCUN secret : seulement des booléens/statuts (ancre présente ? token vivant ?
+// page abonnée au webhook Messenger ?).
+async function checkFacebook(): Promise<Check> {
+  const start = Date.now();
+  try {
+    const { ok, hasAnchor } = await checkFacebookTokenHealth();
+    if (!hasAnchor) return { status: "error", latency: Date.now() - start, message: "Ancre FACEBOOK_SYSTEM_USER_TOKEN absente ou placeholder" };
+    if (!ok) return { status: "error", latency: Date.now() - start, message: "Token de page invalide (Graph /me a échoué) — droits ou app à revoir" };
+    // Token vivant → la page est-elle abonnée à l'app pour recevoir les webhooks Messenger ?
+    const pageId = process.env.FACEBOOK_PAGE_ID || "577401682130596";
+    const token = await getFacebookToken();
+    const res = await fetch(
+      `https://graph.facebook.com/v19.0/${pageId}/subscribed_apps?access_token=${encodeURIComponent(token)}`,
+      { signal: AbortSignal.timeout(TIMEOUT) }
+    );
+    const data = await res.json().catch(() => ({} as Record<string, unknown>));
+    const list = (data as { data?: unknown[] })?.data;
+    const subscribed = Array.isArray(list) && list.length > 0;
+    return {
+      status: subscribed ? "ok" : "error",
+      latency: Date.now() - start,
+      message: subscribed
+        ? `Token OK + page abonnée au webhook Messenger (${list.length})`
+        : "Token OK mais page NON abonnée au webhook Messenger — réabonnement requis",
+    };
+  } catch (e) {
+    return { status: "error", latency: Date.now() - start, message: String(e) };
+  }
+}
+
 export async function GET() {
-  const [supabase, resend, twilio, claude, security] = await Promise.all([
+  const [supabase, resend, twilio, claude, security, facebook] = await Promise.all([
     checkSupabase(),
     checkResend(),
     checkTwilio(),
     checkClaude(),
     checkRLS(),
+    checkFacebook(),
   ]);
 
-  const checks = { supabase, resend, twilio, claude, security };
+  const checks = { supabase, resend, twilio, claude, security, facebook };
   // Resend non-bloquant — email down ne déclenche pas d'alerte SMS
   const criticalChecks = { supabase, twilio };
   const hasError = Object.values(criticalChecks).some(c => c.status === "error");
