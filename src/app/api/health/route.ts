@@ -120,12 +120,28 @@ async function checkFacebook(): Promise<Check> {
     }
     const fields = list.flatMap((a) => a.subscribed_fields || []);
     const hasMessages = fields.includes("messages");
+    if (!hasMessages) {
+      return { status: "error", latency: Date.now() - start, message: `PAS abonné au champ 'messages' (${fields.join(",") || "aucun"})` };
+    }
+    // Le token peut-il ENVOYER des messages ? (scope pages_messaging via debug_token)
+    let scopeMsg = "";
+    try {
+      const appId = process.env.FACEBOOK_APP_ID;
+      const appSecret = process.env.FACEBOOK_APP_SECRET;
+      if (appId && appSecret) {
+        const dbg = await fetch(
+          `https://graph.facebook.com/v19.0/debug_token?input_token=${encodeURIComponent(token)}&access_token=${appId}|${appSecret}`,
+          { signal: AbortSignal.timeout(TIMEOUT) }
+        ).then((r) => r.json()).catch(() => null);
+        const scopes: string[] = dbg?.data?.scopes || [];
+        const canSend = scopes.includes("pages_messaging");
+        scopeMsg = canSend ? " · peut envoyer (pages_messaging ✓)" : " · ⚠️ SANS pages_messaging (ne peut PAS répondre)";
+      }
+    } catch { /* best-effort */ }
     return {
-      status: hasMessages ? "ok" : "error",
+      status: "ok",
       latency: Date.now() - start,
-      message: hasMessages
-        ? `Token OK + abonné à 'messages' (champs: ${fields.join(",") || "?"})`
-        : `Token OK mais PAS abonné au champ 'messages' — Messenger ne reçoit rien. Champs actuels: ${fields.join(",") || "aucun"}`,
+      message: `Token OK + abonné à 'messages'${scopeMsg} (champs: ${fields.join(",")})`,
     };
   } catch (e) {
     return { status: "error", latency: Date.now() - start, message: String(e) };
