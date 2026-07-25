@@ -106,22 +106,26 @@ async function checkFacebook(): Promise<Check> {
     const { ok, hasAnchor } = await checkFacebookTokenHealth();
     if (!hasAnchor) return { status: "error", latency: Date.now() - start, message: "Ancre FACEBOOK_SYSTEM_USER_TOKEN absente ou placeholder" };
     if (!ok) return { status: "error", latency: Date.now() - start, message: "Token de page invalide (Graph /me a échoué) — droits ou app à revoir" };
-    // Token vivant → la page est-elle abonnée à l'app pour recevoir les webhooks Messenger ?
+    // Token vivant → la page est-elle abonnée aux BONS champs webhook (messages…) ?
     const pageId = process.env.FACEBOOK_PAGE_ID || "577401682130596";
     const token = await getFacebookToken();
     const res = await fetch(
-      `https://graph.facebook.com/v19.0/${pageId}/subscribed_apps?access_token=${encodeURIComponent(token)}`,
+      `https://graph.facebook.com/v19.0/${pageId}/subscribed_apps?fields=subscribed_fields&access_token=${encodeURIComponent(token)}`,
       { signal: AbortSignal.timeout(TIMEOUT) }
     );
     const data = await res.json().catch(() => ({} as Record<string, unknown>));
-    const list = (data as { data?: unknown[] })?.data;
-    const subscribed = Array.isArray(list) && list.length > 0;
+    const list = (data as { data?: { subscribed_fields?: string[] }[] })?.data;
+    if (!Array.isArray(list) || list.length === 0) {
+      return { status: "error", latency: Date.now() - start, message: "Token OK mais page NON abonnée au webhook — réabonnement requis" };
+    }
+    const fields = list.flatMap((a) => a.subscribed_fields || []);
+    const hasMessages = fields.includes("messages");
     return {
-      status: subscribed ? "ok" : "error",
+      status: hasMessages ? "ok" : "error",
       latency: Date.now() - start,
-      message: subscribed
-        ? `Token OK + page abonnée au webhook Messenger (${list.length})`
-        : "Token OK mais page NON abonnée au webhook Messenger — réabonnement requis",
+      message: hasMessages
+        ? `Token OK + abonné à 'messages' (champs: ${fields.join(",") || "?"})`
+        : `Token OK mais PAS abonné au champ 'messages' — Messenger ne reçoit rien. Champs actuels: ${fields.join(",") || "aucun"}`,
     };
   } catch (e) {
     return { status: "error", latency: Date.now() - start, message: String(e) };
