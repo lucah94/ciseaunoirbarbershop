@@ -86,6 +86,48 @@ export async function generatePost(kind: string, instructions?: string): Promise
   );
 }
 
+// ── generateAdCopy (Agent Hermès — voix pub/Reel issue de la recherche 2026) ───
+
+const AD_SYSTEM = `Tu es le rédacteur social du Ciseau Noir, barbershop québécois premium à Beauport (ville de Québec).
+Ton = premium mais accessible : chaleureux, direct, fierté locale, français québécois naturel (tu/toi, « booke », « pis », « frais ») sans forcer le joual.
+Structure de chaque légende : (1) HOOK d'une ligne qui parle du CLIENT (pas du shop) ; (2) TRANSFORMATION/bénéfice ressenti (confiance, tête haute) ; (3) PREUVE optionnelle (précision du fade, temps pris à comprendre la coupe) ; (4) CTA de réservation.
+Règles fixes : UN seul CTA clair, placé tôt ET rappelé à la fin ; 2-4 emojis max comme balises (✂️ 💈 🔥 📅 👇), jamais en rafale ; JAMAIS de rabais sur les services de base (protéger le premium) ; jamais de superlatif vide (« le meilleur ») ni de promesse non vérifiable.
+Réservation : ciseaunoirbarbershop.com/booking`;
+
+/**
+ * Génère une COPY de pub/Reel dans la voix Ciseau Noir : 2 variantes + hashtags locaux.
+ * Contenu public sans PII → modèle GRATUIT (0 $). Retourne un texte formaté prêt pour
+ * l'approbation Telegram (proposePostOnTelegram) puis publication.
+ */
+export async function generateAdCopy(context?: string): Promise<string> {
+  const sujet = context?.trim() || "un avant/après de coupe/fade au Ciseau Noir";
+  const prompt = `${AD_SYSTEM}
+
+Sujet de la pub : ${sujet}
+
+Réponds EXACTEMENT dans ce format (rien d'autre) :
+
+🅐 COURTE PUNCHÉE
+<légende 2-3 lignes>
+
+🅑 STORYTELLING
+<légende 3-5 lignes>
+
+🏷️ HASHTAGS
+<5 à 12 hashtags dont au moins 3 hyper-locaux (ex: #barbierquebec #villedequebec #418), les autres larges/techniques (#barbershop #skinfade #beardtrim)>`;
+
+  const text = await generateText({
+    model: MODELS.FREE,
+    max_tokens: 700,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  return (
+    text ||
+    "🅐 COURTE PUNCHÉE\nFade net, barbe alignée, tête haute. 💈 Réserve ta place 👇 ciseaunoirbarbershop.com/booking\n\n🏷️ HASHTAGS\n#barbierquebec #villedequebec #418 #skinfade #barbershop"
+  );
+}
+
 // ── publishPostToFacebook ─────────────────────────────────────────────────────
 
 export async function publishPostToFacebook(
