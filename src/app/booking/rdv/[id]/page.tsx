@@ -183,9 +183,9 @@ export default function MonRdvPage() {
               {/* Actions */}
               {booking.status === "confirmed" && !past && !cancelled && (
                 <div style={{ display: "flex", gap: "12px", flexDirection: "column" }}>
-                  {/* Reschedule */}
+                  {/* Reschedule — modifie CE rendez-vous (date/heure) au lieu d'en créer un nouveau */}
                   <Link
-                    href={`/booking?barber=${barberKey}`}
+                    href={`/booking?reschedule=${id}&service=${encodeURIComponent(booking.service)}&barber=${barberKey}`}
                     style={{
                       display: "block",
                       background: "linear-gradient(135deg, #D4AF37, #B8860B)",
@@ -201,7 +201,7 @@ export default function MonRdvPage() {
                       transition: "all 0.3s",
                     }}
                   >
-                    Modifier / Reprendre un RDV
+                    Modifier ce rendez-vous
                   </Link>
 
                   {/* Cancel */}

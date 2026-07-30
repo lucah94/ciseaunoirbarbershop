@@ -246,11 +246,28 @@ export async function PATCH(req: NextRequest) {
     if (!isAuthed) {
       const keys = Object.keys(updates).filter((k) => k !== "force");
       const onlyCancel = keys.length === 1 && keys[0] === "status" && updates.status === "cancelled";
-      if (!onlyCancel) {
+      // Modification client self-service : date et/ou heure UNIQUEMENT (même service → prix
+      // inchangé, aucune triche de prix/service/statut). end_time recalculé serveur.
+      const RESCHEDULE_FIELDS = ["date", "time"];
+      const onlyReschedule = keys.length >= 1 && keys.every((k) => RESCHEDULE_FIELDS.includes(k));
+      if (!onlyCancel && !onlyReschedule) {
         return NextResponse.json(
-          { error: "Non autorisé — seule l'annulation est permise sans connexion." },
+          { error: "Non autorisé — seules l'annulation ou la modification de date/heure sont permises sans connexion." },
           { status: 403 }
         );
+      }
+      if (onlyReschedule) {
+        const { data: cur } = await supabase.from("bookings").select("service, date, time").eq("id", id).single();
+        const todayMtl = new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
+        if (cur?.date && cur.date < todayMtl) {
+          return NextResponse.json({ error: "Ce rendez-vous est déjà passé." }, { status: 400 });
+        }
+        if (cur?.service) {
+          const t = (updates.time as string) || cur.time;
+          const [hh, mm] = String(t).split(":").map(Number);
+          const endM = hh * 60 + mm + serviceDuration(cur.service);
+          updates.end_time = `${String(Math.floor(endM / 60)).padStart(2, "0")}:${String(endM % 60).padStart(2, "0")}`;
+        }
       }
     }
 

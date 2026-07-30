@@ -504,6 +504,9 @@ function BookingContent() {
   const params = useSearchParams();
   const preBarber = params.get("barber") || "";
   const preServiceName = params.get("service") || "";
+  // Mode MODIFICATION (self-service Melynda) : /booking?reschedule=<id>&service=<nom>&barber=<nom>
+  // réutilise tout le sélecteur (avec l'optim anti-trous) mais met à JOUR le RDV au lieu d'en créer un.
+  const rescheduleId = params.get("reschedule") || "";
   // Résolution initiale sur le FALLBACK (synchronisé avec les noms DB) → le deep-link marche tout de suite,
   // même avant que /api/services réponde.
   const preService = FALLBACK_SERVICES.find(s => s.name === preServiceName);
@@ -679,6 +682,34 @@ function BookingContent() {
       clearInterval(interval);
     };
   }, [selected.date, refreshBookedSlots]);
+
+  // Modification client : met à jour date/heure du RDV existant (PATCH) au lieu de créer.
+  async function handleReschedule(barberName: string, time: string) {
+    if (submitting) return;
+    setSubmitting(true);
+    setBookingError(null);
+    try {
+      const res = await fetch("/api/bookings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: rescheduleId, date: selected.date, time }),
+      });
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        refreshBookedSlots(selected.date);
+        setSelected(s => ({ ...s, time: "" }));
+        setBookingError(res.status === 409
+          ? "Ce créneau vient d'être pris, choisis-en un autre."
+          : (resData?.error || "Une erreur est survenue. Réessaie."));
+        return;
+      }
+      setSelected(s => ({ ...s, barber: barberName, time }));
+      setBookingId(rescheduleId);
+      setSubmitted(true);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   async function handleSubmit() {
     if (submitting) return;
@@ -1280,6 +1311,12 @@ function BookingContent() {
                   />
                 </div>
 
+                {rescheduleId && (
+                  <div style={{ background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.4)", borderRadius: "10px", padding: "12px 16px", marginBottom: "16px", textAlign: "center" }}>
+                    <p style={{ color: "#D4AF37", fontSize: "13px", letterSpacing: "1px" }}>✏️ Modification de ton rendez-vous — choisis une nouvelle date et heure</p>
+                  </div>
+                )}
+
                 {/* 2 colonnes de créneaux */}
                 {selected.date && (
                   <motion.div
@@ -1379,7 +1416,11 @@ function BookingContent() {
                                   {slots.map(t => (
                                     <button
                                       key={t}
-                                      onClick={() => { setSelected({ ...selected, barber: b.name, time: t }); setBookingError(null); setStep(3); }}
+                                      onClick={() => {
+                                        setBookingError(null);
+                                        if (rescheduleId) { setSelected({ ...selected, barber: b.name }); handleReschedule(b.name, t); return; }
+                                        setSelected({ ...selected, barber: b.name, time: t }); setStep(3);
+                                      }}
                                       className={isMelynda ? "slot-melynda" : undefined}
                                       style={{
                                         background: isMelynda ? "#0D0D0D" : "transparent",
