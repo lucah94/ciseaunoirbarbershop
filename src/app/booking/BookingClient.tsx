@@ -192,6 +192,36 @@ function isSlotOccupied(
   return false;
 }
 
+/**
+ * Optimisation d'horaire (demande Melynda) : après un RDV, on RETIRE les créneaux qui laisseraient
+ * un trou orphelin impossible à combler (0 < trou < durée du plus court service) — ex: après un RDV
+ * 10:00-10:45, on garde 10:45 (adjacent) mais on retire 11:00 (laisse un trou mort de 15 min).
+ * CONSERVATEUR : ne restreint QUE le temps juste après un RDV existant (matins/journées vides
+ * intacts), garde l'ordre chronologique, et ne renvoie JAMAIS 0 créneau à cause de l'optim (filet).
+ */
+function optimizeSlots(
+  freeSlots: string[],
+  bookedSlots: { time: string; service: string; end_time?: string }[],
+  minServiceDur: number
+): string[] {
+  const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+  const ends = bookedSlots.map(b => {
+    const [bh, bm] = (b.time || "0:0").split(":").map(Number);
+    const start = bh * 60 + bm;
+    if (b.end_time) { const [eh, em] = b.end_time.split(":").map(Number); return eh * 60 + em; }
+    return start + serviceDuration(b.service);
+  });
+  const kept = freeSlots.filter(slot => {
+    const T = toMin(slot);
+    let boundary = -1; // fin du RDV le plus proche AVANT ce créneau
+    for (const e of ends) if (e <= T && e > boundary) boundary = e;
+    if (boundary < 0) return true; // aucun RDV avant → on ne restreint pas
+    const gap = T - boundary;
+    return !(gap > 0 && gap < minServiceDur); // retire le trou orphelin impossible à combler
+  });
+  return kept.length > 0 ? kept : freeSlots; // filet : jamais 0 créneau à cause de l'optim
+}
+
 const MONTHS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const DAYS_FR = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
 
@@ -1315,12 +1345,15 @@ function BookingContent() {
                           // Les RDV sans barbier sont comptés sur Melynda (barbière principale) — évite un double-booking.
                           const barberBooked = bookedSlots.filter(x => norm(x.barber || "") === norm(b.name) || (isMelynda && !x.barber));
                           // Départs aux 15 min (flexibilité), mais chaque créneau laisse le temps complet du service.
-                          const slots = getTimesForBarberAndDate(b.name, selected.date, b.overrides, b.schedule, 15, serviceDur).filter(t => {
+                          const freeSlots = getTimesForBarberAndDate(b.name, selected.date, b.overrides, b.schedule, 15, serviceDur).filter(t => {
                             const now = new Date();
                             const [tH, tM] = t.split(":").map(Number);
                             if (selected.date === today && (tH < now.getHours() || (tH === now.getHours() && tM <= now.getMinutes()))) return false;
                             return !isSlotOccupied(t, barberBooked, b.blockedRanges, selected.date, serviceDur);
                           });
+                          // Optim horaire (Melynda) : retire les trous orphelins après un RDV (< plus court service).
+                          const minSvcDur = services.length ? Math.min(...services.map(s => parseInt(s.duration) || 30)) : 30;
+                          const slots = optimizeSlots(freeSlots, barberBooked, minSvcDur);
                           // Vraie capacité : combien de RDV de ce service rentrent encore (sans chevauchement)
                           const capacity = realCapacity(slots, serviceDur);
                           return (
