@@ -249,12 +249,18 @@ export async function notifyNewContactMessage(opts: {
   message: string;
   escalated: boolean;
 }) {
-  const icon = opts.escalated ? "🚨" : "✉️";
+  // Texte client échappé (parse_mode HTML) — évite qu'un < ou & casse le message.
+  const esc = (s: string) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const icon = opts.escalated ? "🚨" : "📨";
+  const now = new Date().toLocaleString("fr-CA", {
+    timeZone: "America/Toronto", day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit", hour12: false,
+  });
   await sendMessage(
-    `${icon} <b>Message contact${opts.escalated ? " — ESCALADE" : ""}</b>\n\n` +
-    `👤 ${opts.name}\n` +
-    `📧 ${opts.email}\n\n` +
-    `💬 ${opts.message.slice(0, 300)}${opts.message.length > 300 ? "..." : ""}`
+    `${icon} <b>NOUVEAU MESSAGE CLIENT${opts.escalated ? " — ⚠️ SUIVI REQUIS" : ""}</b>\n\n` +
+    `👤 <b>${esc(opts.name)}</b>\n` +
+    `📧 ${esc(opts.email)}\n` +
+    `🕐 ${now}\n\n` +
+    `💬 ${esc(opts.message)}` // message COMPLET (demande Melynda)
   );
 }
 
