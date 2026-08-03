@@ -148,17 +148,44 @@ async function checkFacebook(): Promise<Check> {
   }
 }
 
+// Le token système existant a-t-il accès aux PUBS (ads_management) ? Teste /me/adaccounts.
+async function checkMetaAds(): Promise<Check> {
+  const start = Date.now();
+  try {
+    const sut = process.env.FACEBOOK_SYSTEM_USER_TOKEN || "";
+    if (sut.length < 50) return { status: "error", latency: 0, message: "token système absent/placeholder" };
+    const res = await fetch(
+      `https://graph.facebook.com/v19.0/me/adaccounts?fields=name,account_status,currency&access_token=${encodeURIComponent(sut)}`,
+      { signal: AbortSignal.timeout(TIMEOUT) }
+    );
+    const data = await res.json().catch(() => ({} as Record<string, unknown>));
+    const err = (data as { error?: { code?: number; message?: string } }).error;
+    if (err) return { status: "error", latency: Date.now() - start, message: `err ${err.code}: ${(err.message || "").slice(0, 70)}` };
+    const list = (data as { data?: { name?: string }[] }).data || [];
+    return {
+      status: list.length > 0 ? "ok" : "error",
+      latency: Date.now() - start,
+      message: list.length > 0
+        ? `✓ Accès pubs: ${list.map((a) => a.name).join(", ").slice(0, 120)}`
+        : "token OK mais 0 compte pub visible (manque rôle/scope ads)",
+    };
+  } catch (e) {
+    return { status: "error", latency: Date.now() - start, message: String(e) };
+  }
+}
+
 export async function GET() {
-  const [supabase, resend, twilio, claude, security, facebook] = await Promise.all([
+  const [supabase, resend, twilio, claude, security, facebook, metaAds] = await Promise.all([
     checkSupabase(),
     checkResend(),
     checkTwilio(),
     checkClaude(),
     checkRLS(),
     checkFacebook(),
+    checkMetaAds(),
   ]);
 
-  const checks = { supabase, resend, twilio, claude, security, facebook };
+  const checks = { supabase, resend, twilio, claude, security, facebook, meta_ads: metaAds };
   // Resend non-bloquant — email down ne déclenche pas d'alerte SMS
   const criticalChecks = { supabase, twilio };
   const hasError = Object.values(criticalChecks).some(c => c.status === "error");
