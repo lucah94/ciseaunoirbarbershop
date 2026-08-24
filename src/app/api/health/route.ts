@@ -148,26 +148,57 @@ async function checkFacebook(): Promise<Check> {
   }
 }
 
-// Le token système existant a-t-il accès aux PUBS (ads_management) ? Teste /me/adaccounts.
+// Le token système a-t-il accès aux PUBS ? Distingue les 2 causes possibles :
+// (a) le scope ads_management manque sur le token, (b) le scope est là mais aucun
+// compte publicitaire n'est partagé avec l'utilisateur système (rôle Business Manager).
 async function checkMetaAds(): Promise<Check> {
   const start = Date.now();
   try {
     const sut = process.env.FACEBOOK_SYSTEM_USER_TOKEN || "";
     if (sut.length < 50) return { status: "error", latency: 0, message: "token système absent/placeholder" };
+
+    // 1) Quels scopes le token porte-t-il réellement ?
+    let scopes: string[] = [];
+    const appId = process.env.FACEBOOK_APP_ID;
+    const appSecret = process.env.FACEBOOK_APP_SECRET;
+    if (appId && appSecret) {
+      const dbg = await fetch(
+        `https://graph.facebook.com/v19.0/debug_token?input_token=${encodeURIComponent(sut)}&access_token=${appId}|${appSecret}`,
+        { signal: AbortSignal.timeout(TIMEOUT) }
+      ).then((r) => r.json()).catch(() => null);
+      scopes = dbg?.data?.scopes || [];
+    }
+    const hasAdsMgmt = scopes.includes("ads_management");
+    const hasAdsRead = scopes.includes("ads_read");
+    const hasBiz = scopes.includes("business_management");
+
+    // 2) Des comptes publicitaires sont-ils visibles ?
     const res = await fetch(
-      `https://graph.facebook.com/v19.0/me/adaccounts?fields=name,account_status,currency&access_token=${encodeURIComponent(sut)}`,
+      `https://graph.facebook.com/v19.0/me/adaccounts?fields=name,account_id,account_status,currency&access_token=${encodeURIComponent(sut)}`,
       { signal: AbortSignal.timeout(TIMEOUT) }
     );
     const data = await res.json().catch(() => ({} as Record<string, unknown>));
     const err = (data as { error?: { code?: number; message?: string } }).error;
     if (err) return { status: "error", latency: Date.now() - start, message: `err ${err.code}: ${(err.message || "").slice(0, 70)}` };
-    const list = (data as { data?: { name?: string }[] }).data || [];
+    const list = (data as { data?: { name?: string; account_id?: string; currency?: string }[] }).data || [];
+
+    if (list.length > 0) {
+      return {
+        status: "ok",
+        latency: Date.now() - start,
+        message: `✓ ${list.length} compte(s) pub: ${list.map((a) => `${a.name} (act_${a.account_id}, ${a.currency})`).join(" · ").slice(0, 160)}`,
+      };
+    }
+
+    // 3) Zéro compte → dire QUOI corriger, précisément.
+    const scopeList = scopes.length ? scopes.join(",") : "inconnus";
+    const cause = !hasAdsMgmt
+      ? `MANQUE le scope ads_management — régénérer le token système avec ads_management${hasAdsRead ? "" : " + ads_read"}${hasBiz ? "" : " + business_management"}`
+      : "scope ads_management ✓ mais AUCUN compte pub partagé — ajouter l'utilisateur système au compte publicitaire dans Business Manager (rôle: gérer les campagnes)";
     return {
-      status: list.length > 0 ? "ok" : "error",
+      status: "error",
       latency: Date.now() - start,
-      message: list.length > 0
-        ? `✓ Accès pubs: ${list.map((a) => a.name).join(", ").slice(0, 120)}`
-        : "token OK mais 0 compte pub visible (manque rôle/scope ads)",
+      message: `0 compte pub. ${cause}. (scopes actuels: ${scopeList.slice(0, 120)})`,
     };
   } catch (e) {
     return { status: "error", latency: Date.now() - start, message: String(e) };
