@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processMessageWithClaude, sendMessengerMessage, isFbAuthError, alertFbTokenDead } from "@/app/api/meta/messenger/route";
+import { processMessageWithClaude, sendMessengerMessage, isFbAuthError, alertFbTokenDead, looksLikeSpam } from "@/app/api/meta/messenger/route";
+import { notifyMessengerUnreachable } from "@/lib/telegram";
+import { sendSMS } from "@/lib/sms";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
-import { notifySystemAlert } from "@/lib/telegram";
 import { runCron } from "@/lib/cron-log";
 import { getFacebookToken } from "@/lib/fbToken";
 
@@ -66,12 +67,26 @@ async function pollOnce(TOKEN: string, handledThisRun: Set<string>): Promise<{ h
         //    réessayer/alerter en boucle chaque minute. On alerte UNE seule fois pour qu'un humain reprenne.
         if (!sent.authError) {
           await supabase.from("messenger_conversations").update({ last_handled_mid: lastUserMsg.id }).eq("sender_id", recipient.id);
-          try {
-            await notifySystemAlert(
-              `Message client Messenger non livré (fenêtre 24h Facebook dépassée) — reprends la conversation manuellement.\n` +
-              `👤 ${recipientName}\n💬 "${String(lastUserMsg.message).slice(0, 300)}"`
-            );
-          } catch { /* notif non bloquante */ }
+          if (!looksLikeSpam(String(lastUserMsg.message))) {
+            try {
+              await notifyMessengerUnreachable({
+                senderName: recipientName,
+                clientMessage: String(lastUserMsg.message),
+                draftReply: reply,
+                reason: sent.detail || "fenêtre 24h dépassée ou permission refusée",
+              });
+            } catch { /* notif non bloquante */ }
+            const melyndaPhone = process.env.MELYNDA_PHONE;
+            if (melyndaPhone) {
+              try {
+                await sendSMS(
+                  melyndaPhone,
+                  `Messenger: ${recipientName} a écrit mais le bot n'a pas pu répondre.\n"${String(lastUserMsg.message).slice(0, 200)}"\nRéponds-lui toi-même dans Messenger si tu veux.`,
+                  `messenger_unreachable_${recipient.id}`
+                );
+              } catch { /* non-bloquant */ }
+            }
+          }
         }
         errors.push(`${recipient.id}: envoi non livré (${sent.detail})`);
         continue;

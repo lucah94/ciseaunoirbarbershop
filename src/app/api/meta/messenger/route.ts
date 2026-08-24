@@ -2,24 +2,31 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import twilio from "twilio";
 import crypto from "crypto";
-import { notifyBookingCancelled, notifyBookingRescheduled, notifySystemAlert } from "@/lib/telegram";
+import { notifyBookingCancelled, notifyBookingRescheduled, notifySystemAlert, notifyMessengerUnreachable } from "@/lib/telegram";
+import { sendSMS } from "@/lib/sms";
 import { serviceDuration } from "@/lib/serviceDuration";
 import { getFacebookToken, refreshFacebookToken } from "@/lib/fbToken";
 import { resolveService } from "@/lib/serviceLookup";
 export const dynamic = 'force-dynamic';
 
-// Détecte une erreur d'authentification Facebook (token expiré/invalide) dans une réponse Graph API.
-// FB renvoie code 190 / type "OAuthException" / mentions de "access token".
+// Détecte une erreur d'authentification Facebook (token VRAIMENT mort : expiré/invalide).
+// ⚠️ NE PAS élargir avec un simple .includes("oauthexception") ou .includes("access token") :
+// Meta renvoie AUSSI type="OAuthException" pour un refus de PERMISSION (ex: code 10, "Application
+// does not have permission for this action" — app en mode Développement, pas encore d'App Review)
+// et pour la fenêtre 24h de messagerie dépassée. Ces deux cas ont été confondus avec un token mort
+// pendant des semaines : le message n'était jamais marqué "traité" (retry infini, silencieux) ET
+// alertFbTokenDead() ne se déclenchait jamais (son propre test /me réussit, le token EST vivant) →
+// zéro alerte, zéro client répondu. Trouvé le 24 août 2026 via les conversations en base
+// (last_handled_mid resté NULL sur toutes les conversations réelles depuis fin juin).
 export function isFbAuthError(raw: unknown): boolean {
   let s = "";
   try { s = typeof raw === "string" ? raw : JSON.stringify(raw); } catch { s = String(raw); }
   const low = s.toLowerCase();
   return (
     /"code"\s*:\s*190/.test(s) ||
-    low.includes("oauthexception") ||
-    low.includes("access token") ||
     low.includes("session has been invalidated") ||
-    low.includes("error validating access token")
+    low.includes("error validating access token") ||
+    (low.includes("access token") && (low.includes("expired") || low.includes("invalid")))
   );
 }
 
@@ -429,6 +436,43 @@ async function handleToolCall(toolName: string, toolInput: Record<string, unknow
   return "Outil inconnu.";
 }
 
+// Filtre léger : évite de réveiller Melynda pour du bruit pur (rien d'utile à décider).
+// Volontairement permissif — mieux vaut un faux positif "pas spam" qu'une vraie cliente ignorée.
+export function looksLikeSpam(text: string): boolean {
+  const t = (text || "").trim();
+  if (t.length < 2) return true;
+  // Que des chiffres/ponctuation/emoji, aucune lettre → probablement un test ou un bruit.
+  if (!/\p{L}/u.test(t)) return true;
+  // Caractère répété en boucle ("aaaaaaaa", "??????").
+  if (/^(.)\1{4,}$/.test(t.replace(/\s/g, ""))) return true;
+  return false;
+}
+
+/**
+ * Le bot n'a pas pu répondre au client (permission Meta refusée ou fenêtre 24h dépassée).
+ * Prévient Melynda sur Telegram ET par SMS — c'est ELLE qui choisit si et quand elle
+ * recontacte le client, jamais un envoi automatique en son nom.
+ */
+async function notifyHumanFallback(
+  senderId: string, senderName: string, clientMessage: string, draftReply: string, reason: string
+): Promise<void> {
+  try {
+    await notifyMessengerUnreachable({ senderName, clientMessage, draftReply, reason });
+  } catch { /* non-bloquant */ }
+
+  const melyndaPhone = process.env.MELYNDA_PHONE;
+  if (!melyndaPhone) return;
+  try {
+    // Type unique par expéditeur → le dédup 24h de sendSMS ne bloque QUE les répétitions
+    // du même client, jamais les autres clients qui écrivent le même jour.
+    await sendSMS(
+      melyndaPhone,
+      `Messenger: ${senderName} a écrit mais le bot n'a pas pu répondre.\n"${clientMessage.slice(0, 200)}"\nRéponds-lui toi-même dans Messenger si tu veux.`,
+      `messenger_unreachable_${senderId}`
+    );
+  } catch { /* non-bloquant */ }
+}
+
 export async function sendMessengerMessage(recipientId: string, text: string): Promise<SendResult> {
   // Check if the reply contains the booking URL
   const bookingUrl = "https://ciseaunoirbarbershop.com/booking";
@@ -658,6 +702,7 @@ export async function POST(req: NextRequest) {
         const userText: string = event.message.text;
 
         // Met à jour le nom de l'expéditeur (non-critique)
+        let senderName = "Client Messenger";
         try {
           const profileToken = await getFacebookToken();
           const profileRes = await fetch(
@@ -665,7 +710,7 @@ export async function POST(req: NextRequest) {
           );
           const profile = await profileRes.json();
           if (profile.first_name) {
-            const senderName = `${profile.first_name} ${profile.last_name || ""}`.trim();
+            senderName = `${profile.first_name} ${profile.last_name || ""}`.trim();
             await supabase
               .from("messenger_conversations")
               .upsert({ sender_id: senderId, sender_name: senderName }, { onConflict: "sender_id" });
@@ -677,11 +722,21 @@ export async function POST(req: NextRequest) {
         const reply = await processMessageWithClaude(senderId, userText);
         const sent = await sendMessengerMessage(senderId, reply);
 
-        // Marque "traité" SEULEMENT si l'envoi a réussi (sinon le cron réessaiera) → dédup avec le poll.
         if (sent.ok && mid) {
+          // Marque "traité" → dédup avec le poll.
           await supabase
             .from("messenger_conversations")
             .upsert({ sender_id: senderId, last_handled_mid: mid }, { onConflict: "sender_id" });
+        } else if (!sent.ok && !sent.authError && mid && !looksLikeSpam(userText)) {
+          // Échec PERMANENT (pas un token mort récupérable — permission refusée ou fenêtre 24h
+          // dépassée) : on marque quand même "traité" pour ne pas retenter en boucle à chaque
+          // webhook/poll, et on prévient un humain UNE fois pour que le client ne reste pas sans
+          // réponse. Melynda décide elle-même si/quand elle le recontacte — rien n'est envoyé
+          // au client en son nom automatiquement.
+          await supabase
+            .from("messenger_conversations")
+            .upsert({ sender_id: senderId, last_handled_mid: mid }, { onConflict: "sender_id" });
+          await notifyHumanFallback(senderId, senderName, userText, reply, sent.detail || "raison inconnue");
         }
       }
     }

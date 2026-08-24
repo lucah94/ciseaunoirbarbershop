@@ -225,6 +225,27 @@ export async function notifyAdStatusChange(message: string) {
   await sendMessage(`💰 <b>Pubs Facebook</b>\n\n${message}`);
 }
 
+/**
+ * Un message Messenger n'a PAS pu être livré au client (permission refusée par Meta,
+ * fenêtre 24h dépassée, etc.). On ne contacte JAMAIS le client automatiquement à sa
+ * place — c'est Melynda qui décide QUAND et COMMENT le recontacter (Messenger admin,
+ * téléphone), pas une SMS auto en son nom. Ceci sert juste à la PRÉVENIR.
+ */
+export async function notifyMessengerUnreachable(opts: {
+  senderName: string;
+  clientMessage: string;
+  draftReply: string;
+  reason: string;
+}) {
+  await sendMessage(
+    `📵 <b>Message Messenger non livré</b>\n\n` +
+    `Un client a écrit mais le bot n'a pas pu répondre (${opts.reason}).\n\n` +
+    `👤 <b>${opts.senderName}</b>\n💬 "${opts.clientMessage.slice(0, 300)}"\n\n` +
+    `<i>Réponse que Figaro aurait envoyée (à réutiliser au besoin) :</i>\n${opts.draftReply.slice(0, 300)}\n\n` +
+    `Ouvre Messenger si tu veux répondre toi-même.`
+  );
+}
+
 /** Alerte Twilio balance faible */
 export async function notifyLowTwilioBalance(balance: number) {
   await sendMessage(
