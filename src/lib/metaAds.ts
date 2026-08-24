@@ -6,8 +6,10 @@
  * système « Ciseau Noir Bot » dans le portefeuille business — sinon /me/adaccounts
  * renvoie 0 compte et tout ici échoue proprement (voir /api/health → meta_ads).
  *
- * LECTURE SEULE. Aucune fonction de ce module ne crée, modifie ni active de campagne :
- * rien ici ne peut dépenser un sou.
+ * Écriture VOLONTAIREMENT limitée : la seule mutation possible est de mettre une campagne
+ * existante sur PAUSE ou de la réactiver (setCampaignStatus). Aucune création de campagne,
+ * aucun changement de budget, aucune modification de ciblage — donc rien ici ne peut
+ * augmenter la dépense au-delà d'un budget déjà approuvé par un humain.
  */
 
 const GRAPH = "https://graph.facebook.com/v19.0";
@@ -203,6 +205,47 @@ export async function listCampaigns(): Promise<Campaign[] | MetaAdsError> {
     startTime: c.start_time || null,
     stopTime: c.stop_time || null,
   }));
+}
+
+// ── Mettre en pause / réactiver ───────────────────────────────────────────────
+
+async function graphPost(
+  path: string,
+  body: Record<string, string>
+): Promise<{ ok: true } | MetaAdsError> {
+  const token = process.env.FACEBOOK_SYSTEM_USER_TOKEN || "";
+  if (token.length < 50) return { error: "FACEBOOK_SYSTEM_USER_TOKEN absent ou placeholder" };
+
+  try {
+    const res = await fetch(`${GRAPH}/${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ ...body, access_token: token }).toString(),
+      signal: AbortSignal.timeout(15000),
+    });
+    const data = (await res.json()) as { success?: boolean; error?: { message?: string; code?: number } };
+    if (data?.error) {
+      return { error: `Meta ${data.error.code ?? "?"}: ${data.error.message ?? "erreur inconnue"}` };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "erreur réseau Meta" };
+  }
+}
+
+/**
+ * Met une campagne existante sur PAUSE ou la réactive. Rien d'autre.
+ *
+ * PAUSED arrête la dépense immédiatement et est toujours réversible.
+ * ACTIVE ne fait que relancer une campagne déjà configurée (budget et ciblage
+ * inchangés) — donc jamais de dépense nouvelle qu'un humain n'a pas déjà approuvée.
+ */
+export async function setCampaignStatus(
+  campaignId: string,
+  status: "PAUSED" | "ACTIVE"
+): Promise<{ ok: true } | MetaAdsError> {
+  if (!/^\d+$/.test(campaignId)) return { error: "ID de campagne invalide" };
+  return graphPost(campaignId, { status });
 }
 
 /**

@@ -217,6 +217,14 @@ export async function notifySystemAlert(message: string) {
   await sendMessage(`🔴 <b>Alerte système</b>\n\n${message}`);
 }
 
+/**
+ * Changement d'état d'une pub Facebook (pause / relance).
+ * Toute action sur l'argent des pubs laisse une trace visible dans le groupe.
+ */
+export async function notifyAdStatusChange(message: string) {
+  await sendMessage(`💰 <b>Pubs Facebook</b>\n\n${message}`);
+}
+
 /** Alerte Twilio balance faible */
 export async function notifyLowTwilioBalance(balance: number) {
   await sendMessage(
