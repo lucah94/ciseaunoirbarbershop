@@ -172,6 +172,23 @@ async function checkMetaAds(): Promise<Check> {
     const hasAdsRead = scopes.includes("ads_read");
     const hasBiz = scopes.includes("business_management");
 
+    // 1b) Qui est ce token, et a quel(s) portefeuille(s) business appartient-il ?
+    let whoami = "";
+    try {
+      const me = await fetch(
+        `https://graph.facebook.com/v19.0/me?fields=id,name&access_token=${encodeURIComponent(sut)}`,
+        { signal: AbortSignal.timeout(TIMEOUT) }
+      ).then((r) => r.json()).catch(() => null);
+      const biz = await fetch(
+        `https://graph.facebook.com/v19.0/me/businesses?fields=id,name&access_token=${encodeURIComponent(sut)}`,
+        { signal: AbortSignal.timeout(TIMEOUT) }
+      ).then((r) => r.json()).catch(() => null);
+      const bizList: { id?: string; name?: string }[] = biz?.data || [];
+      whoami = ` [utilisateur système: ${me?.name || "?"} (id ${me?.id || "?"}) · business: ${
+        bizList.length ? bizList.map((b) => `${b.name} (${b.id})`).join(" / ") : "AUCUN"
+      }]`;
+    } catch { /* best-effort */ }
+
     // 2) Des comptes publicitaires sont-ils visibles ?
     const res = await fetch(
       `https://graph.facebook.com/v19.0/me/adaccounts?fields=name,account_id,account_status,currency&access_token=${encodeURIComponent(sut)}`,
@@ -186,7 +203,7 @@ async function checkMetaAds(): Promise<Check> {
       return {
         status: "ok",
         latency: Date.now() - start,
-        message: `✓ ${list.length} compte(s) pub: ${list.map((a) => `${a.name} (act_${a.account_id}, ${a.currency})`).join(" · ").slice(0, 160)}`,
+        message: `✓ ${list.length} compte(s) pub: ${list.map((a) => `${a.name} (act_${a.account_id}, ${a.currency})`).join(" · ").slice(0, 160)}${whoami}`,
       };
     }
 
@@ -198,7 +215,7 @@ async function checkMetaAds(): Promise<Check> {
     return {
       status: "error",
       latency: Date.now() - start,
-      message: `0 compte pub. ${cause}. (scopes actuels: ${scopeList.slice(0, 120)})`,
+      message: `0 compte pub. ${cause}.${whoami} (scopes: ${scopeList.slice(0, 90)})`,
     };
   } catch (e) {
     return { status: "error", latency: Date.now() - start, message: String(e) };
