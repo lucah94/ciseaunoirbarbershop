@@ -148,6 +148,66 @@ async function checkFacebook(): Promise<Check> {
   }
 }
 
+/**
+ * Le check `facebook` vérifie que la PAGE est abonnée à l'app. Mais si l'APP n'a pas
+ * d'URL de rappel enregistrée (ou pas le champ `messages`), Meta ne nous envoie jamais
+ * rien : la page semble abonnée et pourtant le bot ne reçoit aucun message.
+ * C'est le trou que ce check couvre.
+ */
+async function checkMessengerWebhook(): Promise<Check> {
+  const start = Date.now();
+  const appId = process.env.FACEBOOK_APP_ID;
+  const appSecret = process.env.FACEBOOK_APP_SECRET;
+  if (!appId || !appSecret) {
+    return { status: "error", latency: 0, message: "FACEBOOK_APP_ID/SECRET absents — diagnostic impossible" };
+  }
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v19.0/${appId}/subscriptions?access_token=${appId}|${appSecret}`,
+      { signal: AbortSignal.timeout(TIMEOUT) }
+    );
+    const data = await res.json().catch(() => ({} as Record<string, unknown>));
+    const err = (data as { error?: { code?: number; message?: string } }).error;
+    if (err) return { status: "error", latency: Date.now() - start, message: `err ${err.code}: ${(err.message || "").slice(0, 80)}` };
+
+    const subs = (data as { data?: { object?: string; callback_url?: string; active?: boolean; fields?: ({ name?: string } | string)[] }[] }).data || [];
+    const page = subs.find((s) => s.object === "page");
+    if (!page) {
+      return {
+        status: "error",
+        latency: Date.now() - start,
+        message: "L'APP n'a AUCUN webhook 'page' enregistré → Meta n'envoie jamais les messages. Ajouter l'URL de rappel dans Meta for Developers > Webhooks > Page.",
+      };
+    }
+    const fieldNames = (page.fields || []).map((f) => (typeof f === "string" ? f : f?.name || ""));
+    const hasMessages = fieldNames.includes("messages");
+    const expectedUrl = "https://www.ciseaunoirbarbershop.com/api/meta/messenger";
+    const urlOk = (page.callback_url || "").includes("/api/meta/messenger");
+
+    if (!hasMessages) {
+      return {
+        status: "error",
+        latency: Date.now() - start,
+        message: `Webhook app présent (${page.callback_url}) mais SANS le champ 'messages' (a: ${fieldNames.join(",") || "aucun"}) → aucun message reçu.`,
+      };
+    }
+    if (!urlOk) {
+      return {
+        status: "error",
+        latency: Date.now() - start,
+        message: `Webhook app pointe vers ${page.callback_url} au lieu de ${expectedUrl} → les messages partent ailleurs.`,
+      };
+    }
+    return {
+      status: page.active === false ? "error" : "ok",
+      latency: Date.now() - start,
+      message: `Webhook app OK → ${page.callback_url} (champs: ${fieldNames.join(",")})${page.active === false ? " ⚠️ INACTIF" : ""}`,
+    };
+  } catch (e) {
+    return { status: "error", latency: Date.now() - start, message: String(e) };
+  }
+}
+
 // Le token système a-t-il accès aux PUBS ? Distingue les 2 causes possibles :
 // (a) le scope ads_management manque sur le token, (b) le scope est là mais aucun
 // compte publicitaire n'est partagé avec l'utilisateur système (rôle Business Manager).
@@ -223,7 +283,7 @@ async function checkMetaAds(): Promise<Check> {
 }
 
 export async function GET() {
-  const [supabase, resend, twilio, claude, security, facebook, metaAds] = await Promise.all([
+  const [supabase, resend, twilio, claude, security, facebook, metaAds, messengerWebhook] = await Promise.all([
     checkSupabase(),
     checkResend(),
     checkTwilio(),
@@ -231,9 +291,10 @@ export async function GET() {
     checkRLS(),
     checkFacebook(),
     checkMetaAds(),
+    checkMessengerWebhook(),
   ]);
 
-  const checks = { supabase, resend, twilio, claude, security, facebook, meta_ads: metaAds };
+  const checks = { supabase, resend, twilio, claude, security, facebook, meta_ads: metaAds, messenger_webhook: messengerWebhook };
   // Resend non-bloquant — email down ne déclenche pas d'alerte SMS
   const criticalChecks = { supabase, twilio };
   const hasError = Object.values(criticalChecks).some(c => c.status === "error");

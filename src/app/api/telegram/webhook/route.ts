@@ -9,9 +9,12 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { aiClient as anthropic, generateText, MODELS, getDirectAnthropic, DIRECT_FALLBACK_MODEL } from "@/lib/ai";
 import { resolveService } from "@/lib/serviceLookup";
 import { serviceDuration } from "@/lib/serviceDuration";
-import { generatePost, publishPostToFacebook } from "@/lib/posts";
+import { generatePost, publishPostToFacebook, generateAdCopy } from "@/lib/posts";
+import { activateAd, deleteCampaign } from "@/lib/metaAdsCreate";
+import { isMetaAdsError } from "@/lib/metaAds";
 import {
   proposePostOnTelegram,
+  proposeAdOnTelegram,
   notifyBookingCancelled,
   notifyBookingRescheduled,
 } from "@/lib/telegram";
@@ -1255,6 +1258,92 @@ async function handleReminderCallback(callbackId: string, data: string, chatId: 
   }
 }
 
+// ── Approbation d'une PUB PAYANTE Meta ────────────────────────────────────────
+/**
+ * La pub existe déjà chez Meta, sur PAUSE. Ici on décide de son sort :
+ * « Approuver » l'active (c'est le seul endroit du système qui met une pub en ligne),
+ * « Refuser » supprime la campagne, « Régénérer » réécrit le texte et repropose.
+ */
+async function handleAdCallback(callbackId: string, data: string, chatId: number, messageId: number): Promise<void> {
+  await answerCallback(callbackId);
+  const colonIdx = data.indexOf(":");
+  const action = data.slice(0, colonIdx);
+  const pendingId = data.slice(colonIdx + 1);
+
+  const { data: row, error } = await supabaseAdmin
+    .from("pending_posts").select("id, content, status").eq("id", pendingId).single();
+
+  if (error || !row) {
+    await editMessage(chatId, messageId, "❌ Proposition introuvable (peut-être déjà traitée).");
+    return;
+  }
+
+  let spec: {
+    campaignId: string; adSetId: string; adId: string; message: string;
+    imageUrl: string; dailyBudget: number; durationDays: number; maxTotalSpend: number;
+  };
+  try {
+    spec = JSON.parse(row.content as string);
+  } catch {
+    await editMessage(chatId, messageId, "❌ Données de la pub illisibles.");
+    return;
+  }
+
+  if (action === "ad_ok") {
+    // Verrou : une seule activation possible, même si le bouton est tapé deux fois.
+    const { data: claimed } = await supabaseAdmin
+      .from("pending_posts").update({ status: "posting" }).eq("id", pendingId).eq("status", "pending").select("id");
+    if (!claimed || claimed.length === 0) {
+      await editMessage(chatId, messageId, "✅ Déjà approuvée (rien fait en double).");
+      return;
+    }
+
+    const result = await activateAd(spec);
+    if (isMetaAdsError(result)) {
+      await supabaseAdmin.from("pending_posts").update({ status: "pending" }).eq("id", pendingId);
+      await editMessage(chatId, messageId, `❌ Meta a refusé l'activation : ${result.error}`);
+      return;
+    }
+
+    await supabaseAdmin.from("pending_posts").update({ status: "posted" }).eq("id", pendingId);
+    await editMessage(
+      chatId, messageId,
+      `✅ <b>Pub EN LIGNE</b>\n\n` +
+      `${spec.dailyBudget.toFixed(2)} $/jour pendant ${spec.durationDays} jours\n` +
+      `Dépense maximale : ${spec.maxTotalSpend.toFixed(2)} $\n\n` +
+      `Meta doit maintenant l'approuver (habituellement moins d'une heure).`
+    );
+  } else if (action === "ad_no") {
+    const del = await deleteCampaign(spec.campaignId);
+    await supabaseAdmin.from("pending_posts").update({ status: "rejected" }).eq("id", pendingId);
+    await editMessage(
+      chatId, messageId,
+      isMetaAdsError(del)
+        ? `❌ Refusée. La pub reste sur pause, mais le ménage a échoué : ${del.error}`
+        : "❌ Refusée — campagne supprimée, rien dépensé."
+    );
+  } else if (action === "ad_regen") {
+    try {
+      const newMessage = await generateAdCopy(
+        "offre d'emploi: on cherche un barbier ou une barbière (coupe homme et barbe) — travailleur autonome payé à %, sans location de chaise, horaire flexible, nouveau local au 2275 Avenue Royale"
+      );
+      await supabaseAdmin.from("pending_posts")
+        .update({ content: JSON.stringify({ ...spec, message: newMessage }) }).eq("id", pendingId);
+      await proposeAdOnTelegram({
+        id: pendingId,
+        imageUrl: spec.imageUrl,
+        message: newMessage,
+        dailyBudget: spec.dailyBudget,
+        durationDays: spec.durationDays,
+        maxTotalSpend: spec.maxTotalSpend,
+      });
+      await editMessage(chatId, messageId, "🔄 Nouveau texte proposé ci-dessus (même visuel, même budget).");
+    } catch (e) {
+      await editMessage(chatId, messageId, `❌ Erreur de régénération : ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+}
+
 // ── Expense receipt confirmation callback ──────────────────────────────────────
 async function handleExpenseCallback(callbackId: string, data: string, chatId: number, messageId: number): Promise<void> {
   await answerCallback(callbackId);
@@ -1326,6 +1415,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
       if (data && (data.startsWith("exp_ok:") || data.startsWith("exp_no:"))) {
         await handleExpenseCallback(id, data, message.chat.id, message.message_id);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (data && (data.startsWith("ad_ok:") || data.startsWith("ad_regen:") || data.startsWith("ad_no:"))) {
+        await handleAdCallback(id, data, message.chat.id, message.message_id);
         return NextResponse.json({ ok: true });
       }
 

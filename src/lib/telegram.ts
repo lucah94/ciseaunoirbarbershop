@@ -326,6 +326,60 @@ export async function proposePostOnTelegram(opts: {
   }
 }
 
+/**
+ * Proposition d'une PUB PAYANTE Meta — envoie le visuel, le texte et le budget,
+ * avec Approuver / Refuser / Régénérer.
+ *
+ * La pub existe déjà côté Meta mais est SUR PAUSE : tant que personne ne tape
+ * « Approuver », rien ne se diffuse et pas un sou n'est dépensé.
+ */
+export async function proposeAdOnTelegram(opts: {
+  /** Identifiant court de la proposition (clé en base), pas les IDs Meta. */
+  id: string;
+  imageUrl: string;
+  message: string;
+  dailyBudget: number;
+  durationDays: number;
+  maxTotalSpend: number;
+}): Promise<boolean> {
+  if (!isConfigured()) return false;
+  try {
+    const header =
+      `📢 <b>Pub Facebook à approuver — EMBAUCHE</b>\n\n` +
+      `💰 <b>${opts.dailyBudget.toFixed(2)} $/jour</b> pendant <b>${opts.durationDays} jours</b>\n` +
+      `🔒 Dépense maximale : <b>${opts.maxTotalSpend.toFixed(2)} $</b>\n` +
+      `🎯 Québec, rayon 25 km · catégorie Emploi (sans filtre d'âge ni de sexe)\n` +
+      `💬 Les gens répondent dans Messenger\n\n`;
+
+    // La légende d'une photo Telegram est limitée à 1024 caractères.
+    const room = 1024 - header.length - 20;
+    const body = opts.message.length > room ? opts.message.slice(0, room - 3) + "..." : opts.message;
+
+    const res = await fetch(`${TELEGRAM_API}${getToken()}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: getChatId(),
+        photo: opts.imageUrl,
+        caption: header + body,
+        parse_mode: "HTML",
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "✅ Approuver et publier", callback_data: `ad_ok:${opts.id}` }],
+            [
+              { text: "🔄 Régénérer le texte", callback_data: `ad_regen:${opts.id}` },
+              { text: "❌ Refuser", callback_data: `ad_no:${opts.id}` },
+            ],
+          ],
+        },
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Demande d'approbation pour un email important — boutons inline Telegram */
 export async function sendEmailApprovalRequest(draft: {
   id: string;
