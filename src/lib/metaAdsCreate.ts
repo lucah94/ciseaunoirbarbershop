@@ -126,6 +126,9 @@ export async function createEmploymentAd(spec: AdSpec): Promise<CreatedAd | Meta
     status: "PAUSED",
     special_ad_categories: JSON.stringify(["EMPLOYMENT"]),
     special_ad_category_country: JSON.stringify(["CA"]),
+    // Le budget vit sur l'ensemble de pubs (daily_budget plus bas), pas la campagne —
+    // donc pas de partage de budget entre ensembles à activer.
+    is_adset_budget_sharing_enabled: "false",
   });
   if (isMetaAdsError(campaign)) return campaign;
   const campaignId = campaign.id;
