@@ -6,7 +6,7 @@
  */
 
 /** Visuel fourni par Melynda, servi depuis le site (public/pub/). */
-export const HIRING_AD_IMAGE_PATH = "/pub/perle-rare.png";
+export const HIRING_AD_IMAGE_PATH = "/pub/perle-rare.jpg";
 
 export function hiringAdImageUrl(origin?: string): string {
   const base = origin || process.env.NEXT_PUBLIC_SITE_URL || "https://www.ciseaunoirbarbershop.com";
@@ -17,20 +17,16 @@ export const HIRING_AD = {
   campaignName: "Ciseau Noir — Perle Rare (embauche)",
   dailyBudgetCad: 15,
   durationDays: 10,
-  message: `On cherche notre perle rare. ✂️
+  // Texte COURT — l'affiche elle-même contient déjà tous les détails (exigences,
+  // avantages, chats, coordonnées). Le texte au-dessus ne doit pas répéter l'image,
+  // juste donner envie de la lire et corriger ce que l'affiche ne dit pas (le civique).
+  message: `On cherche notre perle rare ✂️
 
-Le Ciseau Noir s'installe au 2275 Avenue Royale — un tout nouveau local, rénové de A à Z, à notre image.
+Le Ciseau Noir s'installe bientôt au 2275 Avenue Royale (Beauport) — un local remis au goût du jour, même équipe, même passion.
 
-Ce qu'on offre :
-✅ Travailleur ou travailleuse autonome, payé à % — sans location de chaise
-✅ Horaire discutable : 2-3 matins par semaine, temps partiel ou temps plein
-✅ Une clientèle fidèle déjà là, et de la nouvelle qui s'en vient
-✅ Un système de rendez-vous en ligne qui roule tout seul
-✅ Une ambiance familiale, décontractée — pis deux chats comme mascottes 🐈‍⬛
+Toutes les infos sur l'affiche 👇 (oui, les chats font partie du deal 🐈‍⬛)
 
-Ce qu'on cherche : de l'expérience en coupe homme et en barbe, et le goût de bien faire les choses.
-
-Ça te parle ? Écris-nous. 💈`,
+Ça te parle? Écris-nous en privé!`,
 } as const;
 
 /**
