@@ -143,6 +143,9 @@ export async function createEmploymentAd(spec: AdSpec): Promise<CreatedAd | Meta
     daily_budget: String(Math.round(dailyBudget * 100)), // Meta veut des cents
     billing_event: "IMPRESSIONS",
     optimization_goal: "CONVERSATIONS",
+    // Enchère automatique (Meta optimise seul dans le budget quotidien fixé) — sans ce
+    // champ, Meta exige un montant d'enchère manuel qu'on ne veut pas gérer à la main.
+    bid_strategy: "LOWEST_COST_WITHOUT_CAP",
     destination_type: "MESSENGER",
     end_time: endTime,
     promoted_object: JSON.stringify({ page_id: PAGE_ID }),
