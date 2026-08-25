@@ -498,21 +498,41 @@ export async function sendMessengerMessage(recipientId: string, text: string): P
       }),
     });
 
+  // Erreur PASSAGÈRE (réseau, 5xx Meta, limite de débit) → RETRY automatique, jamais
+  // besoin d'un humain pour ça. Différent d'un token mort (retry via token frais) et
+  // différent d'une politique Meta (24h, permission) qui elle NE se répare PAS en réessayant.
+  const isTransient = (status: number, err: string) => {
+    if (status >= 500) return true;
+    // codes Meta "réessaie plus tard" : 1=inconnu passager, 2=service indispo, 4/17/32/613=limite de débit
+    return /"code"\s*:\s*(1|2|4|17|32|613)\b/.test(err);
+  };
+
   // Token de page auto-réparé (re-dérivé depuis le System User token au besoin).
   let token = await getFacebookToken();
   let sendRes = await postText(token);
+  let err = "";
 
-  // AUTO-RÉPARATION : si l'envoi échoue à cause d'un token mort, on re-dérive un token frais et on RÉESSAIE une fois.
   if (!sendRes.ok) {
-    let err = await sendRes.text().catch(() => "");
+    err = await sendRes.text().catch(() => "");
+
     if (isFbAuthError(err)) {
+      // AUTO-RÉPARATION : token mort → re-dérive un token frais et réessaie.
       const fresh = await refreshFacebookToken();
       if (fresh) {
         token = fresh;
         sendRes = await postText(token);
         if (!sendRes.ok) err = await sendRes.text().catch(() => "");
       }
+    } else if (isTransient(sendRes.status, err)) {
+      // AUTO-RÉPARATION : hoquet passager → jusqu'à 2 réessais avec pause courte, sans
+      // jamais réveiller personne pour un problème qui se règle tout seul en secondes.
+      for (let attempt = 1; attempt <= 2 && !sendRes.ok; attempt++) {
+        await new Promise((r) => setTimeout(r, attempt * 800));
+        sendRes = await postText(token);
+        if (!sendRes.ok) err = await sendRes.text().catch(() => "");
+      }
     }
+
     if (!sendRes.ok) {
       const authError = isFbAuthError(err);
       // Si ça échoue ici (souvent token Facebook expiré), on le verra dans les logs Vercel
