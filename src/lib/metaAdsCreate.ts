@@ -130,9 +130,9 @@ export async function createEmploymentAd(spec: AdSpec): Promise<CreatedAd | Meta
     status: "PAUSED",
     special_ad_categories: JSON.stringify(["EMPLOYMENT"]),
     special_ad_category_country: JSON.stringify(["CA"]),
-    // Déclaré ici ET sur l'ensemble de pubs : Meta a rejeté la création tant que ce
-    // n'était mis qu'à un seul des deux niveaux.
-    bid_strategy: "LOWEST_COST_WITHOUT_CAP",
+    // bid_strategy va sur l'ENSEMBLE de pubs (voir plus bas), pas ici : la campagne
+    // n'a pas de budget propre (il vit sur l'ensemble), et Meta refuse un bid_strategy
+    // à un niveau qui n'a pas de budget ("Ajoutez un budget pour modifier la stratégie").
     // Le budget vit sur l'ensemble de pubs (daily_budget plus bas), pas la campagne —
     // donc pas de partage de budget entre ensembles à activer.
     is_adset_budget_sharing_enabled: "false",
