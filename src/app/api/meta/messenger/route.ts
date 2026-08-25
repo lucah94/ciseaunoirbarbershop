@@ -488,6 +488,12 @@ export async function sendMessengerMessage(recipientId: string, text: string): P
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         recipient: { id: recipientId },
+        // OBLIGATOIRE selon l'API Send de Meta : sans ce champ, Meta rejette avec
+        // "(#10) message envoyé en dehors de la plage horaire autorisée" — MÊME quand
+        // on répond en quelques secondes à un message reçu à l'instant. Ce champ manquait
+        // depuis toujours ; c'était la VRAIE cause du bot muet, confirmée le 24 août 2026
+        // par un test d'envoi réel qui a renvoyé exactement cette erreur.
+        messaging_type: "RESPONSE",
         message: { text: cleanText },
       }),
     });
@@ -524,6 +530,7 @@ export async function sendMessengerMessage(recipientId: string, text: string): P
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         recipient: { id: recipientId },
+        messaging_type: "RESPONSE",
         message: {
           attachment: {
             type: "template",
