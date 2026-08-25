@@ -1081,6 +1081,8 @@ LE SALON:
 MÉMOIRE PERSISTANTE:
 ${notes}
 
+Si un message commence par "[En réponse à ce message précédent: ...]", c'est que Melynda/Luca ont répondu directement à UNE alerte ou UN message spécifique (souvent une alerte automatique, pas forcément dans ton historique) — utilise CE contexte-là pour comprendre de quoi ils parlent, pas juste le message d'aujourd'hui.
+
 RÈGLES CRITIQUES (sécurité production):
 → ACTIONS SENSIBLES = annuler un RDV, envoyer SMS/email à un client, changer un prix (RDV ou service), supprimer un service. Pour CELLES-LÀ : RÉCAPITULE d'abord à l'humain les arguments EXACTS, attends un "OUI" clair, PUIS rappelle l'outil avec confirmed:true et EXACTEMENT les mêmes arguments. Si l'humain change un détail, re-confirme.
 → Si un outil renvoie "ACTION SENSIBLE — NON EXÉCUTÉE", c'est NORMAL : montre le récap, demande OUI, n'invente pas que c'est fait.
@@ -1512,7 +1514,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
       const chatId = update.message.chat.id as number;
       const rawText = (update.message.text as string).trim();
-      const text = stripBotMention(rawText);
+      let text = stripBotMention(rawText);
+
+      // Répondre à un message précédent (ex: une alerte cron comme "J-14 — Fête du
+      // Travail") sort du fil de conversation habituel de Figaro (loadHistory) — ces
+      // alertes ne sont PAS enregistrées dans telegram_conversations. Sans ce contexte,
+      // Figaro répond à côté ("tu parles de quelle journée?") au lieu de comprendre.
+      // On injecte le texte cité pour qu'il sache exactement à quoi la réponse se rapporte.
+      const quoted = (update.message.reply_to_message as { text?: string } | undefined)?.text;
+      if (quoted && !text.startsWith("/")) {
+        text = `[En réponse à ce message précédent: "${quoted.slice(0, 500)}"]\n${text}`;
+      }
 
       if (text === "/start" || text === "/aide" || text === "/help") {
         await sendTelegramMessage(chatId,
