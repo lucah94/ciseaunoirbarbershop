@@ -30,8 +30,9 @@ Aucun autre texte. Style photographique réaliste, pas d'illustration, pas de ca
     body: JSON.stringify({
       model: "openai/gpt-image-2",
       prompt,
-      resolution: "2K",
-      aspect_ratio: body.aspectRatio || "4:5",
+      // openai/gpt-image-2 n'accepte qu'un jeu fixe de ratios (pas "4:5") : 3:4 est le
+      // plus proche d'un format portrait pub Facebook/Instagram parmi ceux acceptés.
+      aspect_ratio: body.aspectRatio || "3:4",
     }),
     signal: AbortSignal.timeout(55000),
   });
