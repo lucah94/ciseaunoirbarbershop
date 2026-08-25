@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
-import twilio from "twilio";
 import crypto from "crypto";
 import { notifyBookingCancelled, notifyBookingRescheduled, notifySystemAlert, notifyMessengerUnreachable } from "@/lib/telegram";
 import { sendSMS } from "@/lib/sms";
@@ -153,7 +152,8 @@ ${isFirstMessage ? `0. PREMIER message de la conversation: commence en te prése
 5. Tu peux aussi offrir le lien: "Réserve directement ici 👉 https://ciseaunoirbarbershop.com/booking"
 6. Si pas de préférence de date, vérifie les 3 prochains jours ouvrables.
 7. Si tu NE connais PAS une réponse (ex: stationnement, paiement), sois honnête, propose d'appeler le (418) 665-5703 ou utilise send_sms_alert. N'invente RIEN.
-8. Client frustré ou cas complexe → send_sms_alert à l'équipe.`;
+8. Client frustré ou cas complexe → send_sms_alert à l'équipe.
+9. CANDIDATURE D'EMPLOI (offre "Perle Rare" — coiffeuse/barbier) : si la personne écrit pour le POSTE (pas un rendez-vous client), ne propose JAMAIS de réservation ni de services. Appelle send_sms_alert IMMÉDIATEMENT (ex: "Candidature Perle Rare — [nom si connu]: [résumé du message]") puis réponds-lui, ton chaleureux, quelque chose comme : "Merci pour ton intérêt! 😊 J'ai informé Melynda et Luca — tu vas recevoir un retour d'appel bientôt. Merci!"`;
 }
 
 const CLAUDE_TOOLS: Anthropic.Tool[] = [
@@ -417,20 +417,20 @@ async function handleToolCall(toolName: string, toolInput: Record<string, unknow
 
   if (toolName === "send_sms_alert") {
     const { message } = toolInput as Record<string, string>;
-    try {
-      const client = twilio(
-        process.env.TWILIO_ACCOUNT_SID!,
-        process.env.TWILIO_AUTH_TOKEN!
-      );
-      await client.messages.create({
-        from: process.env.TWILIO_PHONE_NUMBER!,
-        to: process.env.LUCA_PHONE || process.env.MELYNDA_PHONE || "+18147403894",
-        body: `⚠️ Messenger: ${message}`,
-      });
-      return "Alerte SMS envoyée à l'équipe.";
-    } catch (e) {
-      return `Erreur SMS: ${String(e)}`;
-    }
+    // Avertit Luca ET Melynda — pas juste un des deux (les deux gèrent le shop).
+    const recipients = [process.env.LUCA_PHONE, process.env.MELYNDA_PHONE].filter(
+      (p, i, arr): p is string => !!p && arr.indexOf(p) === i // dédup si même numéro dans les deux
+    );
+    if (recipients.length === 0) recipients.push("+18147403894");
+    // Type unique par CONTENU (pas un type fixe) : le dédup 24h de sendSMS protège contre
+    // une boucle qui répéterait la même alerte, sans jamais bloquer une alerte DIFFÉRENTE
+    // le même jour (ex: une candidature ce matin ne doit pas faire taire une cliente frustrée ce soir).
+    const contentKey = crypto.createHash("md5").update(message).digest("hex").slice(0, 10);
+    const results = await Promise.allSettled(
+      recipients.map((to) => sendSMS(to, `⚠️ Messenger: ${message}`, `messenger_sms_alert_${contentKey}`))
+    );
+    const sent = results.filter((r) => r.status === "fulfilled").length;
+    return sent > 0 ? `Alerte SMS envoyée à l'équipe (${sent}/${recipients.length}).` : "Erreur: aucun SMS envoyé.";
   }
 
   return "Outil inconnu.";

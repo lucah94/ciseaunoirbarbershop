@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processMessageWithClaude, sendMessengerMessage, isFbAuthError, alertFbTokenDead, looksLikeSpam } from "@/app/api/meta/messenger/route";
-import { notifyMessengerUnreachable } from "@/lib/telegram";
+import { notifyMessengerUnreachable, notifySystemAlert } from "@/lib/telegram";
 import { sendSMS } from "@/lib/sms";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { runCron } from "@/lib/cron-log";
@@ -108,6 +108,54 @@ async function pollOnce(TOKEN: string, handledThisRun: Set<string>): Promise<{ h
   return { handled, errors };
 }
 
+/**
+ * Chien de garde INDÉPENDANT du chemin d'envoi — détecte le bot muet même si un futur
+ * bug casse la fois le send ET son propre code d'alerte (2 chemins de code différents
+ * qui pourraient tous les deux avoir un bug en même temps, c'est peu probable ; ici c'est
+ * une requête DB toute simple, sans dépendre de sendMessengerMessage ni de son fallback).
+ * Trouvé le 24 août 2026 : le bot est resté muet 2 mois sans AUCUNE alerte parce que le
+ * seul détecteur de panne (alertFbTokenDead) ne couvrait qu'un token mort — pas un envoi
+ * qui échoue pour une autre raison. Ceci couvre le "et si ça recasse autrement demain".
+ */
+async function checkMessengerNotStuck(): Promise<void> {
+  try {
+    const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    const { data: stuck } = await supabase
+      .from("messenger_conversations")
+      .select("sender_id, sender_name")
+      .is("last_handled_mid", null)
+      .gte("updated_at", fifteenMinAgo)
+      .limit(5);
+
+    if (!stuck || stuck.length === 0) return;
+
+    // Anti-répétition : max 1 alerte / 2h tant que le problème persiste (sinon spam
+    // toutes les 5 min = pire que le silence qu'on essaie de corriger).
+    const TWO_H = 2 * 60 * 60 * 1000;
+    const { data: last } = await supabase
+      .from("app_settings").select("value, updated_at").eq("key", "messenger_watchdog_alert_at").maybeSingle();
+    if (last?.updated_at && Date.now() - new Date(last.updated_at).getTime() < TWO_H) return;
+    await supabase.from("app_settings")
+      .upsert({ key: "messenger_watchdog_alert_at", value: "1", updated_at: new Date().toISOString() }, { onConflict: "key" });
+
+    await notifySystemAlert(
+      `🚨 MESSENGER SEMBLE CASSÉ — ${stuck.length} client(s) récent(s) sans réponse depuis plus de 15 min.\n` +
+      `Ce n'est PAS l'alerte habituelle par client — celle-là dit que le problème persiste globalement.\n` +
+      `Vérifie /api/health et /api/admin/messenger-diag.`
+    );
+    const phone = process.env.LUCA_PHONE || process.env.MELYNDA_PHONE;
+    if (phone) {
+      await sendSMS(
+        phone,
+        `🚨 Messenger semble casse — ${stuck.length} client(s) sans reponse depuis 15+ min. Verifie le site.`,
+        "messenger_watchdog"
+      ).catch(() => {});
+    }
+  } catch {
+    // Le chien de garde ne doit jamais faire planter le cron lui-même.
+  }
+}
+
 // Cron aux 5 min (filet de secours). Le webhook Messenger répond déjà EN DIRECT ; ce cron
 // ne fait qu'UN seul passage pour rattraper un message manqué. Un passage par exécution
 // (au lieu de l'ancienne boucle de 50s chaque minute) = coût Vercel réduit ~50x, sans
@@ -124,6 +172,7 @@ export async function GET(req: NextRequest) {
   return await runCron("messenger-poll", async () => {
     const handledThisRun = new Set<string>();
     const { handled, errors } = await pollOnce(TOKEN, handledThisRun);
+    await checkMessengerNotStuck(); // chien de garde indépendant, après le rattrapage normal
     return NextResponse.json({ ok: true, handled, errors: errors.slice(0, 10) });
   });
 }
