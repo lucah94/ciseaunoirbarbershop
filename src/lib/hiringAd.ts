@@ -6,7 +6,7 @@
  */
 
 /** Visuel fourni par Melynda, servi depuis le site (public/pub/). */
-export const HIRING_AD_IMAGE_PATH = "/pub/perle-rare.jpg";
+export const HIRING_AD_IMAGE_PATH = "/pub/perle-rare.png";
 
 export function hiringAdImageUrl(origin?: string): string {
   const base = origin || process.env.NEXT_PUBLIC_SITE_URL || "https://www.ciseaunoirbarbershop.com";

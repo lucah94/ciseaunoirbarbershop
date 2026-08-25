@@ -47,5 +47,32 @@ Aucun autre texte. Style photographique réaliste, pas d'illustration, pas de ca
     return NextResponse.json({ error: `Pas d'image retournée: ${JSON.stringify(data).slice(0, 500)}` }, { status: 502 });
   }
 
-  return NextResponse.json({ ok: true, b64, cost: data?.usage?.cost ?? null });
+  let telegram: { ok: boolean; error?: string } | null = null;
+  if (body.sendToTelegram) {
+    telegram = await sendPhotoToTelegramGroup(
+      Buffer.from(b64, "base64"),
+      body.caption || "🖼️ Nouveau visuel pub embauche « Perle Rare » — pour approbation."
+    );
+  }
+
+  return NextResponse.json({ ok: true, b64, cost: data?.usage?.cost ?? null, telegram });
+}
+
+async function sendPhotoToTelegramGroup(imageBytes: Buffer, caption: string): Promise<{ ok: boolean; error?: string }> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+  if (!token || !chatId) return { ok: false, error: "TELEGRAM_BOT_TOKEN/TELEGRAM_GROUP_CHAT_ID manquant" };
+
+  const form = new FormData();
+  form.append("chat_id", chatId);
+  form.append("caption", caption);
+  form.append("photo", new Blob([new Uint8Array(imageBytes)], { type: "image/png" }), "hiring-ad.png");
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: "POST", body: form });
+    if (!res.ok) return { ok: false, error: `Telegram ${res.status}: ${(await res.text()).slice(0, 300)}` };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "erreur réseau" };
+  }
 }
