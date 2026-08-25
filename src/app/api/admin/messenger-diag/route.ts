@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getFacebookToken } from "@/lib/fbToken";
+import { sendMessengerMessage } from "@/app/api/meta/messenger/route";
 
 export const dynamic = "force-dynamic";
 
@@ -61,10 +62,23 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Test d'ENVOI réel — seulement si on nous donne explicitement un destinataire
+  // (jamais de PSID au hasard : on ne texte pas un vrai client pour tester).
+  // Usage: /api/admin/messenger-diag?testSendTo=<sender_id>
+  const testSendTo = req.nextUrl.searchParams.get("testSendTo");
+  let sendTest: { ok: boolean; authError?: boolean; detail?: string } | null = null;
+  if (testSendTo) {
+    sendTest = await sendMessengerMessage(
+      testSendTo,
+      "🔧 Test système Ciseau Noir — ignore ce message, on vérifie que le bot peut répondre."
+    );
+  }
+
   return NextResponse.json({
     recentConversations: recentConvos || [],
     diagnosis: "Si toutes les 'last_handled_mid' sont null malgré des 'updated_at' récents → l'envoi échoue à chaque fois. Voir profileTest.body pour l'erreur brute Meta.",
     profileTest,
     appMode,
+    sendTest,
   });
 }
