@@ -56,9 +56,35 @@ export async function replyToGoogleReview(reviewName: string, comment: string): 
 }
 
 /**
+ * Trouve automatiquement le nom de ressource de la fiche ("accounts/x/locations/y") —
+ * GOOGLE_LOCATION_NAME s'est avéré contenir juste un retour à la ligne (mal configuré),
+ * donc on ne s'y fie plus : on redécouvre à chaque fois via l'API (peu coûteux, 2 appels).
+ */
+async function findLocationName(accessToken: string): Promise<{ name?: string; error?: string }> {
+  const acctRes = await fetch("https://mybusiness.googleapis.com/v4/accounts", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const acctData = await acctRes.json();
+  if (!acctRes.ok) return { error: `comptes: HTTP ${acctRes.status} ${JSON.stringify(acctData).slice(0, 200)}` };
+  const accountName = acctData.accounts?.[0]?.name;
+  if (!accountName) return { error: "aucun compte Google Business trouvé" };
+
+  const locRes = await fetch(`https://mybusiness.googleapis.com/v4/${accountName}/locations`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const locData = await locRes.json();
+  if (!locRes.ok) return { error: `fiches: HTTP ${locRes.status} ${JSON.stringify(locData).slice(0, 200)}` };
+  const locationName = locData.locations?.[0]?.name;
+  if (!locationName) return { error: "aucune fiche trouvée sur ce compte" };
+  return { name: locationName };
+}
+
+/**
  * Met à jour l'adresse (déménagement) sur la fiche Google Business Profile.
- * Utilise l'API Business Information (v1) — l'API v4 "mybusiness" ne gère plus l'adresse.
- * GOOGLE_LOCATION_NAME doit être au format "locations/{id}" (voir /api/google/locations).
+ * Utilise l'API v4 "mybusiness" — c'est la seule famille pour laquelle le scope OAuth
+ * existant a été accordé (les avis/posts l'utilisent déjà avec succès) ; les nouvelles
+ * APIs "split" (Business Information v1, Account Management v1) renvoient 403 scope
+ * insuffisant avec ce même token.
  */
 export async function updateGoogleBusinessAddress(address: {
   addressLines: string[];
@@ -68,14 +94,16 @@ export async function updateGoogleBusinessAddress(address: {
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const accessToken = await getAccessToken();
-    const locationName = process.env.GOOGLE_LOCATION_NAME!;
+    const found = await findLocationName(accessToken);
+    if (!found.name) return { success: false, error: found.error || "fiche introuvable" };
+
     const res = await fetch(
-      `https://mybusinessbusinessinformation.googleapis.com/v1/${locationName}?updateMask=storefrontAddress`,
+      `https://mybusiness.googleapis.com/v4/${found.name}?updateMask=address`,
       {
         method: "PATCH",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          storefrontAddress: {
+          address: {
             addressLines: address.addressLines,
             locality: address.locality,
             postalCode: address.postalCode,
@@ -85,7 +113,7 @@ export async function updateGoogleBusinessAddress(address: {
         }),
       }
     );
-    if (!res.ok) return { success: false, error: `HTTP ${res.status} (locationName="${locationName}"): ${await res.text()}` };
+    if (!res.ok) return { success: false, error: `HTTP ${res.status} (${found.name}): ${await res.text()}` };
     return { success: true };
   } catch (e) {
     return { success: false, error: String(e) };

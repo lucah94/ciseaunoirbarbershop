@@ -28,7 +28,9 @@ export async function GET(req: NextRequest) {
     }
     const accessToken = tokenData.access_token;
 
-    const acctRes = await fetch("https://mybusinessaccountmanagement.googleapis.com/v1/accounts", {
+    // v4 (pas les APIs plus récentes "split") — c'est la seule famille pour laquelle
+    // le scope OAuth existant a été accordé (les avis/posts l'utilisent déjà avec succès).
+    const acctRes = await fetch("https://mybusiness.googleapis.com/v4/accounts", {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     const acctData = await acctRes.json();
@@ -37,10 +39,9 @@ export async function GET(req: NextRequest) {
     const accountName = acctData.accounts?.[0]?.name;
     if (!accountName) return NextResponse.json({ error: "aucun compte trouvé", accounts: acctData });
 
-    const locRes = await fetch(
-      `https://mybusinessbusinessinformation.googleapis.com/v1/${accountName}/locations?readMask=name,title,storefrontAddress`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
+    const locRes = await fetch(`https://mybusiness.googleapis.com/v4/${accountName}/locations`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
     const locData = await locRes.json();
 
     return NextResponse.json({
