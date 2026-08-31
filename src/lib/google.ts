@@ -85,7 +85,7 @@ export async function updateGoogleBusinessAddress(address: {
         }),
       }
     );
-    if (!res.ok) return { success: false, error: `HTTP ${res.status}: ${await res.text()}` };
+    if (!res.ok) return { success: false, error: `HTTP ${res.status} (locationName="${locationName}"): ${await res.text()}` };
     return { success: true };
   } catch (e) {
     return { success: false, error: String(e) };
