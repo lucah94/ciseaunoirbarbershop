@@ -37,7 +37,7 @@ export default function ContratLocationPage() {
       >
         <div style={{ textAlign: "center", marginBottom: "8px" }}>
           <h1>CONTRAT DE LOCATION DE CHAISE</h1>
-          <p style={{ margin: 0, fontStyle: "italic", color: "#444" }}>Ciseau Noir Barbershop — 375, boul. des Chutes, Beauport, ville de Québec (QC) G1E 2J1</p>
+          <p style={{ margin: 0, fontStyle: "italic", color: "#444" }}>Ciseau Noir Barbershop — 2275, avenue Royale, Beauport, ville de Québec (QC) G1C 1P5</p>
         </div>
 
         <h2>Entre les parties</h2>

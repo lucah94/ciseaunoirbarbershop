@@ -54,7 +54,7 @@ export async function GET(
     `DTEND:${dtEnd}`,
     `SUMMARY:✂️ ${data.service} — Ciseau Noir`,
     `DESCRIPTION:${data.service} avec ${data.barber}\\nCiseau Noir Barbershop`,
-    "LOCATION:375 Boul. des Chutes\\, Québec\\, QC G1E 3G1",
+    "LOCATION:2275 Avenue Royale\\, Québec\\, QC G1C 1P5",
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n");

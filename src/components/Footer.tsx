@@ -135,8 +135,8 @@ export default function Footer() {
                 fontWeight: 600,
               }}>Adresse & Contact</p>
               <p style={{ color: "#777", fontSize: "13px", lineHeight: 1.9 }}>
-                375 Bd des Chutes<br />
-                Québec, QC G1E 3G1
+                2275 Avenue Royale<br />
+                Québec, QC G1C 1P5
               </p>
               <a href="tel:4186655703" style={{
                 color: "#D4AF37",

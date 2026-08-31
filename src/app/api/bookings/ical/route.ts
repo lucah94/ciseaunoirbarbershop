@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
     `DTEND:${dtEnd}`,
     `SUMMARY:${data.service} — Ciseau Noir`,
     `DESCRIPTION:Barbier : ${data.barber}\\nService : ${data.service}\\nPrix : ${data.price}$`,
-    "LOCATION:375 Boul. des Chutes\\, Québec\\, QC G1E 3G1",
+    "LOCATION:2275 Avenue Royale\\, Québec\\, QC G1C 1P5",
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n");

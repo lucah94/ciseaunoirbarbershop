@@ -53,12 +53,18 @@ export async function sendBookingConfirmationSMS(booking: {
   const calendarLine = booking.booking_id
     ? `\n📆 Agenda : ${siteUrl}/api/calendar/booking/${booking.booking_id}`
     : "";
+  // Lien direct vers l'annulation/modification en libre-service (déjà en place sur le site) —
+  // le client n'a plus besoin d'appeler juste pour annuler. Fallback téléphone si jamais
+  // pas d'ID (ne devrait pas arriver, mais on ne laisse jamais un client sans façon d'annuler).
+  const manageLine = booking.booking_id
+    ? `\n🔗 Annuler/modifier : ${siteUrl}/booking/rdv/${booking.booking_id}`
+    : `\n\nAnnulation : 1h avant — (418) 665-5703`;
 
   if (await isBlacklisted(booking.client_phone)) return;
   await getClient().messages.create({
     from: getFromNumber(),
     to: formatPhone(booking.client_phone),
-    body: `Ciseau Noir ✂️ Réservation confirmée !\n\n${booking.service} avec ${booking.barber}\n📅 ${dateFormatted} à ${booking.time}\n📍 375 Bd des Chutes, Québec${calendarLine}\n\nAnnulation : 1h avant — (418) 665-5703`,
+    body: `Ciseau Noir ✂️ Réservation confirmée !\n\n${booking.service} avec ${booking.barber}\n📅 ${dateFormatted} à ${booking.time}\n📍 2275 Avenue Royale, Québec${calendarLine}${manageLine}`,
   });
 }
 
@@ -142,7 +148,7 @@ export async function sendReminderSMS(booking: {
   await getClient().messages.create({
     from: getFromNumber(),
     to: formatPhone(booking.client_phone),
-    body: `Ciseau Noir ✂️ Rappel — demain à ${booking.time} !\n\n${booking.service} avec ${booking.barber}\n📍 375 Bd des Chutes, Québec${rdvLine}`,
+    body: `Ciseau Noir ✂️ Rappel — demain à ${booking.time} !\n\n${booking.service} avec ${booking.barber}\n📍 2275 Avenue Royale, Québec${rdvLine}`,
   });
 }
 

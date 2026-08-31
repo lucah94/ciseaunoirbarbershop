@@ -188,7 +188,7 @@ export default function ContactClient() {
             allowFullScreen
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
-            title="Ciseau Noir Barbershop — 375 Boul. des Chutes, Qu&#233;bec"
+            title="Ciseau Noir Barbershop — 2275 Avenue Royale, Qu&#233;bec"
           />
         </section>
       </main>

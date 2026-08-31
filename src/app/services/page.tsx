@@ -6,7 +6,7 @@ import { toServiceCards, type ServiceCard } from "@/lib/services-fallback";
 
 export const metadata: Metadata = {
   title: "Services & Tarifs",
-  description: "Coupes, rasages lame, barbe shaver et service premium. Barbershop premium à Québec — 375 Bd des Chutes. (418) 665-5703.",
+  description: "Coupes, rasages lame, barbe shaver et service premium. Barbershop premium à Québec — 2275 Avenue Royale. (418) 665-5703.",
   openGraph: {
     title: "Services & Tarifs — Ciseau Noir Barbershop",
     description: "Coupes à partir de 25$, rasage lame, service premium 75$. Barbershop premium à Québec.",

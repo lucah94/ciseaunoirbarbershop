@@ -55,6 +55,43 @@ export async function replyToGoogleReview(reviewName: string, comment: string): 
   }
 }
 
+/**
+ * Met à jour l'adresse (déménagement) sur la fiche Google Business Profile.
+ * Utilise l'API Business Information (v1) — l'API v4 "mybusiness" ne gère plus l'adresse.
+ * GOOGLE_LOCATION_NAME doit être au format "locations/{id}" (voir /api/google/locations).
+ */
+export async function updateGoogleBusinessAddress(address: {
+  addressLines: string[];
+  locality: string;
+  postalCode: string;
+  administrativeArea: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const accessToken = await getAccessToken();
+    const locationName = process.env.GOOGLE_LOCATION_NAME!;
+    const res = await fetch(
+      `https://mybusinessbusinessinformation.googleapis.com/v1/${locationName}?updateMask=storefrontAddress`,
+      {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storefrontAddress: {
+            addressLines: address.addressLines,
+            locality: address.locality,
+            postalCode: address.postalCode,
+            administrativeArea: address.administrativeArea,
+            regionCode: "CA",
+          },
+        }),
+      }
+    );
+    if (!res.ok) return { success: false, error: `HTTP ${res.status}: ${await res.text()}` };
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: String(e) };
+  }
+}
+
 export async function postToGoogleMyBusiness(text: string): Promise<{ success: boolean; error?: string }> {
   try {
     const accessToken = await getAccessToken();

@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
               <div style="margin-top: 40px;">
                 <a href="https://ciseaunoirbarbershop.com/booking" style="display: inline-block; background: #C9A84C; color: #0A0A0A; padding: 14px 32px; text-decoration: none; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700;">Réserver en ligne</a>
               </div>
-              <p style="color: #777; font-size: 12px; margin-top: 32px;">— Melynda ✂️<br/>Ciseau Noir Barbershop · 375 Boul. des Chutes · Québec · (418) 665-5703</p>
+              <p style="color: #777; font-size: 12px; margin-top: 32px;">— Melynda ✂️<br/>Ciseau Noir Barbershop · 2275 Avenue Royale · Québec · (418) 665-5703</p>
               <p style="color: #444; font-size: 10px; margin-top: 24px;">Vous recevez cet email parce que vous avez réservé chez Ciseau Noir. <a href="https://ciseaunoirbarbershop.com/unsubscribe?email=${encodeURIComponent(c.email!)}" style="color: #666;">Se désinscrire</a></p>
             </div>
           `,

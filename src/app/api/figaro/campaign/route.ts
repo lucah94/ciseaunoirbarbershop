@@ -16,7 +16,7 @@ function buildHtml(body: string) {
       <div style="color: #CCC; font-size: 15px; line-height: 1.8; margin-bottom: 32px;">${body.replace(/\n/g, "<br>")}</div>
       <div style="border-top: 1px solid #1A1A1A; padding-top: 20px; margin-top: 20px;">
         <p style="color: #444; font-size: 11px; margin: 0; line-height: 1.7;">
-          📍 375 Bd des Chutes, Québec · 📞 (418) 665-5703 · ciseaunoirbarbershop.com
+          📍 2275 Avenue Royale, Québec · 📞 (418) 665-5703 · ciseaunoirbarbershop.com
         </p>
         <p style="color: #333; font-size: 10px; margin-top: 12px;">
           Vous recevez cet email car vous avez visité Ciseau Noir Barbershop.

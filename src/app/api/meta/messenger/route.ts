@@ -124,7 +124,7 @@ COIFFEURS ET HORAIRES (à jour):
 ${barbersText}
 Fermé dimanche et lundi.
 
-COORDONNÉES: 375 Boul. des Chutes, Québec | (418) 665-5703
+COORDONNÉES: 2275 Avenue Royale, Québec | (418) 665-5703
 RÉSERVATION EN LIGNE: https://ciseaunoirbarbershop.com/booking
 
 INFOS UTILES:

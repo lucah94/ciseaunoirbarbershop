@@ -331,7 +331,7 @@ async function processEmailWithAgent(email: {
 Infos salon :
 - Services : Coupe + Lavage 35$, Coupe + Barbe à la lame 50$, Coupe + Barbe Shaver 45$, Service Premium 75$, Rasage/Barbe 25$, Enfant 12 ans et moins 30$
 - Horaires : Mar-Mer 8h30-16h30, Jeu-Ven 8h30-20h30, Sam 8h30-16h30, Dim-Lun FERMÉ
-- Adresse : 375 Bd des Chutes, Québec
+- Adresse : 2275 Avenue Royale, Québec
 - Téléphone : (418) 665-5703
 - Réservation en ligne : ${SITE_URL}/booking
 - Aujourd'hui : ${today}

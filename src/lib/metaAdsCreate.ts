@@ -20,9 +20,9 @@ const ACT = `act_${AD_ACCOUNT_ID}`;
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "577401682130596";
 
 /**
- * Nouveau local — 2275 Avenue Royale, Beauport (déménagement 1er sept. 2026), PAS l'ancienne
- * adresse (375 Boul. des Chutes). Le rayon imposé (25 km) couvre tout Québec de toute façon,
- * donc la précision au mètre n'importe pas, mais le CENTRE doit être le bon local.
+ * Local — 2275 Avenue Royale, secteur Courville (Beauport), déménagé le 1er sept. 2026.
+ * Le rayon imposé (25 km) couvre tout Québec de toute façon, donc la précision au mètre
+ * n'importe pas, mais le CENTRE doit être le bon local.
  */
 const SHOP_LAT = 46.883758;
 const SHOP_LNG = -71.159241;

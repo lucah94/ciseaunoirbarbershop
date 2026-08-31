@@ -70,7 +70,7 @@ export async function sendBookingConfirmation(booking: {
 
         <div style="background: #111; border-left: 2px solid #C9A84C; padding: 16px 20px; margin-bottom: 32px;">
           <p style="color: #888; font-size: 13px; margin: 0; line-height: 1.7;">
-            📍 375 Bd des Chutes, Québec, QC G1E 3G1<br>
+            📍 2275 Avenue Royale, Québec, QC G1C 1P5<br>
             📞 (418) 665-5703<br>
             ⚠️ Annulation : minimum 1 heure avant le rendez-vous
           </p>
@@ -224,7 +224,7 @@ export async function sendConfirmationReminderEmail(booking: {
 
         <div style="background: #111; border-left: 2px solid #C9A84C; padding: 16px 20px; margin-bottom: 24px;">
           <p style="color: #888; font-size: 13px; margin: 0; line-height: 1.7;">
-            📍 375 Bd des Chutes, Québec, QC G1E 3G1<br>
+            📍 2275 Avenue Royale, Québec, QC G1C 1P5<br>
             📞 (418) 665-5703
           </p>
         </div>
@@ -285,7 +285,7 @@ export async function sendReminderEmail(booking: {
 
         <div style="background: #111; border-left: 2px solid #C9A84C; padding: 16px 20px; margin-bottom: 24px;">
           <p style="color: #888; font-size: 13px; margin: 0; line-height: 1.7;">
-            📍 375 Bd des Chutes, Québec, QC G1E 3G1<br>
+            📍 2275 Avenue Royale, Québec, QC G1C 1P5<br>
             📞 (418) 665-5703<br>
             ⚠️ Annulation : minimum 1 heure avant le rendez-vous
           </p>
@@ -339,7 +339,7 @@ export async function sendReviewRequestEmail(booking: {
           <a href="https://www.facebook.com/profile.php?id=61575695811602" style="color: #C9A84C; text-decoration: none;">Facebook</a>.
         </p>
 
-        <p style="color: #333; font-size: 12px; text-align: center;">© 2026 Ciseau Noir Barbershop — 375 Bd des Chutes, Québec</p>
+        <p style="color: #333; font-size: 12px; text-align: center;">© 2026 Ciseau Noir Barbershop — 2275 Avenue Royale, Québec</p>
       </div>
     `,
   });
@@ -375,7 +375,7 @@ export async function sendRebookingEmail(booking: {
           </a>
         </div>
 
-        <p style="color: #333; font-size: 12px; text-align: center;">© 2026 Ciseau Noir Barbershop — 375 Bd des Chutes, Québec</p>
+        <p style="color: #333; font-size: 12px; text-align: center;">© 2026 Ciseau Noir Barbershop — 2275 Avenue Royale, Québec</p>
       </div>
     `,
   });
@@ -433,7 +433,7 @@ export async function sendReengagementEmail(params: {
           </a>
         </div>
 
-        <p style="color: #333; font-size: 12px; text-align: center;">© 2026 Ciseau Noir Barbershop — 375 Bd des Chutes, Québec</p>
+        <p style="color: #333; font-size: 12px; text-align: center;">© 2026 Ciseau Noir Barbershop — 2275 Avenue Royale, Québec</p>
       </div>
     `,
   });
@@ -608,7 +608,7 @@ export async function sendReferralEmail(params: {
 
         <div style="background: #111; border-left: 2px solid #C9A84C; padding: 16px 20px; margin-bottom: 24px;">
           <p style="color: #888; font-size: 13px; margin: 0; line-height: 1.7;">
-            375 Bd des Chutes, Québec, QC G1E 3G1<br>
+            2275 Avenue Royale, Québec, QC G1C 1P5<br>
             (418) 665-5703
           </p>
         </div>
@@ -661,7 +661,7 @@ export async function sendFirstVisitPromoEmail(params: {
           Valide pour une utilisation unique.
         </p>
 
-        <p style="color: #333; font-size: 12px; text-align: center;">&copy; 2026 Ciseau Noir Barbershop — 375 Bd des Chutes, Québec</p>
+        <p style="color: #333; font-size: 12px; text-align: center;">&copy; 2026 Ciseau Noir Barbershop — 2275 Avenue Royale, Québec</p>
       </div>
     `,
   });

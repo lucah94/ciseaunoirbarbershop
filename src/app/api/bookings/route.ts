@@ -394,7 +394,7 @@ export async function PATCH(req: NextRequest) {
                     <p style="color: #999; font-size: 14px;">${dateFormatted} à ${waitlistEntry.time}</p>
                   </div>
                   <a href="https://ciseaunoirbarbershop.com/booking" style="display: inline-block; background: #C9A84C; color: #0A0A0A; padding: 14px 32px; text-decoration: none; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700;">Réserver maintenant</a>
-                  <p style="color: #444; font-size: 12px; margin-top: 32px;">375 Boul. des Chutes, Québec</p>
+                  <p style="color: #444; font-size: 12px; margin-top: 32px;">2275 Avenue Royale, Québec</p>
                 </div>
               `,
             }).catch((e: unknown) => console.error("Waitlist email error:", e));

@@ -857,7 +857,7 @@ async function executeTool(name: string, input: Record<string, unknown>, chatId:
           <p style="color: #888; font-size: 11px; letter-spacing: 3px; text-transform: uppercase;">Ciseau Noir Barbershop</p>
           ${body.split("\n").map((line) => `<p style="margin: 8px 0;">${line}</p>`).join("")}
           <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
-          <p style="color: #999; font-size: 12px;">✂️ Ciseau Noir — 375 Boul. des Chutes, Québec — (418) 665-5703</p>
+          <p style="color: #999; font-size: 12px;">✂️ Ciseau Noir — 2275 Avenue Royale, Québec — (418) 665-5703</p>
         </div>`,
         text: body,
       });
@@ -1062,7 +1062,7 @@ export async function handleConversation(chatId: number, userMessage: string, se
   const notes = notesData.data?.map((n) => `• ${n.key}: ${n.content}`).join("\n") || "Aucune note";
   const rdvCount = rdvAujourdhui.count || 0;
 
-  const systemPrompt = `Tu es Figaro ✂️ — l'assistant personnel ADMIN de Melynda (propriétaire) et Luca, Ciseau Noir Barbershop, 375 Boul. des Chutes, Beauport (Québec). Tu gères TOUTE la business depuis Telegram.
+  const systemPrompt = `Tu es Figaro ✂️ — l'assistant personnel ADMIN de Melynda (propriétaire) et Luca, Ciseau Noir Barbershop, 2275 Avenue Royale, Beauport (Québec). Tu gères TOUTE la business depuis Telegram.
 
 TON STYLE:
 — Québécois naturel, concis, direct. Max 4-5 lignes sauf si une liste est nécessaire.

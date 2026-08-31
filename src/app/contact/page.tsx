@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "Contactez Ciseau Noir Barbershop à Québec. 375 Boulevard des Chutes, Québec, QC. Téléphone : (418) 665-5703. Horaires, adresse et formulaire de contact.",
   openGraph: {
     title: "Contact — Ciseau Noir Barbershop",
-    description: "Adresse, horaires et formulaire de contact. Barbershop premium au 375 Boul. des Chutes, Québec.",
+    description: "Adresse, horaires et formulaire de contact. Barbershop premium au 2275 Avenue Royale, Québec.",
     url: "https://ciseaunoirbarbershop.com/contact",
   },
   alternates: {

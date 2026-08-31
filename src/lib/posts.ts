@@ -30,7 +30,7 @@ Accroche humaine et chaleureuse, gratitude authentique (pas de cliché corporati
 
   news_seasonal: `Rédige un post Facebook qui surfe sur la saison ou un moment de l'année pour donner envie de prendre rendez-vous.
 Accroche saisonnière (rentrée, été, look des Fêtes, photos, mariage, entretien régulier), raison concrète de venir maintenant pour un look soigné.
-Reste ancré dans la réalité du salon (375 Boul. des Chutes, Beauport, ville de Québec, ouvert mar-sam). N'invente rien de précis.
+Reste ancré dans la réalité du salon (2275 Avenue Royale, Beauport, ville de Québec, ouvert mar-sam). N'invente rien de précis.
 2-4 phrases. Appel à l'action clair vers ciseaunoirbarbershop.com/booking.`,
 
   promotion: `Rédige un post Facebook promotionnel pour Ciseau Noir Barbershop avec une accroche forte qui arrête le scroll.
@@ -48,7 +48,7 @@ Appel à l'action clair vers ciseaunoirbarbershop.com/booking. 2-4 phrases.`,
 const SALON_CONTEXT = `
 
 Salon : Ciseau Noir Barbershop, barbershop premium à Beauport, ville de Québec.
-Adresse : 375 Boul. des Chutes, Beauport, ville de Québec
+Adresse : 2275 Avenue Royale, Beauport, ville de Québec
 Téléphone : (418) 665-5703
 Réservation en ligne : ciseaunoirbarbershop.com/booking
 Lien d'avis Google (à mettre CLIQUABLE quand le post invite à laisser un avis) : https://g.page/r/CQluoL7lA0BBEAE/review

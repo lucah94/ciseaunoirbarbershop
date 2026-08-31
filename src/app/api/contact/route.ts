@@ -31,7 +31,7 @@ async function generateAutoReply(name: string, message: string): Promise<string>
 Infos salon :
 - Services: Coupe homme 35$, Coupe+Barbe 50$, Coupe enfant 25$, Barbe 20$, Coupe+Barbe+Lavage 55$
 - Horaires: Mar-Mer 8h30-16h30, Jeu-Ven 8h30-20h30, Sam 8h30-16h30, Dim-Lun fermé
-- Adresse: 375 Bd des Chutes, Québec
+- Adresse: 2275 Avenue Royale, Québec
 - Téléphone: (418) 665-5703
 - Réservation: ciseaunoirbarbershop.com
 - Coiffeur: Melynda (propriétaire)
@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
           <div style="color: #CCC; font-size: 15px; line-height: 1.8; margin-bottom: 32px;">${autoReplyHtml}</div>
           <div style="background: #111; border-left: 2px solid #C9A84C; padding: 16px 20px; margin-bottom: 32px;">
             <p style="color: #888; font-size: 13px; margin: 0; line-height: 1.7;">
-              📍 375 Bd des Chutes, Québec, QC<br>
+              📍 2275 Avenue Royale, Québec, QC<br>
               📞 (418) 665-5703<br>
               🌐 ciseaunoirbarbershop.com
             </p>

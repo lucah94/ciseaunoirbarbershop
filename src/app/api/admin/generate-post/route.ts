@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     max_tokens: 500,
     messages: [{
       role: "user",
-      content: `${prompt}\n\nInfos:\n- Adresse: 375 Boul. des Chutes, Québec\n- Téléphone: (418) 665-5703\n- Site: ciseaunoirbarbershop.com\n\nGénère uniquement le texte de la publication, sans guillemets ni introduction.`,
+      content: `${prompt}\n\nInfos:\n- Adresse: 2275 Avenue Royale, Québec\n- Téléphone: (418) 665-5703\n- Site: ciseaunoirbarbershop.com\n\nGénère uniquement le texte de la publication, sans guillemets ni introduction.`,
     }],
   });
 

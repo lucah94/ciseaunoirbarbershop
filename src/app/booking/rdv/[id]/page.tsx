@@ -176,7 +176,7 @@ export default function MonRdvPage() {
 
                 <div style={{ height: "1px", background: "rgba(212,175,55,0.1)", margin: "24px 0" }} />
                 <p style={{ color: "#555", fontSize: "12px", textAlign: "center" }}>
-                  📍 375 Boul. des Chutes, Québec · (418) 665-5703
+                  📍 2275 Avenue Royale, Québec · (418) 665-5703
                 </p>
               </div>
 

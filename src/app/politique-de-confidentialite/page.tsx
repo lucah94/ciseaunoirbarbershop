@@ -163,7 +163,7 @@ export default function PolitiqueDeConfidentialitePage() {
               Ciseau Noir Barbershop
             </p>
             <p style={{ color: "#999", fontSize: "14px", lineHeight: 2 }}>
-              375 Bd des Chutes, Québec, QC G1E 3G1<br />
+              2275 Avenue Royale, Québec, QC G1C 1P5<br />
               Courriel : <a href="mailto:ciseaunoirbarbershop@gmail.com" style={{ color: "#D4AF37", textDecoration: "none" }}>ciseaunoirbarbershop@gmail.com</a><br />
               Téléphone : <a href="tel:4186655703" style={{ color: "#D4AF37", textDecoration: "none" }}>(418) 665-5703</a>
             </p>

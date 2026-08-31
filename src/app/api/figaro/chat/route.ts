@@ -7,7 +7,7 @@ const SYSTEM = `Tu es Figaro ✂️, l'assistant IA intelligent de Ciseau Noir B
 
 Infos sur le salon :
 - Nom : Ciseau Noir Barbershop
-- Adresse : 375 Bd des Chutes, Québec
+- Adresse : 2275 Avenue Royale, Québec
 - Téléphone : (418) 665-5703
 - Site : ciseaunoirbarbershop.com
 - Réservations : ciseaunoirbarbershop.com/booking

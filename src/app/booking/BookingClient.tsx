@@ -850,7 +850,7 @@ function BookingContent() {
               <p style={{ color: "#999", fontSize: "14px", marginBottom: "10px" }}>avec {selected.barber}</p>
               <p style={{ color: "#999", fontSize: "14px", marginBottom: "10px" }}>{selected.date} à {selected.time}</p>
               <div style={{ height: "1px", background: "rgba(212,175,55,0.15)", margin: "16px 0" }} />
-              <p style={{ color: "#666", fontSize: "13px" }}>375 Boul. des Chutes, Québec</p>
+              <p style={{ color: "#666", fontSize: "13px" }}>2275 Avenue Royale, Québec</p>
             </div>
             <p style={{ color: "#666", fontSize: "13px", marginBottom: "24px" }}>Un rappel vous sera envoyé 24h avant votre rendez-vous.</p>
 
