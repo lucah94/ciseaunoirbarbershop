@@ -52,12 +52,12 @@ export default function ContactClient() {
               <div style={{ marginBottom: "48px" }}>
                 <p style={{ color: "#C9A84C", fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase", marginBottom: "16px" }}>{t("contact.address")}</p>
                 <address style={{ color: "#F5F5F5", fontSize: "16px", lineHeight: 1.8, fontStyle: "normal" }}>
-                  375 Boulevard des Chutes<br />
+                  2275 Avenue Royale<br />
                   Qu&eacute;bec, QC<br />
                   Canada
                 </address>
                 <a
-                  href="https://maps.google.com/?q=375+Boulevard+des+Chutes+Quebec"
+                  href="https://maps.google.com/?q=2275+Avenue+Royale+Quebec"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: "#C9A84C", fontSize: "12px", letterSpacing: "1px", textDecoration: "none", display: "inline-block", marginTop: "12px", borderBottom: "1px solid #C9A84C", paddingBottom: "2px" }}
