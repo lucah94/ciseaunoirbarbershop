@@ -112,6 +112,33 @@ export async function sendNoShowSMS(booking: {
   });
 }
 
+/**
+ * SMS envoyé au client APRÈS clic « Oui » sur Telegram — jamais automatique
+ * (demande Melynda, 3 sept 2026). Voir proposeRescheduleNotification dans lib/telegram.
+ */
+export async function sendRescheduleSMS(booking: {
+  client_phone: string;
+  service: string;
+  barber: string;
+  new_date: string;
+  new_time: string;
+  booking_id?: string;
+}) {
+  const dateFormatted = new Date(booking.new_date + "T12:00:00").toLocaleDateString("fr-CA", {
+    weekday: "long", month: "long", day: "numeric",
+  });
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";
+  const manageLine = booking.booking_id ? `\n🔗 Voir/annuler : ${siteUrl}/booking/rdv/${booking.booking_id}` : "";
+
+  if (await isBlacklisted(booking.client_phone)) return;
+  await sendSMS(
+    booking.client_phone,
+    `Ciseau Noir ✂️ Ton rendez-vous a été déplacé !\n\n${booking.service} avec ${booking.barber}\n📅 Nouveau : ${dateFormatted} à ${booking.new_time}${manageLine}\n\nDes questions ? (418) 665-5703`,
+    "reschedule_notice",
+    booking.booking_id
+  );
+}
+
 export async function sendConfirmationReminderSMS(booking: {
   client_name: string;
   client_phone: string;

@@ -94,7 +94,7 @@ export async function notifyBookingCancelled(booking: {
   );
 }
 
-/** RDV modifié (heure/date changée) */
+/** RDV modifié (heure/date changée) — FYI simple, sans action (compat, plus utilisée pour un vrai reschedule). */
 export async function notifyBookingRescheduled(booking: {
   client_name: string;
   service: string;
@@ -111,6 +111,52 @@ export async function notifyBookingRescheduled(booking: {
     `<s>${formatDate(booking.old_date)} à ${booking.old_time}</s>\n` +
     `→ ${formatDate(booking.new_date)} à ${booking.new_time}`
   );
+}
+
+/**
+ * RDV déplacé par un admin/barbier — demande AVANT d'avertir le client (demande Melynda,
+ * 3 sept 2026) : un déplacement peut être une erreur ou un simple réarrangement d'horaire,
+ * donc rien ne part au client tant que quelqu'un n'a pas cliqué OUI ici.
+ */
+export async function proposeRescheduleNotification(opts: {
+  id: string;
+  clientName: string;
+  service: string;
+  barber: string;
+  oldDate: string;
+  oldTime: string;
+  newDate: string;
+  newTime: string;
+  hasPhone: boolean;
+}): Promise<boolean> {
+  if (!isConfigured()) return false;
+  const noPhoneNote = opts.hasPhone ? "" : "\n\n⚠️ Ce client n'a pas de numéro — impossible de l'aviser par SMS.";
+  try {
+    const res = await fetch(`${TELEGRAM_API}${getToken()}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: getChatId(),
+        text:
+          `🔄 <b>RDV déplacé</b>\n\n` +
+          `👤 ${opts.clientName} — ${opts.service}\n` +
+          `👨‍💼 ${opts.barber}\n` +
+          `<s>${formatDate(opts.oldDate)} à ${opts.oldTime}</s>\n` +
+          `→ ${formatDate(opts.newDate)} à ${opts.newTime}\n\n` +
+          `<b>Voulez-vous aviser le client de cette modification ?</b>${noPhoneNote}`,
+        parse_mode: "HTML",
+        reply_markup: opts.hasPhone ? {
+          inline_keyboard: [[
+            { text: "✅ Oui, aviser le client", callback_data: `resched_yes:${opts.id}` },
+            { text: "❌ Non", callback_data: `resched_no:${opts.id}` },
+          ]],
+        } : undefined,
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /** No-show détecté */

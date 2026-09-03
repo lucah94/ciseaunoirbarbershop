@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendGmailReply, archiveEmail } from "@/lib/gmail";
 import { getUpcomingHolidays } from "@/lib/holidays-qc";
-import { sendSMS, formatPhone } from "@/lib/sms";
+import { sendSMS, formatPhone, sendRescheduleSMS } from "@/lib/sms";
 import { Resend } from "resend";
 import type Anthropic from "@anthropic-ai/sdk";
 import { aiClient as anthropic, generateText, MODELS, getDirectAnthropic, DIRECT_FALLBACK_MODEL } from "@/lib/ai";
@@ -16,7 +16,7 @@ import {
   proposePostOnTelegram,
   proposeAdOnTelegram,
   notifyBookingCancelled,
-  notifyBookingRescheduled,
+  proposeRescheduleNotification,
 } from "@/lib/telegram";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "placeholder-resend-key");
@@ -608,7 +608,7 @@ async function executeTool(name: string, input: Record<string, unknown>, chatId:
     if (!newTime) return `Nouvelle heure pas comprise : "${input.new_time}".`;
 
     const { data: current } = await supabaseAdmin
-      .from("bookings").select("client_name, service, barber, date, time").eq("id", id).single();
+      .from("bookings").select("client_name, client_phone, service, barber, date, time").eq("id", id).single();
     if (!current) return `Impossible de trouver le RDV [${id}].`;
 
     const dur = serviceDuration(current.service) || 45;
@@ -619,15 +619,29 @@ async function executeTool(name: string, input: Record<string, unknown>, chatId:
       .from("bookings").update({ date: newDate, time: newTime, end_time }).eq("id", id);
     if (error) return `Erreur : ${error.message}`;
 
+    // Le RDV est déplacé — mais rien n'est envoyé au client tant que Melynda/Luca n'ont
+    // pas cliqué "Oui" sur le message qui suit (demande Melynda, 3 sept 2026).
     try {
-      await notifyBookingRescheduled({
-        client_name: current.client_name, service: current.service, barber: current.barber,
-        old_date: current.date, old_time: current.time, new_date: newDate, new_time: newTime,
-      });
-    } catch { /* non bloquant */ }
+      const { data: row } = await supabaseAdmin.from("pending_posts").insert({
+        kind: "reschedule-notify",
+        status: "pending",
+        content: JSON.stringify({
+          client_phone: current.client_phone, service: current.service, barber: current.barber,
+          new_date: newDate, new_time: newTime, booking_id: id,
+        }),
+      }).select("id").single();
+      if (row) {
+        await proposeRescheduleNotification({
+          id: row.id, clientName: current.client_name, service: current.service, barber: current.barber,
+          oldDate: current.date, oldTime: current.time, newDate, newTime,
+          hasPhone: !!current.client_phone,
+        });
+      }
+    } catch { /* le RDV a deja ete deplace — la demande d'avis est secondaire */ }
 
     return `✅ RDV déplacé !\n${current.client_name} — ${current.service} avec ${current.barber}\n` +
-      `Ancien: ${current.date} à ${current.time}\nNouveau: ${newDate} à ${newTime}`;
+      `Ancien: ${current.date} à ${current.time}\nNouveau: ${newDate} à ${newTime}\n\n` +
+      (current.client_phone ? `Je te demande juste au-dessus si on avise le client.` : `⚠️ Pas de numéro — impossible d'aviser le client.`);
   }
 
   // ── cancel_booking (DESTRUCTIF → confirmation) ─────────────────────────────
@@ -1260,6 +1274,54 @@ async function handleReminderCallback(callbackId: string, data: string, chatId: 
   }
 }
 
+// ── Avis client après un RDV déplacé ──────────────────────────────────────────
+/**
+ * Le RDV est DÉJÀ déplacé en base — ceci décide seulement si le client en est avisé.
+ * "Oui" envoie le SMS ; "Non" ferme la demande sans rien envoyer (déplacement fait par
+ * erreur ou simple réarrangement d'horaire — demande Melynda, 3 sept 2026).
+ */
+async function handleRescheduleCallback(callbackId: string, data: string, chatId: number, messageId: number): Promise<void> {
+  await answerCallback(callbackId);
+  const colonIdx = data.indexOf(":");
+  const action = data.slice(0, colonIdx);
+  const pendingId = data.slice(colonIdx + 1);
+
+  const { data: row, error } = await supabaseAdmin
+    .from("pending_posts").select("id, content, status").eq("id", pendingId).single();
+  if (error || !row) {
+    await editMessage(chatId, messageId, "❌ Demande introuvable (peut-être déjà traitée).");
+    return;
+  }
+
+  let info: { client_phone: string; service: string; barber: string; new_date: string; new_time: string; booking_id?: string };
+  try {
+    info = JSON.parse(row.content as string);
+  } catch {
+    await editMessage(chatId, messageId, "❌ Données illisibles.");
+    return;
+  }
+
+  if (action === "resched_yes") {
+    const { data: claimed } = await supabaseAdmin
+      .from("pending_posts").update({ status: "posting" }).eq("id", pendingId).eq("status", "pending").select("id");
+    if (!claimed || claimed.length === 0) {
+      await editMessage(chatId, messageId, "✅ Déjà traité.");
+      return;
+    }
+    try {
+      await sendRescheduleSMS(info);
+      await supabaseAdmin.from("pending_posts").update({ status: "posted" }).eq("id", pendingId);
+      await editMessage(chatId, messageId, "✅ Client avisé par SMS du nouveau rendez-vous.");
+    } catch (e) {
+      await supabaseAdmin.from("pending_posts").update({ status: "pending" }).eq("id", pendingId);
+      await editMessage(chatId, messageId, `❌ Échec d'envoi : ${e instanceof Error ? e.message : String(e)}`);
+    }
+  } else {
+    await supabaseAdmin.from("pending_posts").update({ status: "rejected" }).eq("id", pendingId);
+    await editMessage(chatId, messageId, "❌ Client NON avisé — rien envoyé.");
+  }
+}
+
 // ── Approbation d'une PUB PAYANTE Meta ────────────────────────────────────────
 /**
  * La pub existe déjà chez Meta, sur PAUSE. Ici on décide de son sort :
@@ -1422,6 +1484,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
       if (data && (data.startsWith("ad_ok:") || data.startsWith("ad_regen:") || data.startsWith("ad_no:"))) {
         await handleAdCallback(id, data, message.chat.id, message.message_id);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (data && (data.startsWith("resched_yes:") || data.startsWith("resched_no:"))) {
+        await handleRescheduleCallback(id, data, message.chat.id, message.message_id);
         return NextResponse.json({ ok: true });
       }
 

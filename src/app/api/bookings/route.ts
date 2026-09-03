@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { sendBookingConfirmation, sendBookingNotificationAdmin } from "@/lib/email";
 import { sendBookingConfirmationSMS, sendBarberNotificationSMS, formatPhone } from "@/lib/sms";
-import { notifyBookingCancelled, notifyNewBooking } from "@/lib/telegram";
+import { notifyBookingCancelled, notifyNewBooking, proposeRescheduleNotification } from "@/lib/telegram";
 import twilio from "twilio";
 import { Resend } from "resend";
 import { z } from "zod";
@@ -315,8 +315,46 @@ export async function PATCH(req: NextRequest) {
     }
     // ────────────────────────────────────────────────────────────────
 
+    // Valeurs AVANT modif — nécessaire pour savoir si date/heure changent vraiment
+    // (déplacement) plutôt qu'une autre modif (prix, note...). Fetché ici, PAS dans le
+    // bloc chevauchement plus haut : celui-là est sauté quand force=true.
+    let beforeReschedule: { client_name: string; client_phone: string; service: string; barber: string; date: string; time: string } | null = null;
+    if (isAuthed && (updates.date || updates.time)) {
+      const { data: b } = await supabase.from("bookings")
+        .select("client_name, client_phone, service, barber, date, time").eq("id", id).single();
+      if (b) beforeReschedule = b;
+    }
+
     const { data, error } = await supabase.from("bookings").update(updates as Record<string, unknown>).eq("id", id).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // ── RDV déplacé par un admin/barbier → demande AVANT d'aviser le client (Telegram OUI/NON) ──
+    if (
+      beforeReschedule && data && updates.status !== "cancelled" &&
+      (beforeReschedule.date !== data.date || beforeReschedule.time !== data.time)
+    ) {
+      try {
+        const { data: row } = await supabase.from("pending_posts").insert({
+          kind: "reschedule-notify",
+          status: "pending",
+          content: JSON.stringify({
+            client_phone: beforeReschedule.client_phone,
+            service: data.service,
+            barber: data.barber,
+            new_date: data.date,
+            new_time: data.time,
+            booking_id: data.id,
+          }),
+        }).select("id").single();
+        if (row) {
+          await proposeRescheduleNotification({
+            id: row.id, clientName: beforeReschedule.client_name, service: data.service, barber: data.barber,
+            oldDate: beforeReschedule.date, oldTime: beforeReschedule.time, newDate: data.date, newTime: data.time,
+            hasPhone: !!beforeReschedule.client_phone,
+          });
+        }
+      } catch { /* la modif du RDV a déjà réussi — la notif est secondaire, ne bloque jamais */ }
+    }
 
     // ── Auto-créer un cut quand RDV passe à completed (pour calcul paye live) ──
     if (updates.status === "completed" && data) {
