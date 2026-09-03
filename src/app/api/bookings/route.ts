@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { sendBookingConfirmation, sendBookingNotificationAdmin } from "@/lib/email";
-import { sendBookingConfirmationSMS, sendBarberNotificationSMS, formatPhone } from "@/lib/sms";
+import { sendBookingConfirmationSMS, sendBarberNotificationSMS, sendBarberCancellationSMS, formatPhone } from "@/lib/sms";
 import { notifyBookingCancelled, notifyNewBooking, proposeRescheduleNotification } from "@/lib/telegram";
 import twilio from "twilio";
 import { Resend } from "resend";
@@ -381,6 +381,15 @@ export async function PATCH(req: NextRequest) {
 
     if (updates.status === "cancelled") {
       notifyBookingCancelled({
+        client_name: data.client_name,
+        service: data.service,
+        barber: data.barber,
+        date: data.date,
+        time: data.time,
+      }).catch(() => {});
+      // Le groupe Telegram général ne suffit pas — chaque barbier doit être avisé
+      // directement pour SES propres clients annulés (demande Melynda, 3 sept 2026).
+      sendBarberCancellationSMS({
         client_name: data.client_name,
         service: data.service,
         barber: data.barber,

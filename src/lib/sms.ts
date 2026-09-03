@@ -113,6 +113,41 @@ export async function sendNoShowSMS(booking: {
 }
 
 /**
+ * Avertit le BARBIER CONCERNÉ (pas juste le groupe Telegram général) qu'un de SES
+ * rendez-vous a été annulé — demande Melynda, 3 sept 2026 : Stéphanie ne suivait pas
+ * le fil Telegram et ratait les annulations de ses propres clients.
+ */
+export async function sendBarberCancellationSMS(booking: {
+  client_name: string;
+  service: string;
+  barber: string;
+  date: string;
+  time: string;
+}) {
+  let barberPhone: string | undefined;
+  try {
+    const norm = (s: string) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+    const { data: barbers } = await supabaseAdmin.from("barbers").select("name, phone");
+    const match = (barbers || []).find((b: { name: string; phone?: string | null }) => norm(b.name) === norm(booking.barber));
+    if (match?.phone) barberPhone = match.phone;
+  } catch { /* lookup non bloquant */ }
+  if (!barberPhone) barberPhone = process.env.MELYNDA_PHONE;
+  if (!barberPhone) return;
+
+  const dateFormatted = new Date(booking.date + "T12:00:00").toLocaleDateString("fr-CA", {
+    weekday: "long", month: "long", day: "numeric",
+  });
+
+  // Type unique par créneau (pas un type fixe) : sinon deux annulations différentes le
+  // même jour pour le même barbier seraient bloquées par le dédup 24h de sendSMS.
+  await sendSMS(
+    barberPhone,
+    `❌ RDV annulé\n\n${booking.client_name} — ${booking.service}\n📅 ${dateFormatted} à ${booking.time}\n\nCe créneau est maintenant libre.`,
+    `barber_cancellation_${booking.date}_${booking.time}`
+  );
+}
+
+/**
  * SMS envoyé au client APRÈS clic « Oui » sur Telegram — jamais automatique
  * (demande Melynda, 3 sept 2026). Voir proposeRescheduleNotification dans lib/telegram.
  */

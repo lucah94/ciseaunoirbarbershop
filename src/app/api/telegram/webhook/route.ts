@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendGmailReply, archiveEmail } from "@/lib/gmail";
 import { getUpcomingHolidays } from "@/lib/holidays-qc";
-import { sendSMS, formatPhone, sendRescheduleSMS } from "@/lib/sms";
+import { sendSMS, formatPhone, sendRescheduleSMS, sendBarberCancellationSMS } from "@/lib/sms";
 import { Resend } from "resend";
 import type Anthropic from "@anthropic-ai/sdk";
 import { aiClient as anthropic, generateText, MODELS, getDirectAnthropic, DIRECT_FALLBACK_MODEL } from "@/lib/ai";
@@ -665,6 +665,11 @@ async function executeTool(name: string, input: Record<string, unknown>, chatId:
     if (error) return `Erreur : ${error.message}`;
     try {
       await notifyBookingCancelled({
+        client_name: target.client_name, service: target.service, barber: target.barber,
+        date: target.date, time: target.time,
+      });
+      // Avise aussi le barbier directement (pas juste le groupe Telegram général).
+      await sendBarberCancellationSMS({
         client_name: target.client_name, service: target.service, barber: target.barber,
         date: target.date, time: target.time,
       });
