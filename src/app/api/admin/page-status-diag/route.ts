@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const pageId = process.env.FACEBOOK_PAGE_ID || "577401682130596";
 
   const res = await fetch(
-    `https://graph.facebook.com/v19.0/${pageId}?fields=id,name,is_published,is_permanently_closed,verification_status,restriction_info,messenger_ads_default_quick_replies,is_messenger_platform_bot,connected_instagram_account&access_token=${encodeURIComponent(token)}`,
+    `https://graph.facebook.com/v19.0/${pageId}?fields=id,name,is_published,is_permanently_closed,verification_status,is_messenger_platform_bot,connected_instagram_account&access_token=${encodeURIComponent(token)}`,
     { signal: AbortSignal.timeout(15000) }
   );
   const data = await res.json().catch(() => ({}));
