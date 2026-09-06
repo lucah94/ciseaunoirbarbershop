@@ -59,23 +59,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ sent: 1, test: true });
     }
 
-    // Fetch recipients
+    // Fetch recipients — PAGINÉ. Supabase plafonne une requête sans .range() à 1000
+    // lignes ; la table bookings en a 3500+. Sans pagination, "Tous les clients" ratait
+    // silencieusement une bonne partie des clients (même bug trouvé sur le SMS de masse
+    // le 6 sept 2026 — corrigé ici en même temps par précaution).
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 90);
 
-    let query = supabaseAdmin
-      .from("bookings")
-      .select("client_email")
-      .not("client_email", "is", null)
-      .neq("client_email", "")
-      .neq("client_email", "test@test.com");
+    const PAGE_SIZE = 1000;
+    const rows: { client_email: string }[] = [];
+    let from = 0;
+    while (true) {
+      let query = supabaseAdmin
+        .from("bookings")
+        .select("client_email")
+        .not("client_email", "is", null)
+        .neq("client_email", "")
+        .neq("client_email", "test@test.com")
+        .range(from, from + PAGE_SIZE - 1);
 
-    if (recipient_type === "recent") {
-      query = query.gte("date", cutoff.toISOString().split("T")[0]);
+      if (recipient_type === "recent") {
+        query = query.gte("date", cutoff.toISOString().split("T")[0]);
+      }
+
+      const { data: page } = await query;
+      if (!page || page.length === 0) break;
+      rows.push(...page);
+      if (page.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
     }
-
-    const { data: rows } = await query;
-    const emails = [...new Set((rows || []).map((r: { client_email: string }) => r.client_email).filter(Boolean))];
+    const emails = [...new Set(rows.map((r) => r.client_email).filter(Boolean))];
 
     if (emails.length === 0) {
       return NextResponse.json({ sent: 0 });

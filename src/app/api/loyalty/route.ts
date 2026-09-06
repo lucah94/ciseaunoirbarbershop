@@ -11,17 +11,27 @@ async function countVisitsByEmails(emails: string[]) {
 
   for (const e of unique) result[e] = 0;
 
-  const { data, error } = await supabase
-    .from("bookings")
-    .select("client_email")
-    .eq("loyalty_counted", true)
-    .in("client_email", unique);
+  // Paginé par précaution : un batch avec beaucoup de clients pourrait dépasser le
+  // plafond par défaut de 1000 lignes sans .range() (même classe de bug trouvée sur
+  // le SMS/email de masse le 6 sept 2026, qui eux touchaient TOUS les clients).
+  const PAGE_SIZE = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("bookings")
+      .select("client_email")
+      .eq("loyalty_counted", true)
+      .in("client_email", unique)
+      .range(from, from + PAGE_SIZE - 1);
 
-  if (error) throw new Error(error.message);
-
-  for (const row of data ?? []) {
-    const e = (row as { client_email: string | null }).client_email;
-    if (e && e in result) result[e] += 1;
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) break;
+    for (const row of data) {
+      const e = (row as { client_email: string | null }).client_email;
+      if (e && e in result) result[e] += 1;
+    }
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
   }
 
   return result;
