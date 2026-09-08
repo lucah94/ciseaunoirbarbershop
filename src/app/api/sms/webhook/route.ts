@@ -1,14 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
+import { SITE_URL, phoneKey } from "@/lib/sms";
 import twilio from "twilio";
 export const dynamic = 'force-dynamic';
 
-const BOOKING_URL = process.env.NEXT_PUBLIC_SITE_URL + "/booking";
+const BOOKING_URL = SITE_URL + "/booking";
 
 function twimlResponse(message: string) {
   return new NextResponse(
     `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${message}</Message></Response>`,
     { headers: { "Content-Type": "text/xml" } }
+  );
+}
+
+/** Retire les accents + majuscules — "arrêter" et "ARRETER" deviennent identiques. */
+function normalizeText(s: string): string {
+  return (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().trim();
+}
+
+/**
+ * Détecte l'intention de se désinscrire des SMS, au-delà des mots-clés exacts.
+ * Avant : seul `body === "STOP"` (etc.) marchait — "arrêtez svp", "ARRÊTER"
+ * (accent !), "enlevez-moi de la liste" étaient ignorés et le client restait
+ * inscrit → plaintes. On garde une garde anti-confusion avec la gestion de RDV.
+ */
+export function isStopIntent(raw: string): boolean {
+  const b = normalizeText(raw);
+  if (!b) return false;
+  // Mots-clés durs — priment même si le message parle de RDV.
+  if (/\bSTOP\b|UNSUBSCRIBE|DESABON|DESINSCR|DESISTER|\bOPT ?OUT\b/.test(b)) return true;
+  // "arrêter mon rdv" = annulation de RDV, pas une désinscription.
+  if (/\bRDV\b|RENDEZ|RESERV|ANNULER? MON|REPORT/.test(b)) return false;
+  return (
+    /\bARRETE?Z?\b|\bARRETER\b/.test(b) ||
+    /PLUS (DE|AUCUN|RECEVOIR).{0,12}(TEXTO|SMS|MESSAGE|MSG|PUB|NOUVELLE)/.test(b) ||
+    /(ENLEVE|ENLEVER|ENLEVEZ|RETIRE|RETIRER|RETIREZ|EFFACE|EFFACER|SUPPRIME|SUPPRIMER|SORT|SORTEZ|OTE|OTEZ).{0,20}(LISTE|SMS|TEXTO|CONTACT|NUMERO)/.test(b) ||
+    /(LISTE|SMS|TEXTO).{0,20}(ENLEVE|RETIRE|EFFACE|SUPPRIME)/.test(b) ||
+    /NE PLUS (M'?ECRIRE|ME TEXTER|ME CONTACTER|RECEVOIR)/.test(b)
   );
 }
 
@@ -30,11 +58,11 @@ async function handleSmsBody(from: string, body: string): Promise<NextResponse> 
     return bDigits === digits || bDigits === digits.slice(-10) || digits.slice(-10) === bDigits.slice(-10);
   });
 
-  // STOP — blacklister le numéro
-  if (body === "STOP" || body === "ARRET" || body === "ARRETER" || body === "UNSUBSCRIBE" || body === "DESABONNER") {
-    const last10 = digits.slice(-10);
+  // STOP / désinscription — détection élargie (voir isStopIntent).
+  if (isStopIntent(body)) {
+    const last10 = phoneKey(digits);
     await supabase.from("sms_blacklist").upsert(
-      { phone: last10, created_at: new Date().toISOString() },
+      { phone: last10, source: "client", created_at: new Date().toISOString() },
       { onConflict: "phone" }
     ).then(() => {}, () => {});
     return twimlResponse("Vous avez été désinscrit. Vous ne recevrez plus de SMS de Ciseau Noir. Pour vous réinscrire, appelez le (418) 665-5703.");
@@ -90,7 +118,10 @@ export async function POST(req: NextRequest) {
   new URLSearchParams(rawBody).forEach((value, key) => { params[key] = value; });
 
   if (authToken) {
-    const url = (process.env.NEXT_PUBLIC_SITE_URL || "") + "/api/sms/webhook";
+    // SITE_URL est .trim() — un newline dans la var Vercel faisait échouer la
+    // signature ici → 403 sur TOUS les SMS entrants (STOP inclus). C'était la
+    // cause première : les clients répondaient STOP et rien ne se passait.
+    const url = SITE_URL + "/api/sms/webhook";
     const isValid = twilio.validateRequest(authToken, twilioSignature, url, params);
     if (!isValid) {
       return new NextResponse("Forbidden", { status: 403 });

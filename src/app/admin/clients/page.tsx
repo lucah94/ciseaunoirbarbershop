@@ -1,7 +1,10 @@
 "use client";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import AdminSidebar from "@/components/AdminSidebar";
+import ClientSmsToggle from "@/components/ClientSmsToggle";
 import { useRealtimeTable } from "@/lib/use-realtime-bookings";
+
+const norm10 = (p: string) => (p || "").replace(/\D/g, "").slice(-10);
 
 type ClientStats = {
   name: string;
@@ -24,6 +27,9 @@ export default function ClientsPage() {
   const [sortKey, setSortKey] = useState<SortKey>("totalVisits");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [isMobile, setIsMobile] = useState(false);
+  // Numéros (10 chiffres) désinscrits des SMS — table sms_blacklist via /api/admin/sms-optout
+  const [smsBlocked, setSmsBlocked] = useState<Set<string>>(new Set());
+  const [smsFilter, setSmsFilter] = useState<"all" | "blocked">("all");
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -44,14 +50,34 @@ export default function ClientsPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  useEffect(() => { fetchClients(); }, [fetchClients]);
+  const fetchOptOuts = useCallback(() => {
+    fetch(`/api/admin/sms-optout?_=${Date.now()}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { optOuts: [] }))
+      .then((data) => {
+        const list: { phone: string }[] = Array.isArray(data?.optOuts) ? data.optOuts : [];
+        setSmsBlocked(new Set(list.map((o) => norm10(o.phone))));
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { fetchClients(); fetchOptOuts(); }, [fetchClients, fetchOptOuts]);
 
   // Push live: tout changement bookings ou clients propage instantanément
   useRealtimeTable("admin-clients-rt", ["bookings", "clients"], fetchClients);
 
+  // Mise à jour optimiste après un clic Bloquer / Réactiver
+  const handleSmsChange = useCallback((phone: string, blocked: boolean) => {
+    setSmsBlocked((prev) => {
+      const next = new Set(prev);
+      if (blocked) next.add(norm10(phone));
+      else next.delete(norm10(phone));
+      return next;
+    });
+  }, []);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    const list = q
+    let list = q
       ? clients.filter(
           (c) =>
             c.name.toLowerCase().includes(q) ||
@@ -60,6 +86,10 @@ export default function ClientsPage() {
         )
       : clients;
 
+    if (smsFilter === "blocked") {
+      list = list.filter((c) => smsBlocked.has(norm10(c.phone)));
+    }
+
     return [...list].sort((a, b) => {
       let cmp = 0;
       if (sortKey === "name") cmp = a.name.localeCompare(b.name);
@@ -67,7 +97,7 @@ export default function ClientsPage() {
       else cmp = (a[sortKey] as number) - (b[sortKey] as number);
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [clients, search, sortKey, sortDir]);
+  }, [clients, search, sortKey, sortDir, smsFilter, smsBlocked]);
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -165,7 +195,7 @@ export default function ClientsPage() {
           <button
             onClick={() => {
               const csv = [
-                ["Nom", "Téléphone", "Email", "Visites", "Total ($)", "Dernière visite", "No-shows", "Fidélité"].join(","),
+                ["Nom", "Téléphone", "Email", "Visites", "Total ($)", "Dernière visite", "No-shows", "Fidélité", "SMS"].join(","),
                 ...filtered.map(c => [
                   `"${c.name.replace(/"/g, '""')}"`,
                   `"${c.phone}"`,
@@ -175,6 +205,7 @@ export default function ClientsPage() {
                   c.lastVisit || "",
                   c.noShowCount,
                   `${c.loyaltyProgress}/10`,
+                  smsBlocked.has(norm10(c.phone)) ? "Bloqué" : "Reçoit",
                 ].join(","))
               ].join("\n");
               const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
@@ -200,6 +231,24 @@ export default function ClientsPage() {
           >
             📥 Exporter CSV ({filtered.length} clients)
           </button>
+          <button
+            onClick={() => setSmsFilter((f) => (f === "blocked" ? "all" : "blocked"))}
+            style={{
+              marginTop: "12px",
+              marginLeft: "12px",
+              background: smsFilter === "blocked" ? "rgba(229,106,106,0.12)" : "transparent",
+              border: "1px solid rgba(229,106,106,0.3)",
+              color: "#E56A6A",
+              padding: "10px 20px",
+              fontSize: "11px",
+              letterSpacing: "2px",
+              textTransform: "uppercase",
+              cursor: "pointer",
+              borderRadius: "4px",
+            }}
+          >
+            {smsFilter === "blocked" ? "✓ Désinscrits SMS" : "Voir désinscrits SMS"}
+          </button>
         </div>
 
         {/* Stats summary */}
@@ -221,6 +270,7 @@ export default function ClientsPage() {
               label: "Revenus totaux",
               value: `${clients.reduce((s, c) => s + c.totalSpent, 0).toFixed(2)}$`,
             },
+            { label: "Désinscrits SMS", value: smsBlocked.size },
           ].map((stat) => (
             <div
               key={stat.label}
@@ -277,7 +327,7 @@ export default function ClientsPage() {
               style={{
                 width: "100%",
                 borderCollapse: "collapse",
-                minWidth: "800px",
+                minWidth: "960px",
               }}
             >
               <thead>
@@ -287,6 +337,7 @@ export default function ClientsPage() {
                   </th>
                   <th style={{ ...thStyle, cursor: "default" }}>Téléphone</th>
                   <th style={{ ...thStyle, cursor: "default" }}>Courriel</th>
+                  <th style={{ ...thStyle, cursor: "default" }}>SMS</th>
                   <th style={thStyle} onClick={() => handleSort("totalVisits")}>
                     Visites{arrow("totalVisits")}
                   </th>
@@ -345,6 +396,13 @@ export default function ClientsPage() {
                       }}
                     >
                       {c.email || "—"}
+                    </td>
+                    <td style={tdStyle}>
+                      <ClientSmsToggle
+                        phone={c.phone}
+                        blocked={smsBlocked.has(norm10(c.phone))}
+                        onChange={handleSmsChange}
+                      />
                     </td>
                     <td
                       style={{

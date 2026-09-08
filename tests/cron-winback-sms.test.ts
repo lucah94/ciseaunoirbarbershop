@@ -84,13 +84,14 @@ describe("GET /api/cron/winback-sms — dormant detection", () => {
           range: vi.fn().mockResolvedValue({ data: bookings, error: null }),
         };
       }
-      // sms_blacklist
+      // sms_winback_log (journal de dédup 30j)
       return {
         select: vi.fn().mockReturnThis(),
         ilike: vi.fn().mockReturnThis(),
         gte: vi.fn().mockReturnThis(),
         range: vi.fn().mockResolvedValue({ data: blacklist }),
         insert: vi.fn().mockReturnThis(),
+        upsert: vi.fn().mockResolvedValue({ error: null }),
         then: vi.fn(),
       };
     });

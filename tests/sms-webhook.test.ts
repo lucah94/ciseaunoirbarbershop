@@ -20,6 +20,54 @@ vi.mock("twilio", () => {
   return { default: Object.assign(vi.fn(), { validateRequest }) };
 });
 
+import { isStopIntent } from "@/app/api/sms/webhook/route";
+
+describe("isStopIntent — détection élargie de désinscription", () => {
+  it("attrape les mots-clés durs, avec ou sans accent/casse", () => {
+    for (const s of ["STOP", "stop", "Stop", "ARRÊTER", "arrêter", "ARRETER", "arreter",
+                     "désabonner", "DESABONNER", "unsubscribe", "désinscrire", "opt out", "OPTOUT"]) {
+      expect(isStopIntent(s), s).toBe(true);
+    }
+  });
+
+  it("attrape les formulations naturelles", () => {
+    for (const s of [
+      "arrêtez svp",
+      "Arretez de m'envoyer des textos",
+      "enlevez-moi de la liste",
+      "enlève moi de votre liste s'il vous plait",
+      "retirez mon numéro",
+      "je veux plus recevoir de sms",
+      "plus de messages svp",
+      "ne plus me texter",
+      "supprimez moi de la liste",
+    ]) {
+      expect(isStopIntent(s), s).toBe(true);
+    }
+  });
+
+  it("ne confond PAS avec la gestion d'un rendez-vous", () => {
+    for (const s of [
+      "ANNULER",
+      "annuler mon rdv",
+      "je veux annuler mon rendez-vous",
+      "reporter mon rdv svp",
+      "CONFIRMER",
+      "OUI",
+      "bonjour je veux un rdv",
+      "arrêter mon rdv de demain",
+    ]) {
+      expect(isStopIntent(s), s).toBe(false);
+    }
+  });
+
+  it("ignore le vide et le bruit", () => {
+    for (const s of ["", "   ", "merci beaucoup", "à demain", "👍"]) {
+      expect(isStopIntent(s), JSON.stringify(s)).toBe(false);
+    }
+  });
+});
+
 // Helper to build a URLSearchParams-encoded POST body matching Twilio format
 function makeTwilioBody(from: string, body: string): string {
   const p = new URLSearchParams();

@@ -1,6 +1,14 @@
 import twilio from "twilio";
 import { supabaseAdmin } from "@/lib/supabase";
 
+/**
+ * URL du site — .trim() OBLIGATOIRE : un retour à la ligne accidentel dans la
+ * variable Vercel (NEXT_PUBLIC_SITE_URL) casse la validation de signature Twilio
+ * (le webhook STOP renvoyait alors 403 → les clients ne pouvaient plus se
+ * désinscrire) et corrompt les liens dans les SMS. Même précaution que lib/supabase.ts.
+ */
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com").trim();
+
 function getClient() {
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
@@ -14,14 +22,23 @@ function getFromNumber() {
   return num;
 }
 
-/** Vérifie si un numéro est dans la blacklist SMS (STOP). */
-async function isBlacklisted(phone: string): Promise<boolean> {
+/** Normalise un numéro en 10 chiffres (clé unique de la blacklist et des logs). */
+export function phoneKey(phone: string): string {
+  return (phone || "").replace(/\D/g, "").slice(-10);
+}
+
+/**
+ * Vérifie si un numéro est désinscrit des SMS.
+ * La table `sms_blacklist` ne contient QUE des désinscriptions réelles
+ * (client via STOP, ou retrait manuel par Melynda). Le journal winback est
+ * dans sa propre table `sms_winback_log` — il ne bloque JAMAIS les envois.
+ */
+export async function isBlacklisted(phone: string): Promise<boolean> {
   try {
-    const digits = phone.replace(/\D/g, "").slice(-10);
     const { data } = await supabaseAdmin
       .from("sms_blacklist")
       .select("phone")
-      .eq("phone", digits)
+      .eq("phone", phoneKey(phone))
       .limit(1);
     return (data?.length ?? 0) > 0;
   } catch {
@@ -49,7 +66,7 @@ export async function sendBookingConfirmationSMS(booking: {
     weekday: "long", month: "long", day: "numeric",
   });
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";
+  const siteUrl = SITE_URL;
   const calendarLine = booking.booking_id
     ? `\n📆 Agenda : ${siteUrl}/api/calendar/booking/${booking.booking_id}`
     : "";
@@ -104,7 +121,7 @@ export async function sendNoShowSMS(booking: {
   client_phone: string;
 }) {
   if (await isBlacklisted(booking.client_phone)) return;
-  const bookingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com"}/booking`;
+  const bookingUrl = `${SITE_URL}/booking`;
   await getClient().messages.create({
     from: getFromNumber(),
     to: formatPhone(booking.client_phone),
@@ -162,7 +179,7 @@ export async function sendRescheduleSMS(booking: {
   const dateFormatted = new Date(booking.new_date + "T12:00:00").toLocaleDateString("fr-CA", {
     weekday: "long", month: "long", day: "numeric",
   });
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";
+  const siteUrl = SITE_URL;
   const manageLine = booking.booking_id ? `\n🔗 Voir/annuler : ${siteUrl}/booking/rdv/${booking.booking_id}` : "";
 
   if (await isBlacklisted(booking.client_phone)) return;

@@ -56,27 +56,40 @@ export async function GET(req: NextRequest) {
     .filter(([_, info]) => info.lastDate < cutoffDate && info.lastDate >= oldestCutoff)
     .slice(0, 30); // Limite 30 SMS par exécution pour budget
 
-  // Vérifier qu'on n'a pas déjà envoyé un winback récemment (table sms_blacklist sert aussi de log)
+  // Anti-doublon : pas de 2e winback au même numéro sous 30 jours.
+  // AVANT : on écrivait dans sms_blacklist avec une colonne `reason` qui
+  // N'EXISTE PAS → l'insert échouait en silence et le dédup ne marchait jamais
+  // (un client dormant pouvait être re-texté chaque semaine). Journal dédié
+  // maintenant : table sms_winback_log (phone, sent_on).
+  const cutoff30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   const { data: recentSent } = await supabaseAdmin
-    .from("sms_blacklist")
+    .from("sms_winback_log")
     .select("phone")
-    .ilike("reason", "%winback%")
-    .gte("created_at", new Date(Date.now() - 30*24*60*60*1000).toISOString())
-    .range(0, 999);
-  const recentSentSet = new Set((recentSent || []).map(r => r.phone));
+    .gte("sent_on", cutoff30)
+    .range(0, 4999);
+  const recentSentSet = new Set(
+    (recentSent || []).map((r: { phone: string }) => r.phone.replace(/\D/g, "").slice(-10))
+  );
 
   let sent = 0;
   let skipped = 0;
 
+  const today = new Date().toISOString().split("T")[0];
   for (const [phone, info] of dormant) {
-    if (recentSentSet.has(phone)) { skipped++; continue; }
+    if (recentSentSet.has(phone.replace(/\D/g, "").slice(-10))) { skipped++; continue; }
     try {
       const firstName = info.name?.split(" ")[0] || "";
       const message = `Salut ${firstName} ✂️\nCa fait un bout qu'on s'est pas vu chez Ciseau Noir ! Melynda aimerait te revoir. Reserve ton prochain RDV : ciseaunoirbarbershop.com/booking`;
-      // sendSMS() check automatiquement isBlacklisted + dedup 24h via sms_log
+      // sendSMS() vérifie automatiquement isBlacklisted (STOP) + dédup 24h via sms_log
       await sendSMS(phone, message, "winback-60d");
-      // Log winback envoyé (réutilise sms_blacklist comme log de dedupe à 30j)
-      await supabaseAdmin.from("sms_blacklist").insert([{ phone, reason: "winback-sent-" + new Date().toISOString().split("T")[0] }]).then(() => {}, () => {});
+      // Journal winback dédié — dédup 30j (clé = numéro à 10 chiffres).
+      await supabaseAdmin
+        .from("sms_winback_log")
+        .upsert(
+          { phone: phone.replace(/\D/g, "").slice(-10), sent_on: today },
+          { onConflict: "phone,sent_on" }
+        )
+        .then(() => {}, () => {});
       sent++;
     } catch {
       skipped++;
