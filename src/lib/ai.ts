@@ -15,21 +15,28 @@ export const aiClient = new Anthropic({
 });
 
 // Dernier modèle pour chaque niveau — 1 seul endroit à changer. Tout passe par OpenRouter.
+// Vérifié sur la liste live d'OpenRouter le 24 sept. 2026 (prix par million de tokens).
+// ⚠️ Les identifiants OpenRouter d'Anthropic s'écrivent avec un POINT ("claude-sonnet-5",
+// "claude-haiku-4.5") — un tiret dans le numéro de version donne un modèle inexistant,
+// erreur silencieuse qui fait retomber toute la tâche sur la chaîne de secours.
 export const MODELS = {
-  // GRATUIT (0$) — meilleur modèle gratuit d'OpenRouter. UNIQUEMENT pour du contenu PUBLIC
-  // et léger sans données clients (posts, promos, réponses avis/commentaires). Peut être
-  // rate-limité ou retiré → generateText retombe alors sur DeepSeek (des cennes), JAMAIS
-  // directement sur Sonnet (le cher). Ne PAS l'utiliser pour les conversations clients (PII).
-  FREE: "meta-llama/llama-3.3-70b-instruct:free",
+  // GRATUIT (0$) — UNIQUEMENT pour du contenu PUBLIC et léger sans données clients
+  // (posts, promos, réponses avis/commentaires), et de toute façon approuvé par Melynda
+  // sur Telegram avant publication. Peut être rate-limité ou retiré → generateText
+  // retombe alors sur le modèle FAST (des cennes), JAMAIS directement sur SMART (le cher).
+  // Ne PAS l'utiliser pour les conversations clients (PII).
+  // (L'ancien "meta-llama/llama-3.3-70b-instruct:free" a été retiré d'OpenRouter.)
+  FREE: "google/gemma-4-31b-it:free",
 
-  // Tâches simples: classification, réponses courtes (~0.14$/MTok via DeepSeek)
-  FAST: "deepseek/deepseek-chat",
+  // Tâches simples: classification, réponses courtes (0.05$ / 0.10$ le MTok)
+  FAST: "deepseek/deepseek-v4-flash",
 
-  // Tâches moyennes: conversations clients, analyse emails (~0.14$/MTok via DeepSeek)
-  BALANCED: "deepseek/deepseek-chat",
+  // Tâches moyennes: conversations clients, analyse emails (0.15$ / 0.60$ le MTok)
+  BALANCED: "deepseek/deepseek-v4.1-flash",
 
-  // Tâches complexes: Figaro, raisonnement profond (Claude Sonnet routé via OpenRouter — CHER)
-  SMART: "anthropic/claude-sonnet-4-6",
+  // Tâches complexes: Figaro, raisonnement profond (2$ / 10$ le MTok — le CHER des quatre,
+  // mais moins cher ET meilleur que l'ancien Sonnet 4.6 visé, qui était mal orthographié).
+  SMART: "anthropic/claude-sonnet-5",
 } as const;
 
 type GenParams = {
@@ -78,7 +85,7 @@ export function getDirectAnthropic(): Anthropic | null {
   return _directAnthropic;
 }
 // Haiku = pas cher + rapide → borne le coût de l'abonnement quand on est en mode secours.
-export const DIRECT_FALLBACK_MODEL = "claude-haiku-4-5-20251001";
+export const DIRECT_FALLBACK_MODEL = "claude-haiku-4-5";
 
 let lastDirectAlert = 0;
 export async function alertDirectAnthropicFallback(): Promise<void> {

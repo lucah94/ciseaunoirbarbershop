@@ -44,6 +44,18 @@ export default function SantePage() {
     setGmbBusy("");
   }, []);
 
+  const [ia, setIa] = useState<{ verdict?: string; modeles?: { tier: string; usage: string; model: string; ok: boolean; ms: number; error?: string }[] } | null>(null);
+  const [iaBusy, setIaBusy] = useState(false);
+
+  const iaCheck = useCallback(async () => {
+    setIaBusy(true);
+    try {
+      const res = await fetch("/api/admin/ai-check");
+      setIa(await res.json());
+    } catch { setIa({ verdict: "Vérification impossible (réseau)." }); }
+    setIaBusy(false);
+  }, []);
+
   const gmbFix = useCallback(async () => {
     setGmbBusy("fix"); setGmbMsg("");
     try {
@@ -188,6 +200,36 @@ export default function SantePage() {
             </div>
           )}
           {gmbMsg && <p style={{ color: "#C9A84C", fontSize: "12px", marginTop: "12px", lineHeight: 1.6 }}>{gmbMsg}</p>}
+        </div>
+
+        {/* Modèles IA — existent-ils encore ? */}
+        <div style={{ background: "#111", border: "1px solid #1A1A1A", borderRadius: "10px", padding: "28px", marginBottom: "32px" }}>
+          <p style={{ color: "#C9A84C", fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase", marginBottom: "12px" }}>Modèles IA — par tâche</p>
+          <p style={{ color: "#555", fontSize: "12px", lineHeight: 1.7, marginBottom: "18px" }}>
+            OpenRouter retire des modèles sans avertir. Quand ça arrive, la tâche continue sur le modèle de
+            secours (plus cher) sans que rien ne paraisse. Ce test appelle les 4 modèles directement — coût :
+            une fraction de cenne.
+          </p>
+          <button onClick={iaCheck} disabled={iaBusy}
+            style={{ background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.3)", color: "#C9A84C", padding: "10px 20px", fontSize: "12px", letterSpacing: "1px", cursor: iaBusy ? "wait" : "pointer", borderRadius: "8px", fontWeight: 600, marginBottom: ia ? "18px" : 0 }}>
+            {iaBusy ? "Test en cours..." : "Tester les 4 modèles"}
+          </button>
+          {ia && (
+            <div>
+              <p style={{ color: ia.modeles?.every(m => m.ok) ? "#5a5" : "#e55", fontSize: "13px", marginBottom: "12px" }}>{ia.verdict}</p>
+              {ia.modeles?.map(m => (
+                <div key={m.tier} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", padding: "10px 14px", background: "rgba(0,0,0,0.3)", border: "1px solid #1A1A1A", borderRadius: "8px", marginBottom: "8px" }}>
+                  <div>
+                    <p style={{ color: "#F5F5F5", fontSize: "12px" }}>
+                      <span style={{ color: m.ok ? "#5a5" : "#e55" }}>{m.ok ? "✓" : "✕"}</span> {m.tier} — {m.model}
+                    </p>
+                    <p style={{ color: "#444", fontSize: "11px", marginTop: "2px" }}>{m.usage}{m.error ? ` — ${m.error}` : ""}</p>
+                  </div>
+                  <span style={{ color: "#444", fontSize: "11px", whiteSpace: "nowrap" }}>{m.ms} ms</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Protections actives */}
