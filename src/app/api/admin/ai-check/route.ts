@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       try {
         const res = await aiClient.messages.create({
           model: t.model,
-          max_tokens: 12,
+          max_tokens: 64, // assez pour qu'un modèle à raisonnement ait le temps de répondre
           messages: [{ role: "user", content: "Réponds exactement : OK" }],
         });
         const txt = res.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();

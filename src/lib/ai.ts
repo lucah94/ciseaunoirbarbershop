@@ -30,10 +30,15 @@ export const MODELS = {
   // puis retombait sur le modèle suivant. On garde le niveau, mais pointé sur un
   // modèle QUASI gratuit et fiable : 0.05$/MTok = environ 5 cennes pour 1000 posts.
   // (L'ancien "meta-llama/llama-3.3-70b-instruct:free" a été retiré d'OpenRouter.)
-  FREE: "deepseek/deepseek-v4-flash",
+  // v4-flash a été écarté : c'est un modèle à RAISONNEMENT, il dépense parfois tous
+  // ses tokens à « réfléchir » et ne renvoie aucun texte sur une réponse courte.
+  FREE: "deepseek/deepseek-v3.2",
 
-  // Tâches simples: classification, réponses courtes (0.05$ / 0.10$ le MTok)
-  FAST: "deepseek/deepseek-v4-flash",
+  // Tâches simples: classification, réponses courtes (0.27$ / 0.40$ le MTok).
+  // Même modèle que BALANCED volontairement : c'est le seul du lot testé deux fois
+  // de suite sans un seul raté, et la différence de prix est de l'ordre de la cenne
+  // par mois à ce volume — la fiabilité vaut plus que l'économie ici.
+  FAST: "deepseek/deepseek-v3.2",
 
   // Tâches moyennes: conversations clients, analyse emails (0.27$ / 0.40$ le MTok).
   // PAS un modèle de raisonnement : v4.1-flash dépense ses tokens à "réfléchir" et
