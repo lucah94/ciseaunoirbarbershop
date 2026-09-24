@@ -142,6 +142,13 @@ async function readBody(res: Response): Promise<{ json?: Record<string, unknown>
 
 type Trace = { etape: string; status: number; detail?: string };
 
+/** Message d'erreur lisible quand un appel echoue — sans ca, un 403 ne dit pas POURQUOI. */
+function detailOf(res: Response, body: { json?: Record<string, unknown>; text: string }): string | undefined {
+  if (res.ok) return undefined;
+  const err = body.json?.error as { message?: string; status?: string } | undefined;
+  return err?.message ? `${err.status || ""} ${err.message}`.trim().slice(0, 400) : body.text.slice(0, 300);
+}
+
 /**
  * Trouve la fiche via les APIs ACTUELLES de Google Business Profile.
  * L'ancienne "mybusiness v4" ne sert plus qu'aux avis/posts : sa liste de comptes
@@ -163,7 +170,7 @@ async function discoverLocation(accessToken: string): Promise<{
 
   const accRes = await fetch("https://mybusinessaccountmanagement.googleapis.com/v1/accounts", { headers: h });
   const acc = await readBody(accRes);
-  trace.push({ etape: "comptes v1", status: accRes.status, detail: acc.json ? undefined : acc.text });
+  trace.push({ etape: "comptes v1", status: accRes.status, detail: detailOf(accRes, acc) });
 
   const accounts = (acc.json?.accounts as { name?: string }[] | undefined) || [];
   if (!accRes.ok || accounts.length === 0) {
@@ -177,7 +184,7 @@ async function discoverLocation(accessToken: string): Promise<{
       { headers: h }
     );
     const loc = await readBody(locRes);
-    trace.push({ etape: `fiches de ${account.name}`, status: locRes.status, detail: loc.json ? undefined : loc.text });
+    trace.push({ etape: `fiches de ${account.name}`, status: locRes.status, detail: detailOf(locRes, loc) });
     const locations = (loc.json?.locations as Record<string, unknown>[] | undefined) || [];
     if (locations.length > 0) {
       const l = locations[0];
