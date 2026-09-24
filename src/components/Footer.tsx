@@ -138,6 +138,16 @@ export default function Footer() {
                 2275 Avenue Royale<br />
                 Québec, QC G1C 1P5
               </p>
+              {/* Déménagement : visible sur toutes les pages (clients qui ont l'ancienne
+                  adresse en tête) et lu par Google, qui associe l'ancien lieu au nouveau. */}
+              <p style={{ color: "#E05A5A", fontSize: "12px", lineHeight: 1.6, marginTop: "8px" }}>
+                🔴 Nouvelle adresse — on a déménagé du 375 boul. des Chutes.
+              </p>
+              <a href="https://www.google.com/maps/dir/?api=1&destination=46.883758%2C-71.159241"
+                target="_blank" rel="noopener noreferrer"
+                style={{ color: "#777", fontSize: "12px", textDecoration: "underline", display: "inline-block", marginTop: "6px" }}>
+                Itinéraire
+              </a>
               <a href="tel:4186655703" style={{
                 color: "#D4AF37",
                 textDecoration: "none",
