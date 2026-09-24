@@ -31,6 +31,31 @@ export default function SantePage() {
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [gmb, setGmb] = useState<{ verdict?: string; ecartMetres?: number | null; pinGoogle?: { latitude?: number; longitude?: number } | null; error?: string } | null>(null);
+  const [gmbBusy, setGmbBusy] = useState<"" | "check" | "fix">("");
+  const [gmbMsg, setGmbMsg] = useState("");
+
+  const gmbCheck = useCallback(async () => {
+    setGmbBusy("check"); setGmbMsg("");
+    try {
+      const res = await fetch("/api/admin/google-pin");
+      setGmb(await res.json());
+    } catch { setGmbMsg("Vérification impossible (réseau)."); }
+    setGmbBusy("");
+  }, []);
+
+  const gmbFix = useCallback(async () => {
+    setGmbBusy("fix"); setGmbMsg("");
+    try {
+      const res = await fetch("/api/admin/google-pin", { method: "POST" });
+      const data = await res.json();
+      setGmbMsg(data.ok
+        ? `Pin replacé sur le bon local (écart : ${data.apres?.ecartMetres ?? "?"} m). ${data.note}`
+        : `Échec : ${data.pin?.error || data.error || "erreur inconnue"}. ${data.note || ""}`);
+      await gmbCheck();
+    } catch { setGmbMsg("Envoi impossible (réseau)."); }
+    setGmbBusy("");
+  }, [gmbCheck]);
 
   const check = useCallback(async () => {
     setRefreshing(true);
@@ -130,6 +155,39 @@ export default function SantePage() {
               );
             })
           )}
+        </div>
+
+        {/* Fiche Google — adresse & GPS (déménagement) */}
+        <div style={{ background: "#111", border: "1px solid #1A1A1A", borderRadius: "10px", padding: "28px", marginBottom: "32px" }}>
+          <p style={{ color: "#C9A84C", fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase", marginBottom: "12px" }}>Fiche Google — Adresse &amp; GPS</p>
+          <p style={{ color: "#555", fontSize: "12px", lineHeight: 1.7, marginBottom: "18px" }}>
+            Le bouton « Itinéraire » de Google suit le <strong style={{ color: "#777" }}>point sur la carte</strong>, pas le texte de l&apos;adresse.
+            Après un déménagement, Google garde souvent l&apos;ancien point : les clients se font envoyer au vieux local.
+            Adresse attendue : 2275 Avenue Royale, Québec (46.8838, -71.1592).
+          </p>
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: gmb || gmbMsg ? "18px" : 0 }}>
+            <button onClick={gmbCheck} disabled={gmbBusy !== ""}
+              style={{ background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.3)", color: "#C9A84C", padding: "10px 20px", fontSize: "12px", letterSpacing: "1px", cursor: gmbBusy ? "wait" : "pointer", borderRadius: "8px", fontWeight: 600 }}>
+              {gmbBusy === "check" ? "Vérification..." : "Vérifier le GPS de la fiche"}
+            </button>
+            <button onClick={gmbFix} disabled={gmbBusy !== ""}
+              style={{ background: "rgba(238,85,85,0.08)", border: "1px solid rgba(238,85,85,0.25)", color: "#e88", padding: "10px 20px", fontSize: "12px", letterSpacing: "1px", cursor: gmbBusy ? "wait" : "pointer", borderRadius: "8px", fontWeight: 600 }}>
+              {gmbBusy === "fix" ? "Correction..." : "Replacer le point sur le bon local"}
+            </button>
+          </div>
+          {gmb && (
+            <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid #1A1A1A", borderRadius: "8px", padding: "16px" }}>
+              <p style={{ color: (gmb.ecartMetres ?? 0) > 150 ? "#e55" : "#5a5", fontSize: "13px", marginBottom: "6px" }}>
+                {gmb.verdict || gmb.error || "—"}
+              </p>
+              {gmb.pinGoogle && (
+                <p style={{ color: "#444", fontSize: "11px" }}>
+                  Point stocké par Google : {gmb.pinGoogle.latitude}, {gmb.pinGoogle.longitude}
+                </p>
+              )}
+            </div>
+          )}
+          {gmbMsg && <p style={{ color: "#C9A84C", fontSize: "12px", marginTop: "12px", lineHeight: 1.6 }}>{gmbMsg}</p>}
         </div>
 
         {/* Protections actives */}

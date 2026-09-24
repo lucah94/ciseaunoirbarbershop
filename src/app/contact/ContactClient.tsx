@@ -57,7 +57,7 @@ export default function ContactClient() {
                   Canada
                 </address>
                 <a
-                  href="https://maps.google.com/?q=2275+Avenue+Royale+Quebec"
+                  href="https://www.google.com/maps/dir/?api=1&destination=46.883758%2C-71.159241"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: "#C9A84C", fontSize: "12px", letterSpacing: "1px", textDecoration: "none", display: "inline-block", marginTop: "12px", borderBottom: "1px solid #C9A84C", paddingBottom: "2px" }}
@@ -176,7 +176,7 @@ export default function ContactClient() {
           </p>
           <div style={{ width: "60px", height: "2px", background: "#C9A84C", margin: "0 auto 32px" }} />
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2727.5!2d-71.2150!3d46.8800!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zQ2lzZWF1K05vaXIrQmFyYmVyc2hvcCtRdWViZWMrQ2FuYWRh!5e0!3m2!1sfr!2sca!4v1&q=Ciseau+Noir+Barbershop+Quebec+Canada"
+            src="https://www.google.com/maps?q=46.883758,-71.159241&z=17&hl=fr&output=embed"
             width="100%"
             height="400"
             style={{
