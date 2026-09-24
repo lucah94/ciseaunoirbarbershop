@@ -315,6 +315,9 @@ export default function AgendaPage() {
             time: newRDV.time,
             note: newRDV.note.trim(),
             status: "confirmed",
+            // Entre a la main dans l'admin = telephone / sans rendez-vous, PAS le site web.
+            // Melynda voyait ces RDV dans "Direct / Site", ce qui faussait les sources.
+            source: "comptoir",
             force: true,
           };
       const res = await fetch(endpoint, {

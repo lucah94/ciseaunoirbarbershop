@@ -139,6 +139,7 @@ const SOURCE_LABELS: Record<string, { label: string; color: string; icon: string
   instagram: { label: "Instagram", color: "#E1306C", icon: "📸" },
   referral: { label: "Parrainage", color: "#5a5", icon: "🤝" },
   messenger: { label: "Messenger", color: "#0084FF", icon: "💬" },
+  comptoir: { label: "Comptoir / Téléphone", color: "#999", icon: "☎️" },
 };
 
 export default function AdminPage() {

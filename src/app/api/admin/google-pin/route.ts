@@ -41,6 +41,9 @@ export async function GET(req: NextRequest) {
     adresseGoogle: loc.address ?? null,
     fiche: loc.raw ?? null,
     name: loc.name ?? null,
+    // Codes HTTP de chaque étape : distingue "API pas activée dans le projet Google"
+    // d'un "scope OAuth insuffisant" — les deux donnent 403 mais ne se règlent pas pareil.
+    trace: loc.trace ?? null,
     error: loc.error,
   }, { status: loc.success ? 200 : 502 });
 }

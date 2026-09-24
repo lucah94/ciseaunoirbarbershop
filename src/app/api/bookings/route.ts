@@ -22,7 +22,9 @@ const bookingSchema = z.object({
   price: z.number().optional(),
   note: z.string().max(500).optional().or(z.literal("")),
   status: z.enum(["confirmed", "completed", "cancelled", "no_show"]).optional().default("confirmed"),
-  source: z.enum(["direct", "google", "facebook", "instagram", "referral", "messenger"]).optional().default("direct"),
+  // "comptoir" = RDV entre a la main dans l'admin (sans rendez-vous, telephone, walk-in).
+  // Sans ca, ces RDV etaient comptes comme "Direct / Site" et gonflaient le trafic web.
+  source: z.enum(["direct", "google", "facebook", "instagram", "referral", "messenger", "comptoir"]).optional().default("direct"),
 });
 
 // Champs PII retirés des réponses publiques en masse (?date= / liste).
