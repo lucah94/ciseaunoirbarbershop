@@ -670,18 +670,34 @@ export async function GET(req: NextRequest) {
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
-  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+  // .trim() des deux côtés : même piège d'espace parasite dans la variable Vercel.
+  if (mode === "subscribe" && token?.trim() === VERIFY_TOKEN?.trim()) {
     return new NextResponse(challenge, { status: 200 });
   }
 
   return NextResponse.json({ error: "Verification failed" }, { status: 403 });
 }
 
-// Verify Facebook webhook signature
+/**
+ * Vérifie la signature du webhook Facebook.
+ *
+ * Deux pièges corrigés ici, tous les deux silencieux (Meta livre, on répond 403,
+ * plus aucun message n'arrive et RIEN n'apparaît dans les logs métier) :
+ *  1. un espace ou un retour de ligne collé au bout de FACEBOOK_APP_SECRET dans
+ *     Vercel change le HMAC → signature toujours fausse. C'est exactement le bug
+ *     qui avait cassé les liens SMS (NEXT_PUBLIC_SITE_URL) et Analytics en sept.
+ *  2. timingSafeEqual LANCE une exception si les deux tampons n'ont pas la même
+ *     longueur — un en-tête tronqué faisait donc planter la requête au lieu de
+ *     répondre "signature invalide".
+ */
 function verifyFacebookSignature(rawBody: string, signature: string | null): boolean {
-  if (!signature || !process.env.FACEBOOK_APP_SECRET) return false;
-  const expectedSig = "sha256=" + crypto.createHmac("sha256", process.env.FACEBOOK_APP_SECRET).update(rawBody).digest("hex");
-  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig));
+  const secret = process.env.FACEBOOK_APP_SECRET?.trim();
+  if (!signature || !secret) return false;
+  const expectedSig = "sha256=" + crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const a = Buffer.from(signature.trim());
+  const b = Buffer.from(expectedSig);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 }
 
 // POST: webhook Messenger — RÉPONSE INSTANTANÉE (live). Facebook pousse le message ici dès
@@ -700,6 +716,12 @@ export async function POST(req: NextRequest) {
     const signature = req.headers.get("x-hub-signature-256");
 
     if (!verifyFacebookSignature(rawBody, signature)) {
+      // Trace explicite : sans ça, un webhook rejeté est indistinguable d'un client
+      // qui n'écrit pas. Visible dans les logs Vercel, sans jamais exposer le secret.
+      console.error(
+        `[messenger] WEBHOOK REJETÉ — signature invalide. En-tête reçu: ${signature ? "oui" : "NON"}, ` +
+        `secret configuré: ${process.env.FACEBOOK_APP_SECRET ? "oui" : "NON"}, taille du corps: ${rawBody.length}`
+      );
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
     }
 
