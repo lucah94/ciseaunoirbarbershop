@@ -222,10 +222,19 @@ export async function sendConfirmationReminderEmail(booking: {
           </a>
         </div>
 
-        <div style="background: #111; border-left: 2px solid #C9A84C; padding: 16px 20px; margin-bottom: 24px;">
+        <div style="background: #111; border-left: 2px solid #C9A84C; padding: 16px 20px; margin-bottom: 12px;">
           <p style="color: #888; font-size: 13px; margin: 0; line-height: 1.7;">
             📍 2275 Avenue Royale, Québec, QC G1C 1P5<br>
             📞 (418) 665-5703
+          </p>
+        </div>
+
+        <!-- Déménagement : visible d'un coup d'oeil, sinon le client roule vers l'ancien local -->
+        <div style="background: rgba(200,60,60,0.10); border: 1px solid #C83C3C; border-radius: 6px; padding: 14px 20px; margin-bottom: 24px;">
+          <p style="color: #E05A5A; font-size: 12px; font-weight: bold; letter-spacing: 1px; margin: 0 0 6px;">🔴 NOUVELLE ADRESSE</p>
+          <p style="color: #CCC; font-size: 13px; margin: 0; line-height: 1.6;">
+            On a déménagé — c'est maintenant au <strong style="color:#FFF;">2275 Avenue Royale</strong>, plus au 375 boul. des Chutes.
+            <a href="https://www.google.com/maps/dir/?api=1&amp;destination=46.883758%2C-71.159241" style="color:#E05A5A;">Voir l'itinéraire</a>
           </p>
         </div>
 

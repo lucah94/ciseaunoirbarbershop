@@ -851,6 +851,17 @@ function BookingContent() {
               <p style={{ color: "#999", fontSize: "14px", marginBottom: "10px" }}>{selected.date} à {selected.time}</p>
               <div style={{ height: "1px", background: "rgba(212,175,55,0.15)", margin: "16px 0" }} />
               <p style={{ color: "#666", fontSize: "13px" }}>2275 Avenue Royale, Québec</p>
+              {/* Déménagement — le client doit le voir AVANT de partir vers l'ancien local. */}
+              <div style={{ marginTop: "12px", padding: "10px 12px", background: "rgba(200,60,60,0.08)", border: "1px solid rgba(200,60,60,0.35)", borderRadius: "8px" }}>
+                <p style={{ color: "#E05A5A", fontSize: "12px", fontWeight: 600, letterSpacing: "1px", marginBottom: "4px" }}>🔴 NOUVELLE ADRESSE</p>
+                <p style={{ color: "#C9C9C9", fontSize: "12px", lineHeight: 1.5 }}>
+                  On a déménagé : c&apos;est maintenant au <strong style={{ color: "#F0F0F0" }}>2275 Avenue Royale</strong> (plus au 375 boul. des Chutes).
+                </p>
+                <a href="https://www.google.com/maps/dir/?api=1&destination=46.883758%2C-71.159241" target="_blank" rel="noopener noreferrer"
+                  style={{ color: "#E05A5A", fontSize: "12px", textDecoration: "underline", display: "inline-block", marginTop: "6px" }}>
+                  Voir l&apos;itinéraire →
+                </a>
+              </div>
             </div>
             <p style={{ color: "#666", fontSize: "13px", marginBottom: "24px" }}>Un rappel vous sera envoyé 24h avant votre rendez-vous.</p>
 
@@ -1439,7 +1450,12 @@ function BookingContent() {
                                   ))}
                                 </div>
                               ) : (
-                                <p style={{ color: "#444", fontSize: "12px", textAlign: "center", padding: "20px 0", lineHeight: 1.6 }}>Complet ce jour</p>
+                                <div style={{ textAlign: "center", padding: "18px 12px", background: "rgba(200,60,60,0.08)", border: "1px solid rgba(200,60,60,0.35)", borderRadius: "10px" }}>
+                                  <p style={{ color: "#E05A5A", fontSize: "18px", fontWeight: 700, letterSpacing: "3px" }}>COMPLET</p>
+                                  <p style={{ color: "#8A8A8A", fontSize: "12px", marginTop: "6px", lineHeight: 1.5 }}>
+                                    {b.name} travaille cette journée, mais toutes les places sont prises.<br />Essayez une autre date.
+                                  </p>
+                                </div>
                               )}
                             </div>
                           );

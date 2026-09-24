@@ -81,7 +81,7 @@ export async function sendBookingConfirmationSMS(booking: {
   await getClient().messages.create({
     from: getFromNumber(),
     to: formatPhone(booking.client_phone),
-    body: `Ciseau Noir ✂️ Réservation confirmée !\n\n${booking.service} avec ${booking.barber}\n📅 ${dateFormatted} à ${booking.time}\n📍 2275 Avenue Royale, Québec${calendarLine}${manageLine}`,
+    body: `Ciseau Noir ✂️ Réservation confirmée !\n\n${booking.service} avec ${booking.barber}\n📅 ${dateFormatted} à ${booking.time}\n📍 2275 Avenue Royale, Québec\n🔴 NOUVELLE ADRESSE (on a déménagé du 375 boul. des Chutes)${calendarLine}${manageLine}`,
   });
 }
 

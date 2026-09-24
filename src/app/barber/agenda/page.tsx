@@ -435,12 +435,12 @@ export default function BarberAgendaPage() {
                 border-color: rgba(212,175,55,0.12) !important;
               }
               .fc .fc-timegrid-now-indicator-line {
-                border-color: #D4AF37 !important;
+                border-color: #FF3B30 !important;
                 border-width: 2px !important;
-                box-shadow: 0 0 12px rgba(212,175,55,0.5), 0 0 24px rgba(212,175,55,0.2) !important;
+                box-shadow: 0 0 12px rgba(255,59,48,0.6), 0 0 24px rgba(255,59,48,0.25) !important;
               }
               .fc .fc-timegrid-now-indicator-arrow {
-                border-color: #D4AF37 !important;
+                border-color: #FF3B30 !important;
                 border-top-color: transparent !important;
                 border-bottom-color: transparent !important;
               }

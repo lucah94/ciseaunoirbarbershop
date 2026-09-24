@@ -545,6 +545,9 @@ export default function AgendaPage() {
     };
     barbers.forEach(b => Object.values(b.schedule || {}).forEach(d => { if (d) { consider(d.open); consider(d.close); } }));
     bookings.forEach(b => { if (b.status !== "cancelled") { consider(b.time); consider((b as Booking & { end_time?: string }).end_time); } });
+    // Les horaires bloqués comptent aussi : sans ça, un blocage plus tôt/plus tard que
+    // les heures d'ouverture tombait hors de la grille et devenait invisible.
+    blocks.forEach(bl => { consider(bl.start_time); consider(bl.end_time); });
     if (minM >= maxM) return { gridMin: "08:00:00", gridMax: "21:00:00" };
     minM = Math.max(0, minM - 30);
     maxM = Math.min(24 * 60, maxM + 30);
@@ -984,12 +987,12 @@ export default function AgendaPage() {
                   border-color: rgba(212,175,55,0.12) !important;
                 }
                 .fc .fc-timegrid-now-indicator-line {
-                  border-color: #D4AF37 !important;
+                  border-color: #FF3B30 !important;
                   border-width: 2px !important;
-                  box-shadow: 0 0 12px rgba(212,175,55,0.5), 0 0 24px rgba(212,175,55,0.2) !important;
+                  box-shadow: 0 0 12px rgba(255,59,48,0.6), 0 0 24px rgba(255,59,48,0.25) !important;
                 }
                 .fc .fc-timegrid-now-indicator-arrow {
-                  border-color: #D4AF37 !important;
+                  border-color: #FF3B30 !important;
                   border-top-color: transparent !important;
                   border-bottom-color: transparent !important;
                 }
@@ -1088,7 +1091,16 @@ export default function AgendaPage() {
                   const b = info.event.extendedProps.booking as Booking;
                   const newDate = info.event.startStr.split("T")[0];
                   const newTime = info.event.startStr.split("T")[1]?.slice(0, 5) || b.time;
-                  if (!confirm(`Deplacer ce rendez-vous au ${newDate} a ${newTime} ?`)) { info.revert(); return; }
+                  // Melynda : question claire + OUI enregistre, NON remet le RDV à son heure initiale.
+                  const avant = `${b.date} à ${b.time}`;
+                  const apres = `${newDate} à ${newTime}`;
+                  const ok = confirm(
+                    `Voulez-vous enregistrer cette modification ?\n\n` +
+                    `${b.client_name || "Client"} — ${b.service || "rendez-vous"}\n` +
+                    `${avant}  →  ${apres}\n\n` +
+                    `OK = enregistrer la nouvelle heure\nAnnuler = remettre le rendez-vous à son heure initiale`
+                  );
+                  if (!ok) { info.revert(); return; }
                   const res = await fetch("/api/bookings", {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
@@ -1125,6 +1137,14 @@ export default function AgendaPage() {
                   if (!endStr) { info.revert(); return; }
                   const newEndTime = endStr.split("T")[1]?.slice(0, 5);
                   if (!newEndTime) { info.revert(); return; }
+                  // Même garde-fou que pour un déplacement : un étirement accidentel
+                  // changeait la durée sans rien demander.
+                  if (!confirm(
+                    `Voulez-vous enregistrer cette modification ?\n\n` +
+                    `${b.client_name || "Client"} — ${b.service || "rendez-vous"}\n` +
+                    `Le rendez-vous se terminerait maintenant à ${newEndTime}\n\n` +
+                    `OK = enregistrer\nAnnuler = remettre la durée initiale`
+                  )) { info.revert(); return; }
                   const res = await fetch("/api/bookings", {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
