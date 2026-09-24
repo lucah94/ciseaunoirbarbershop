@@ -25,14 +25,20 @@ export const MODELS = {
   // sur Telegram avant publication. Peut être rate-limité ou retiré → generateText
   // retombe alors sur le modèle FAST (des cennes), JAMAIS directement sur SMART (le cher).
   // Ne PAS l'utiliser pour les conversations clients (PII).
+  // Testé en production le 24 sept. 2026 : les modèles à 0$ d'OpenRouter répondent
+  // 429 (rate limit) presque à chaque appel — donc chaque post partait en erreur
+  // puis retombait sur le modèle suivant. On garde le niveau, mais pointé sur un
+  // modèle QUASI gratuit et fiable : 0.05$/MTok = environ 5 cennes pour 1000 posts.
   // (L'ancien "meta-llama/llama-3.3-70b-instruct:free" a été retiré d'OpenRouter.)
-  FREE: "google/gemma-4-31b-it:free",
+  FREE: "deepseek/deepseek-v4-flash",
 
   // Tâches simples: classification, réponses courtes (0.05$ / 0.10$ le MTok)
   FAST: "deepseek/deepseek-v4-flash",
 
-  // Tâches moyennes: conversations clients, analyse emails (0.15$ / 0.60$ le MTok)
-  BALANCED: "deepseek/deepseek-v4.1-flash",
+  // Tâches moyennes: conversations clients, analyse emails (0.27$ / 0.40$ le MTok).
+  // PAS un modèle de raisonnement : v4.1-flash dépense ses tokens à "réfléchir" et
+  // peut ne renvoyer aucun texte sur une réponse courte — mauvais pour un chat client.
+  BALANCED: "deepseek/deepseek-v3.2",
 
   // Tâches complexes: Figaro, raisonnement profond (2$ / 10$ le MTok — le CHER des quatre,
   // mais moins cher ET meilleur que l'ancien Sonnet 4.6 visé, qui était mal orthographié).
