@@ -13,7 +13,11 @@ export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
   if (!code) return NextResponse.json({ error: "No code" }, { status: 400 });
 
-  const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL}/api/google/gmail-callback`;
+  // Même domaine que /api/google/auth (le flux fiche Google, qui marche) : l'URL de
+  // redirection doit être EXACTEMENT celle enregistrée dans Google Cloud Console — un
+  // domaine différent (même s'il pointe au même site) donne "redirect_uri_mismatch".
+  // NEXT_PUBLIC_SITE_URL pointe sur le domaine custom, jamais enregistré pour Gmail.
+  const redirectUri = "https://ciseau-noir.vercel.app/api/google/gmail-callback";
 
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
