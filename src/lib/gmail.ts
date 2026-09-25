@@ -13,7 +13,12 @@ async function getRefreshToken(): Promise<string> {
   } catch {
     // fall through to env var
   }
-  return (process.env.GOOGLE_REFRESH_TOKEN || process.env.GMAIL_REFRESH_TOKEN)!;
+  // GMAIL_REFRESH_TOKEN d'abord : GOOGLE_REFRESH_TOKEN sert AUSSI à la fiche Google
+  // Business Profile (scope différent, "business.manage"). Avant ce fix, si les deux
+  // variables étaient présentes, un jeton "fiche d'entreprise" gagnait toujours et
+  // cassait Gmail en silence — exactement ce qui est arrivé le 25 sept 2026 quand
+  // GOOGLE_REFRESH_TOKEN a été régénéré pour réparer la fiche Google.
+  return (process.env.GMAIL_REFRESH_TOKEN || process.env.GOOGLE_REFRESH_TOKEN)!;
 }
 
 export async function getGmailToken(): Promise<string> {
