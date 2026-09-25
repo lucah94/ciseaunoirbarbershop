@@ -15,7 +15,15 @@ export async function GET(req: NextRequest) {
     client_id: CLIENT_ID,
     redirect_uri: REDIRECT_URI,
     response_type: "code",
-    scope: "https://www.googleapis.com/auth/business.manage",
+    // Les DEUX scopes en un seul consentement : l'autre redirect_uri
+    // (/api/google/gmail-callback) n'est PAS enregistrée dans Google Cloud
+    // Console (seule celle-ci l'est) — 25 sept 2026, redirect_uri_mismatch
+    // confirmé en direct. Reprend le seul token combiné qui marchait avant
+    // la révocation d'aujourd'hui, cette fois demandé explicitement.
+    scope: [
+      "https://www.googleapis.com/auth/business.manage",
+      "https://www.googleapis.com/auth/gmail.modify",
+    ].join(" "),
     access_type: "offline",
     prompt: "select_account consent",
     login_hint: "",
