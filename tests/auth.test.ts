@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { generateToken, verifyToken, requireAdmin, requireBarber } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
@@ -129,5 +129,52 @@ describe("requireBarber", () => {
     const response = requireBarber(req);
     expect(response).not.toBeNull();
     expect(response!.status).toBe(401);
+  });
+});
+
+// ─── Faille corrigée le 25 sept 2026 : plus AUCUN repli codé en dur ──────────
+//
+// Avant: getSecret() retombait sur la chaîne "ciseau-noir-fallback" si
+// ADMIN_PASSWORD et CRON_SECRET étaient absents. Cette chaîne était visible dans
+// le code source (donc publique) — sur un environnement qui n'a ni l'un ni
+// l'autre configuré (confirmé: c'était le cas de TOUS les previews Vercel de ce
+// projet), n'importe qui pouvait calculer lui-même un cookie admin_auth valide
+// et entrer dans /admin sans jamais toucher /api/auth/login — aucun mot de
+// passe, aucune limite de tentatives. Ces tests verrouillent le refus.
+
+describe("getSecret — aucun repli codé en dur (faille corrigée)", () => {
+  const savedAdmin = process.env.ADMIN_PASSWORD;
+  const savedCron = process.env.CRON_SECRET;
+
+  beforeEach(() => {
+    delete process.env.ADMIN_PASSWORD;
+    delete process.env.CRON_SECRET;
+  });
+
+  afterEach(() => {
+    if (savedAdmin !== undefined) process.env.ADMIN_PASSWORD = savedAdmin;
+    if (savedCron !== undefined) process.env.CRON_SECRET = savedCron;
+  });
+
+  it("verifyToken refuse (false) quand aucun secret n'est configuré — même avec l'ANCIEN jeton fallback", () => {
+    // Le jeton que l'ancien code aurait accepté (HMAC-SHA256 de "admin" avec la
+    // chaîne fallback qui était visible dans le code source public).
+    const crypto = require("crypto");
+    const oldFallbackToken = crypto.createHmac("sha256", "ciseau-noir-fallback").update("admin").digest("hex");
+    expect(verifyToken("admin", oldFallbackToken)).toBe(false);
+  });
+
+  it("requireAdmin refuse (401) quand aucun secret n'est configuré, même avec l'ancien jeton fallback", () => {
+    const crypto = require("crypto");
+    const oldFallbackToken = crypto.createHmac("sha256", "ciseau-noir-fallback").update("admin").digest("hex");
+    const req = {
+      cookies: { get: (name: string) => (name === "admin_auth" ? { value: oldFallbackToken } : undefined) },
+    } as unknown as NextRequest;
+    const res = requireAdmin(req);
+    expect(res?.status).toBe(401);
+  });
+
+  it("generateToken lève une erreur claire plutôt que d'utiliser un secret devinable", () => {
+    expect(() => generateToken("admin")).toThrow(/ADMIN_PASSWORD ou CRON_SECRET manquant/);
   });
 });

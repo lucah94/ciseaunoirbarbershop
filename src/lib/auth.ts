@@ -7,7 +7,23 @@ import { NextRequest, NextResponse } from "next/server";
  * Not guessable without knowing the server secret.
  */
 function getSecret(): string {
-  return process.env.ADMIN_PASSWORD || process.env.CRON_SECRET || "ciseau-noir-fallback";
+  const secret = process.env.ADMIN_PASSWORD || process.env.CRON_SECRET;
+  if (!secret) {
+    // AUCUN repli codé en dur. L'ancien "ciseau-noir-fallback" était visible dans le
+    // code source (donc public) — sur n'importe quel environnement où ADMIN_PASSWORD
+    // ET CRON_SECRET sont absents (ex. preview Vercel, machine locale mal configurée),
+    // n'importe qui pouvait calculer lui-même un cookie admin_auth valide et entrer
+    // dans /admin SANS jamais passer par /api/auth/login — la limite de tentatives et
+    // le vrai mot de passe étaient totalement court-circuités. Trouvé en audit le 25
+    // sept 2026 (confirmé: ADMIN_PASSWORD et CRON_SECRET ne sont configurés QUE sur
+    // Production dans Vercel — un preview les a toujours manqués).
+    // Refuser plutôt que d'accepter avec un secret devinable : verifyToken() enveloppe
+    // TOUT (y compris cet appel) dans un try/catch → refus propre (401), pas un crash.
+    // generateToken()/generateBarberToken() à la connexion ne sont appelés qu'après un
+    // vrai mot de passe validé (login/barber-login) — jamais atteints ici en pratique.
+    throw new Error("ADMIN_PASSWORD ou CRON_SECRET manquant — authentification refusée (pas de repli).");
+  }
+  return secret;
 }
 
 export function generateToken(role: "admin" | "barber"): string {
@@ -15,9 +31,11 @@ export function generateToken(role: "admin" | "barber"): string {
 }
 
 export function verifyToken(role: "admin" | "barber", token: string): boolean {
-  const expected = generateToken(role);
-  if (token.length !== expected.length) return false;
+  // TOUT le calcul est dans le try — si getSecret() refuse (secret manquant), c'est un
+  // refus propre (false → 401) plutôt qu'une exception non gérée qui remontait en 500.
   try {
+    const expected = generateToken(role);
+    if (token.length !== expected.length) return false;
     return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
   } catch {
     return false;
