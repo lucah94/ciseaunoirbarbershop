@@ -18,6 +18,17 @@ function isConfigured() {
   return !!(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_GROUP_CHAT_ID);
 }
 
+/**
+ * Échappe le texte libre (nom, message, note...) avant de l'injecter dans un message
+ * parse_mode HTML. SANS ÇA : un client avec un "&", "<" ou ">" dans son nom ou son
+ * message (ex. "R&B", "Jean <3 les cheveux courts") fait rejeter TOUT le message par
+ * Telegram (400) — et sendMessage() avale l'erreur en silence, donc l'alerte disparaît
+ * sans trace. Bug trouvé le 25 sept 2026 : la moitié des formatters ne l'appliquaient pas.
+ */
+function esc(s: string | undefined | null): string {
+  return (s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 async function sendMessage(text: string, parseMode: "HTML" | "Markdown" = "HTML"): Promise<boolean> {
   if (!isConfigured()) return false;
   try {
@@ -31,8 +42,14 @@ async function sendMessage(text: string, parseMode: "HTML" | "Markdown" = "HTML"
         disable_web_page_preview: true,
       }),
     });
+    if (!res.ok) {
+      // Avant: echec avale en silence, aucune trace. Une alerte "disparue" etait
+      // indistinguable d'une alerte jamais declenchee.
+      console.error(`[telegram] sendMessage a echoue (HTTP ${res.status}): ${(await res.text()).slice(0, 300)}`);
+    }
     return res.ok;
-  } catch {
+  } catch (e) {
+    console.error(`[telegram] sendMessage a leve une exception:`, e);
     return false;
   }
 }
@@ -61,15 +78,13 @@ export async function notifyNewBooking(booking: {
 }) {
   const sourceIcon = booking.source === "google" ? "🔍" : booking.source === "facebook" ? "📘" : booking.source === "instagram" ? "📸" : booking.source === "messenger" ? "💬" : "🌐";
   // Note du client bien en évidence (demande Melynda : les notes ne sont pas visibles dans l'agenda).
-  // Échappe le texte libre du client pour ne pas casser le HTML Telegram.
-  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const noteLine = booking.note && booking.note.trim()
     ? `\n\n📝 <b>NOTE DU CLIENT :</b>\n${esc(booking.note.trim())}`
     : "";
   await sendMessage(
     `✂️ <b>Nouveau RDV</b> ${sourceIcon}\n\n` +
-    `👤 ${booking.client_name}\n` +
-    `📞 ${booking.client_phone}\n` +
+    `👤 ${esc(booking.client_name)}\n` +
+    `📞 ${esc(booking.client_phone)}\n` +
     `💈 ${booking.service} — ${booking.price}$\n` +
     `👨‍💼 ${booking.barber}\n` +
     `📅 ${formatDate(booking.date)} à ${booking.time}` +
@@ -87,7 +102,7 @@ export async function notifyBookingCancelled(booking: {
 }) {
   await sendMessage(
     `❌ <b>RDV annulé</b>\n\n` +
-    `👤 ${booking.client_name}\n` +
+    `👤 ${esc(booking.client_name)}\n` +
     `💈 ${booking.service} — ${booking.barber}\n` +
     `📅 ${formatDate(booking.date)} à ${booking.time}\n\n` +
     `<i>Slot maintenant disponible</i>`
@@ -106,7 +121,7 @@ export async function notifyBookingRescheduled(booking: {
 }) {
   await sendMessage(
     `🔄 <b>RDV déplacé</b>\n\n` +
-    `👤 ${booking.client_name} — ${booking.service}\n` +
+    `👤 ${esc(booking.client_name)} — ${esc(booking.service)}\n` +
     `👨‍💼 ${booking.barber}\n` +
     `<s>${formatDate(booking.old_date)} à ${booking.old_time}</s>\n` +
     `→ ${formatDate(booking.new_date)} à ${booking.new_time}`
@@ -139,7 +154,7 @@ export async function proposeRescheduleNotification(opts: {
         chat_id: getChatId(),
         text:
           `🔄 <b>RDV déplacé</b>\n\n` +
-          `👤 ${opts.clientName} — ${opts.service}\n` +
+          `👤 ${esc(opts.clientName)} — ${esc(opts.service)}\n` +
           `👨‍💼 ${opts.barber}\n` +
           `<s>${formatDate(opts.oldDate)} à ${opts.oldTime}</s>\n` +
           `→ ${formatDate(opts.newDate)} à ${opts.newTime}\n\n` +
@@ -170,7 +185,7 @@ export async function notifyNoShow(booking: {
 }) {
   await sendMessage(
     `👻 <b>No-show</b>\n\n` +
-    `👤 ${booking.client_name} (${booking.client_phone})\n` +
+    `👤 ${esc(booking.client_name)} (${esc(booking.client_phone)})\n` +
     `💈 ${booking.service} — ${booking.barber}\n` +
     `📅 ${formatDate(booking.date)} à ${booking.time}\n\n` +
     `<i>SMS de relance envoyé au client</i>`
@@ -186,7 +201,7 @@ export async function notifyNoShowDigest(bookings: {
 }[]) {
   if (!bookings.length) return;
   const lines = bookings
-    .map(b => `• ${b.time} — ${b.client_name} (${b.barber}) · ${b.service}`)
+    .map(b => `• ${b.time} — ${esc(b.client_name)} (${esc(b.barber)}) · ${esc(b.service)}`)
     .join("\n");
   const n = bookings.length;
   await sendMessage(
@@ -210,8 +225,8 @@ export async function notifyEscalation(opts: {
   const aiNote = opts.ai_response ? `\n\n🤖 <i>Réponse auto envoyée</i>` : `\n\n⚠️ <b>Réponse manuelle requise</b>`;
   await sendMessage(
     `🚨 <b>Message client — ${sourceLabel}</b>\n\n` +
-    `👤 ${opts.from_name} (${opts.from_email})\n\n` +
-    `"${preview}"` +
+    `👤 ${esc(opts.from_name)} (${esc(opts.from_email)})\n\n` +
+    `"${esc(preview)}"` +
     aiNote
   );
 }
@@ -286,8 +301,8 @@ export async function notifyMessengerUnreachable(opts: {
   await sendMessage(
     `📵 <b>Message Messenger non livré</b>\n\n` +
     `Un client a écrit mais le bot n'a pas pu répondre (${opts.reason}).\n\n` +
-    `👤 <b>${opts.senderName}</b>\n💬 "${opts.clientMessage.slice(0, 300)}"\n\n` +
-    `<i>Réponse que Figaro aurait envoyée (à réutiliser au besoin) :</i>\n${opts.draftReply.slice(0, 300)}\n\n` +
+    `👤 <b>${esc(opts.senderName)}</b>\n💬 "${esc(opts.clientMessage.slice(0, 300))}"\n\n` +
+    `<i>Réponse que Figaro aurait envoyée (à réutiliser au besoin) :</i>\n${esc(opts.draftReply.slice(0, 300))}\n\n` +
     `Ouvre Messenger si tu veux répondre toi-même.`
   );
 }
@@ -311,7 +326,7 @@ export async function notifyWaitlistEntry(entry: {
 }) {
   await sendMessage(
     `⏳ <b>Liste d'attente</b>\n\n` +
-    `👤 ${entry.client_name} attend un slot\n` +
+    `👤 ${esc(entry.client_name)} attend un slot\n` +
     `💈 ${entry.service} — ${entry.barber}\n` +
     `📅 ${formatDate(entry.date)} à ${entry.time}`
   );
@@ -324,8 +339,6 @@ export async function notifyNewContactMessage(opts: {
   message: string;
   escalated: boolean;
 }) {
-  // Texte client échappé (parse_mode HTML) — évite qu'un < ou & casse le message.
-  const esc = (s: string) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const icon = opts.escalated ? "🚨" : "📨";
   const now = new Date().toLocaleString("fr-CA", {
     timeZone: "America/Toronto", day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit", hour12: false,

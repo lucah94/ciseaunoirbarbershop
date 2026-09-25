@@ -18,7 +18,10 @@ import {
   notifyBookingCancelled,
   notifyBookingRescheduled,
   notifyNoShow,
+  notifyNoShowDigest,
   notifyEscalation,
+  notifyMessengerUnreachable,
+  proposeRescheduleNotification,
   sendDailyReport,
   sendWeeklyReport,
   notifySystemAlert,
@@ -397,4 +400,150 @@ describe("notifyLowTwilioBalance", () => {
   });
 
   it.todo("includes Twilio console URL in message");
+});
+
+// ─── Échappement HTML du texte client (bug du 25 sept 2026) ──────────────────
+//
+// Un nom/message client contenant "&", "<" ou ">" fait rejeter TOUT le message
+// par Telegram (parse_mode HTML) — et l'échec était avalé en silence, donc une
+// alerte "disparaissait" sans trace. Ces tests verrouillent que chaque
+// formatter échappe désormais son texte libre.
+
+describe("échappement HTML du texte client (anti-régression)", () => {
+  beforeEach(() => {
+    setEnv();
+    mockFetch.mockClear();
+    mockFetchOk();
+  });
+
+  it("notifyNewBooking échappe le nom, le téléphone et la note", async () => {
+    await notifyNewBooking({
+      client_name: "R&D <VIP>",
+      client_phone: "+1 418 <555> & co",
+      service: "Coupe",
+      barber: "Melynda",
+      date: "2026-06-15",
+      time: "10:00",
+      price: 35,
+      note: "Attention < peau sensible & allergies >",
+    });
+    const text = capturedText();
+    expect(text).not.toContain("R&D <VIP>");
+    expect(text).toContain("R&amp;D &lt;VIP&gt;");
+    expect(text).toContain("&lt;555&gt; &amp; co");
+    expect(text).toContain("&lt; peau sensible &amp; allergies &gt;");
+  });
+
+  it("notifyBookingCancelled échappe le nom", async () => {
+    await notifyBookingCancelled({
+      client_name: "Bob & Fils <3",
+      service: "Coupe",
+      barber: "Melynda",
+      date: "2026-06-15",
+      time: "10:00",
+    });
+    expect(capturedText()).toContain("Bob &amp; Fils &lt;3");
+  });
+
+  it("notifyBookingRescheduled échappe le nom", async () => {
+    await notifyBookingRescheduled({
+      client_name: "Client <Test>",
+      service: "Coupe",
+      barber: "Melynda",
+      old_date: "2026-06-15",
+      old_time: "10:00",
+      new_date: "2026-06-16",
+      new_time: "11:00",
+    });
+    expect(capturedText()).toContain("Client &lt;Test&gt;");
+  });
+
+  it("proposeRescheduleNotification échappe le nom (flux OUI/NON) — un nom cassé bloquait toute la demande", async () => {
+    await proposeRescheduleNotification({
+      id: "abc123",
+      clientName: "Jean & Marie <VIP>",
+      service: "Coupe",
+      barber: "Melynda",
+      oldDate: "2026-06-15",
+      oldTime: "10:00",
+      newDate: "2026-06-16",
+      newTime: "11:00",
+      hasPhone: true,
+    });
+    expect(capturedText()).toContain("Jean &amp; Marie &lt;VIP&gt;");
+  });
+
+  it("notifyNoShow échappe le nom et le téléphone", async () => {
+    await notifyNoShow({
+      client_name: "A&B <Client>",
+      client_phone: "+1<418>555",
+      service: "Coupe",
+      barber: "Melynda",
+      date: "2026-06-15",
+      time: "10:00",
+    });
+    const text = capturedText();
+    expect(text).toContain("A&amp;B &lt;Client&gt;");
+    expect(text).toContain("+1&lt;418&gt;555");
+  });
+
+  it("notifyNoShowDigest échappe chaque client de la liste (une seule case brisait tout le résumé)", async () => {
+    await notifyNoShowDigest([
+      { client_name: "OK Client", time: "10:00", barber: "Melynda", service: "Coupe" },
+      { client_name: "Cassé & <Client>", time: "11:00", barber: "Melynda", service: "Barbe" },
+    ]);
+    expect(capturedText()).toContain("Cassé &amp; &lt;Client&gt;");
+  });
+
+  it("notifyEscalation échappe nom, courriel et message", async () => {
+    await notifyEscalation({
+      from_name: "Client <VIP>",
+      from_email: "test&client@example.com",
+      message: "J'ai une question <urgente> & importante",
+    });
+    const text = capturedText();
+    expect(text).toContain("Client &lt;VIP&gt;");
+    expect(text).toContain("test&amp;client@example.com");
+    expect(text).toContain("&lt;urgente&gt; &amp; importante");
+  });
+
+  it("notifyMessengerUnreachable échappe le nom, le message et la réponse", async () => {
+    await notifyMessengerUnreachable({
+      senderName: "Client <Messenger>",
+      clientMessage: "Bonjour & bonsoir <test>",
+      draftReply: "Réponse <auto> & générée",
+      reason: "fenêtre 24h dépassée",
+    });
+    const text = capturedText();
+    expect(text).toContain("Client &lt;Messenger&gt;");
+    expect(text).toContain("Bonjour &amp; bonsoir &lt;test&gt;");
+    expect(text).toContain("Réponse &lt;auto&gt; &amp; générée");
+  });
+
+  it("notifyWaitlistEntry échappe le nom", async () => {
+    await notifyWaitlistEntry({
+      client_name: "Attente & <Client>",
+      service: "Coupe",
+      barber: "Melynda",
+      date: "2026-06-15",
+      time: "10:00",
+    });
+    expect(capturedText()).toContain("Attente &amp; &lt;Client&gt;");
+  });
+
+  it("un message rejeté par Telegram (400) ne plante pas — juste loggé (avant: avalé en silence)", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 400, text: async () => "Bad Request: can't parse entities" });
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(notifyNewBooking({
+      client_name: "Test",
+      client_phone: "+14185551234",
+      service: "Coupe",
+      barber: "Melynda",
+      date: "2026-06-15",
+      time: "10:00",
+      price: 35,
+    })).resolves.not.toThrow();
+    expect(errSpy).toHaveBeenCalled();
+    errSpy.mockRestore();
+  });
 });
