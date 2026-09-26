@@ -13,32 +13,11 @@ vi.mock("@/lib/auth", () => ({
   requireAdmin: vi.fn().mockReturnValue(null),
 }));
 
-// ── Replicated date helpers ──────────────────────────────────────────────────
-
-function weekRange(offset = 0, capToToday = false): { start: string; end: string } {
-  const now = new Date();
-  now.setDate(now.getDate() + offset * 7);
-  const day = now.getDay() || 7;
-  const mon = new Date(now);
-  mon.setDate(now.getDate() - day + 1);
-  const sun = new Date(mon);
-  sun.setDate(mon.getDate() + 6);
-  let endDate = sun;
-  if (capToToday) {
-    const todayDayOfWeek = new Date().getDay() || 7;
-    const cappedEnd = new Date(mon);
-    cappedEnd.setDate(mon.getDate() + todayDayOfWeek - 1);
-    endDate = cappedEnd;
-  }
-  return { start: mon.toISOString().split("T")[0], end: endDate.toISOString().split("T")[0] };
-}
-
-function monthRange(offset = 0): { start: string; end: string } {
-  const now = new Date();
-  const first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-  const last = new Date(now.getFullYear(), now.getMonth() + offset + 1, 0);
-  return { start: first.toISOString().split("T")[0], end: last.toISOString().split("T")[0] };
-}
+// Importe les VRAIES fonctions plutôt que d'en garder une copie ici — c'est
+// justement une copie dupliquée (qui gardait l'ancien bug via toISOString(),
+// pendant que le vrai code était corrigé) qui masquait la bascule de date
+// selon l'heure locale (25 sept 2026 : "lundi" ressortait "mardi" le soir).
+import { weekRange, monthRange } from "@/app/api/admin/stats/route";
 
 // ── weekRange ────────────────────────────────────────────────────────────────
 

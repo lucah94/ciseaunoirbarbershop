@@ -191,6 +191,65 @@ export default function ContactClient() {
             title="Ciseau Noir Barbershop — 2275 Avenue Royale, Qu&#233;bec"
           />
         </section>
+
+        {/* FAQ — même contenu que le FAQPage schema (JsonLd.tsx). Visible sur la page,
+            pas seulement dans le balisage : Google et les moteurs IA valorisent le
+            contenu extractible réellement affiché, pas un schema "fantôme" sans texte
+            correspondant à l'écran. */}
+        <section style={{ padding: "0 20px 80px", maxWidth: "760px", margin: "0 auto" }}>
+          <p style={{
+            color: "#C9A84C",
+            fontSize: "11px",
+            letterSpacing: "3px",
+            textTransform: "uppercase",
+            marginBottom: "24px",
+            textAlign: "center",
+          }}>
+            Questions fréquentes
+          </p>
+          <div style={{ width: "60px", height: "2px", background: "#C9A84C", margin: "0 auto 40px" }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
+            {[
+              {
+                q: "Où est situé Ciseau Noir Barbershop à Québec ?",
+                a: "Ciseau Noir Barbershop est au 2275 Avenue Royale, dans le secteur Courville à Beauport (ville de Québec), G1C 1P5. Le salon a déménagé en septembre 2026 — il n'est plus au 375 boulevard des Chutes.",
+              },
+              {
+                q: "Ciseau Noir a-t-il déménagé ?",
+                a: "Oui. Depuis septembre 2026, le salon est au 2275 Avenue Royale à Québec, dans des locaux rénovés. L'ancienne adresse était le 375 boulevard des Chutes.",
+              },
+              {
+                q: "Quelles sont les heures d'ouverture ?",
+                a: "Mardi et mercredi de 8 h 30 à 16 h 30, jeudi et vendredi de 8 h 30 à 19 h, samedi de 9 h à 16 h 30. Fermé le dimanche et le lundi.",
+              },
+              {
+                q: "Faut-il un rendez-vous chez Ciseau Noir ?",
+                a: "La réservation en ligne est recommandée et prend moins d'une minute sur ciseaunoirbarbershop.com/booking. Vous recevez une confirmation par SMS et par courriel, et vous pouvez annuler ou déplacer votre rendez-vous vous-même avec le lien reçu.",
+              },
+              {
+                q: "Quels services offre le barbershop ?",
+                a: "Coupe homme, coupe et barbe à la lame, rasage classique à la serviette chaude, taille de barbe, coupe enfant (12 ans et moins) et coupe au shaver. Les prix sont affichés sur la page Services.",
+              },
+              {
+                q: "Qui sont les barbières chez Ciseau Noir ?",
+                a: "Melynda, barbière et co-fondatrice, et Stéphanie, barbière. Vous choisissez avec qui vous réservez au moment de la prise de rendez-vous.",
+              },
+              {
+                q: "Combien coûte une coupe chez Ciseau Noir ?",
+                a: "Les prix vont de 25$ à 75$ selon le service : rasage seul à 25$, coupe et lavage à 35$, coupe et barbe au shaver à 45$, coupe et barbe à la lame à 60$, jusqu'au service premium complet à 75$. La liste complète est sur la page Services.",
+              },
+              {
+                q: "Y a-t-il un programme de fidélité ?",
+                a: "Oui. Après 10 visites, la 10e coupe est gratuite. La progression s'affiche automatiquement après chaque réservation.",
+              },
+            ].map((item) => (
+              <div key={item.q}>
+                <p style={{ color: "#F0F0F0", fontSize: "16px", fontWeight: 500, marginBottom: "8px" }}>{item.q}</p>
+                <p style={{ color: "#999", fontSize: "14px", lineHeight: 1.7 }}>{item.a}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       </main>
       <Footer />
     </>

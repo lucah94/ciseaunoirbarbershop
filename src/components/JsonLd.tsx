@@ -1,4 +1,30 @@
-export default function JsonLd() {
+// Étoffe la fiche BarberShop avec de VRAIS avis Google (texte réel, pas de
+// paraphrase) — les moteurs IA (GEO) valorisent la spécificité concrète sur les
+// formulations vagues. Échoue en silence vers [] si l'API est indisponible :
+// le reste du schema (adresse, horaires, FAQ) doit s'afficher même sans ça.
+async function getRealReviews(): Promise<{ author: string; rating: number; text: string; date: string }[]> {
+  try {
+    const base = process.env.NEXT_PUBLIC_SITE_URL || "https://ciseaunoirbarbershop.com";
+    const res = await fetch(`${base}/api/reviews`, { next: { revalidate: 86400 } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const reviews = (data.reviews as { author_name?: string; rating?: number; text?: string; time?: number }[] | undefined) || [];
+    return reviews
+      .filter((r) => r.text && r.text.trim().length > 0)
+      .slice(0, 5)
+      .map((r) => ({
+        author: r.author_name || "Client Google",
+        rating: r.rating || 5,
+        text: r.text!.trim(),
+        date: r.time ? new Date(r.time * 1000).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+export default async function JsonLd() {
+  const realReviews = await getRealReviews();
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "BarberShop",
@@ -57,6 +83,20 @@ export default function JsonLd() {
       bestRating: "5",
       worstRating: "1",
     },
+    // Avis individuels avec VRAI texte (via getRealReviews) — les moteurs IA citent
+    // des extraits concrets, pas une note globale. [] si l'API échoue → aucun champ
+    // "review" invalide n'est publié (mieux vaut l'omettre que publier du faux).
+    ...(realReviews.length > 0
+      ? {
+          review: realReviews.map((r) => ({
+            "@type": "Review",
+            author: { "@type": "Person", name: r.author },
+            reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: "5" },
+            reviewBody: r.text,
+            datePublished: r.date,
+          })),
+        }
+      : {}),
     image: "https://ciseaunoirbarbershop.com/images/melynda.jpg",
     employee: [
       {
@@ -171,6 +211,22 @@ export default function JsonLd() {
         acceptedAnswer: {
           "@type": "Answer",
           text: "Melynda, barbière et co-fondatrice, et Stéphanie, barbière. Vous choisissez avec qui vous réservez au moment de la prise de rendez-vous.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Combien coûte une coupe chez Ciseau Noir ?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Les prix vont de 25$ à 75$ selon le service : rasage seul à 25$, coupe et lavage à 35$, coupe et barbe au shaver à 45$, coupe et barbe à la lame à 60$, jusqu'au service premium complet (shampoing, coupe, rasage, serviette chaude, exfoliant) à 75$. La liste complète et à jour est sur ciseaunoirbarbershop.com/services.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Y a-t-il un programme de fidélité ?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Oui. Après 10 visites, la 10e coupe est gratuite. La progression s'affiche automatiquement après chaque réservation.",
         },
       },
     ],

@@ -4,7 +4,19 @@ import { requireAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-function weekRange(offset = 0, capToToday = false) {
+// Formate un Date en "YYYY-MM-DD" à partir de ses champs LOCAUX (jamais via
+// toISOString(), qui convertit en UTC et peut décaler la date d'un jour selon
+// l'heure — ex. 22h à Québec (UTC-4) = 2h du matin le lendemain en UTC. C'est
+// exactement ce qui faisait que "lundi" pouvait ressortir "mardi" (et la fin
+// de semaine "dimanche" devenir "lundi") selon l'heure de l'appel.
+export function toDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+export function weekRange(offset = 0, capToToday = false) {
   const now = new Date();
   now.setDate(now.getDate() + offset * 7);
   const day = now.getDay() || 7;
@@ -20,14 +32,14 @@ function weekRange(offset = 0, capToToday = false) {
     cappedEnd.setDate(mon.getDate() + todayDayOfWeek - 1);
     endDate = cappedEnd;
   }
-  return { start: mon.toISOString().split("T")[0], end: endDate.toISOString().split("T")[0] };
+  return { start: toDateStr(mon), end: toDateStr(endDate) };
 }
 
-function monthRange(offset = 0) {
+export function monthRange(offset = 0) {
   const now = new Date();
   const first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
   const last = new Date(now.getFullYear(), now.getMonth() + offset + 1, 0);
-  return { start: first.toISOString().split("T")[0], end: last.toISOString().split("T")[0] };
+  return { start: toDateStr(first), end: toDateStr(last) };
 }
 
 export async function GET(req: NextRequest) {
